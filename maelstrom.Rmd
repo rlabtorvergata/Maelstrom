@@ -1,0 +1,101 @@
+---
+title: "Maelstrom Report"
+output: pdf_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.width = 10, fig.height = 5)
+```
+
+```{r, results = "asis", echo = FALSE, message = FALSE, warning = FALSE}
+
+cat("## Neural Network", "\n\n")
+cat("Neural network formed by", input$nLayers, "layers:", "\n\n")
+if (input$layerType1 != "")
+{if (input$layerType1 == "Dropout") {cat("Layer n° 1 is a", input$layerType1, "layer, with a", input$dropout1, "dropout value.", "\n\n")} else
+  {cat("Layer n° 1 is a", input$layerType1, "layer, with", input$neurons1, "neurons and a", input$activation1, "activation funcion.", "\n\n")}}
+if (input$layerType2 != "")
+{if (input$layerType2 == "Dropout") {cat("Layer n° 2 is a", input$layerType2, "layer, with a", input$dropout2, "dropout value.", "\n\n")} else
+  {cat("Layer n° 2 is a", input$layerType2, "layer, with", input$neurons2, "neurons and a", input$activation2, "activation funcion.", "\n\n")}}
+if (input$layerType3 != "")
+{if (input$layerType3 == "Dropout") {cat("Layer n° 3 is a", input$layerType3, "layer, with a", input$dropout3, "dropout value.", "\n\n")} else
+  {cat("Layer n° 3 is a", input$layerType3, "layer, with", input$neurons3, "neurons and a", input$activation3, "activation funcion.", "\n\n")}}
+if (input$layerType4 != "")
+{if (input$layerType4 == "Dropout") {cat("Layer n° 4 is a", input$layerType4, "layer, with a", input$dropout4, "dropout value.", "\n\n")} else
+  {cat("Layer n° 4 is a", input$layerType4, "layer, with", input$neurons4, "neurons and a", input$activation4, "activation funcion.", "\n\n")}}
+if (input$layerType5 != "")
+{if (input$layerType5 == "Dropout") {cat("Layer n° 5 is a", input$layerType5, "layer, with a", input$dropout5, "dropout value.", "\n\n")} else
+  {cat("Layer n° 5 is a", input$layerType5, "layer, with", input$neurons5, "neurons and a", input$activation5, "activation funcion.", "\n\n")}}
+
+cat("The network learning parameter has been set at a value of", input$learnParam, "meanwhile the maximum number of epochs for each run has been set at a value of", input$nEpochs, "epochs.", "\n\n")
+
+if (length(testfit_results) > 0 | length(traintest_results) > 0) {cat("## Test Phase", "\n\n")}
+if (length(testfit_results) > 0) {
+  cat("# Model Fit on whole dataset", "\n\n")
+  cat("Test run on whole dataset to assess the model fit by evaluating mean squared error (MSE) and mean absolute error (MAE).", "\n\n")
+  cat("The best epoch was epoch n°", "with a value of MSE of", "\n\n")
+}
+
+if (length(traintest_results) > 0) {
+  cat("# Forecast on observed years", "\n\n")
+  cat("Test run on train and test datasets (last 5 years of the whole).", "\n\n")
+  for (i in 1:length(traintest_plots)) {
+    # cat("Results for", species[i])
+    print(traintest_plots[[i]])
+    cat("\n\n")
+  }
+}
+
+cat("\\newpage")
+
+if (length(f_tot) > 0) {
+  cat("## Forecast Phase", "\n\n")
+  
+  cat("Fishing Mortality table (estimated Fmort on the last", fmort_baseline, "years):", "\n\n")
+  print(knitr::kable(f_tot, digits = 3))
+  cat("\n\n")
+  
+  if (length(pred_results) > 0) {
+    cat("Prediction on", depth_pred, "years after 3 iterations:", "\n\n")
+    
+    for (i in 1:length(pred_results)) {
+
+      subpred = pred_results[[i]]
+      
+      pred = mean(as.integer(subpred[nrow(subpred), 4:6]))
+      obs = mean(as.integer(subpred[which(subpred$type == "Observed" & subpred$year == max(neuralNetInputs$year)), 4:6]))
+    
+      if (pred > obs) {
+        cat("The population of", subpred$species[i], "in year", max(subpred$year), "increases by",
+            (round(pred/obs, 2)*100 - 100), "percent")
+        } else {
+          cat("The population of", subpred$species[i], "in year", max(subpred$year), "decreases by",
+              (round(pred/obs, 2)*100 - 100)*(-1), "percent")
+        }
+    
+      cat("\n\n")
+      print(plotPred(subpred, neuralNetInputs, i))
+    
+      # if (length(comp_results) > 0) {
+      #   cat("Comparison with Status Quo fishing mortality (in red):", "\n\n")
+      #   print(plotCompare(pred_results[[i]], comp_results[[i]], i, neuralNetInputs))
+      #   cat("\n\n\\newpage\n")
+      # }
+      # 
+      #   cat("Last Predicted/Observed Year Comparison:", "\n\n")
+      #   print(plotConf(subpred, neuralNetInputs, i))
+      #   cat("\n\n")
+    
+      cat("Stock/Recruitment Ratio for", subpred$species[i], "\n\n")
+      print(plotRatio(subpred, i))
+      cat("\n\n\\newpage\n")
+      }
+    }
+  }
+
+if(length(sens_results) > 0) {
+  cat("## Sensitivity analysis", "\n\n")
+  plotSensAnalysis(sens_results)
+  }
+```
