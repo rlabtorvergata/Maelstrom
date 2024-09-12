@@ -91,6 +91,7 @@ plotTestCount <- 0 #traintest species counter
 testfit_results <- data.frame() #testfit results
 traintest_results <- data.frame() #traintest results
 traintest_plots <- list() #traintest plots
+taylor_diagram <- list() #Taylor diagrams
 
 depth_pred <- NULL #number of years to forecast
 plotPredCount <- 0 #forecast species counter
@@ -1150,6 +1151,16 @@ server <- function(input, output, session) {
       theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
             plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
             legend.position = "bottom")
+    
+    return(g)
+  }
+  
+  plotTaylorDiagram <- function(proj_biomass, plotTrainTestFitCount) {
+    
+    year = as.integer(max(unique(proj_biomass$year))) - 6
+    
+    g = taylor.diagram(ref = proj_biomass[which(proj_biomass$year > year), "ssb_obs"],
+                       model = proj_biomass[which(proj_biomass$year > year), "ssb_mean"])
     
     return(g)
   }
@@ -3596,10 +3607,15 @@ server <- function(input, output, session) {
       
       for (i in 1:length(traintest_results)) {
         traintest_plots[[i]] <<- plotTrainTestFitNet(traintest_results[[i]], i)
+        taylor_diagram[[i]] <<- plotTaylorDiagram(traintest_results[[i]], i)
       }
       
       output$plotTrainTest <- renderPlotly({
         ggplotly(traintest_plots[[plotTestCount]])
+      })
+      
+      output$taylorDiagram <- renderPlot({
+        plotTaylorDiagram(traintest_results[[i]], i)
       })
       
     } else {

@@ -1344,7 +1344,9 @@ ui <- fluidPage(
                             tabPanel("Train/Test Plot",
                                      plotlyOutput("plotTrainTest"),
                                      checkboxInput("plotLogTrainTest", "log10", value = F)
-                            )
+                            ),
+                            tabPanel("Taylor Diagram",
+                                     plotOutput("taylorDiagram"))
                           )
                         )
                       )
