@@ -3520,17 +3520,17 @@ server <- function(input, output, session) {
     updatePickerInput(session = session,
                       inputId = "neurons2",
                       choices = c(0, n, 2 * n, 4 * n),
-                      selected = n)
+                      selected = 0)
     
     updatePickerInput(session = session,
                       inputId = "neurons3",
                       choices = c(0, n, 2 * n, 4 * n),
-                      selected = 0)
+                      selected = n)
     
     updatePickerInput(session = session,
                       inputId = "neurons4",
                       choices = c(0, n, 2 * n, 4 * n),
-                      selected = n)
+                      selected = 0)
     
     updatePickerInput(session = session,
                       inputId = "neurons5",

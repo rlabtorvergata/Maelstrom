@@ -624,7 +624,7 @@ ui <- fluidPage(
                                    pickerInput(
                                      inputId = "nLayers",
                                      choices = c(1:5),
-                                     selected = 4,
+                                     selected = 3,
                                      options = list(style = "picker-input", title = "Layers", width = "75%")
                                    ),
                                    align = "left"
@@ -693,7 +693,7 @@ ui <- fluidPage(
                                    pickerInput(
                                      inputId = "returnSeq1",
                                      choices = c(TRUE, FALSE),
-                                     selected = TRUE,
+                                     selected = FALSE,
                                      multiple = FALSE,
                                      options = list(style = "picker-input", title = "Return Seq.")
                                    )
@@ -782,7 +782,7 @@ ui <- fluidPage(
                                               pickerInput(
                                                 inputId = "layerType2",
                                                 choices = c("Dense", "Dropout", "LSTM", "SimpleRNN"),
-                                                selected = "SimpleRNN",
+                                                selected = "Dropout",
                                                 multiple = FALSE,
                                                 options = list(style = "picker-input", title = "Type")
                                               )
@@ -793,7 +793,6 @@ ui <- fluidPage(
                                                 pickerInput(
                                                   inputId = "neurons2",
                                                   choices = NA,
-                                                  selected = NA,
                                                   multiple = FALSE,
                                                   options = list(style = "picker-input", title = "Neurons")
                                                 )
@@ -805,7 +804,6 @@ ui <- fluidPage(
                                                 pickerInput(
                                                   inputId = "returnSeq2",
                                                   choices = c(TRUE, FALSE),
-                                                  selected = FALSE,
                                                   multiple = FALSE,
                                                   options = list(style = "picker-input", title = "Return Seq.")
                                                 )
@@ -835,7 +833,7 @@ ui <- fluidPage(
                                                 pickerInput(
                                                   inputId = "dropout2",
                                                   choices = c(0, 0.25, 0.5, 0.75),
-                                                  selected = 0,
+                                                  selected = 0.25,
                                                   multiple = FALSE,
                                                   options = list(style = "picker-input", title = "Dropout")
                                                 )
@@ -847,7 +845,6 @@ ui <- fluidPage(
                                                 pickerInput(
                                                   inputId = "activation2",
                                                   choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
-                                                  selected = "tanh",
                                                   multiple = FALSE,
                                                   options = list(style = "picker-input", title = "Activation")
                                                 )
@@ -859,7 +856,7 @@ ui <- fluidPage(
                                                 pickerInput(
                                                   inputId = "recdropout2",
                                                   choices = c(0, 0.25, 0.5, 0.75),
-                                                  selected = 0,
+                                                  selected = 0.25,
                                                   multiple = FALSE,
                                                   options = list(style = "picker-input", title = "Recurrent Dropout")
                                                 )
@@ -871,7 +868,6 @@ ui <- fluidPage(
                                                 pickerInput(
                                                   inputId = "recactivation2",
                                                   choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
-                                                  selected = "tanh",
                                                   multiple = FALSE,
                                                   options = list(style = "picker-input", title = "Recurrent Activation")
                                                 )
@@ -910,7 +906,7 @@ ui <- fluidPage(
                                        pickerInput(
                                          inputId = "layerType3",
                                          choices = c("Dense", "Dropout", "LSTM", "SimpleRNN"),
-                                         selected = "Dropout",
+                                         selected = "Dense",
                                          multiple = FALSE,
                                          options = list(style = "picker-input", title = "Type")
                                        )
@@ -962,7 +958,7 @@ ui <- fluidPage(
                                          pickerInput(
                                            inputId = "dropout3",
                                            choices = c(0, 0.25, 0.5, 0.75),
-                                           selected = 0.25,
+                                           selected = 0,
                                            multiple = FALSE,
                                            options = list(style = "picker-input", title = "Dropout")
                                          )
@@ -974,7 +970,7 @@ ui <- fluidPage(
                                          pickerInput(
                                            inputId = "activation3",
                                            choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
-                                           selected = "NULL",
+                                           selected = "tanh",
                                            multiple = FALSE,
                                            options = list(style = "picker-input", title = "Activation")
                                          )
@@ -986,7 +982,7 @@ ui <- fluidPage(
                                          pickerInput(
                                            inputId = "recdropout3",
                                            choices = c(0, 0.25, 0.5, 0.75),
-                                           selected = 0.25,
+                                           selected = 0,
                                            multiple = FALSE,
                                            options = list(style = "picker-input", title = "Recurrent Dropout")
                                          )
@@ -1037,7 +1033,6 @@ ui <- fluidPage(
                                               pickerInput(
                                                 inputId = "layerType4",
                                                 choices = c("Dense", "Dropout", "LSTM", "SimpleRNN"),
-                                                selected = "Dense",
                                                 multiple = FALSE,
                                                 options = list(style = "picker-input", title = "Type")
                                               )
@@ -1048,7 +1043,6 @@ ui <- fluidPage(
                                                 pickerInput(
                                                   inputId = "neurons4",
                                                   choices = NA,
-                                                  selected = NA,
                                                   multiple = FALSE,
                                                   options = list(style = "picker-input", title = "Neurons")
                                                 )
@@ -1100,7 +1094,6 @@ ui <- fluidPage(
                                                 pickerInput(
                                                   inputId = "activation4",
                                                   choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
-                                                  selected = "tanh",
                                                   multiple = FALSE,
                                                   options = list(style = "picker-input", title = "Activation")
                                                 )
@@ -1123,7 +1116,6 @@ ui <- fluidPage(
                                                 pickerInput(
                                                   inputId = "recactivation4",
                                                   choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
-                                                  selected = "NULL",
                                                   multiple = FALSE,
                                                   options = list(style = "picker-input", title = "Recurrent Activation")
                                                 )
