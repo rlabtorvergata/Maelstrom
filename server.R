@@ -1355,12 +1355,18 @@ server <- function(input, output, session) {
           ssb_year <- sort(unique(ssb_iter_sub$year))
           ssb_age <- sort(unique(ssb_iter_sub$age))
           
-          fmort_ssb <- rbind(fmort_l, transform(fmort_l[rep((nrow(fmort_l) - ssb_age[length(ssb_age)]):nrow(fmort_l), depth),], year = year + rep(seq((1:depth)[1], (1:depth)[depth]), each = (length(ssb_age) + 1))))
-          fmort_spawn_ssb <- rbind(fmort_spawn_l, transform(fmort_spawn_l[rep((nrow(fmort_spawn_l) - ssb_age[length(ssb_age)]):nrow(fmort_spawn_l), depth),], year = year + rep(seq((1:depth)[1], (1:depth)[depth]), each = (length(ssb_age) + 1))))
-          mort_ssb <- rbind(mort_l, transform(mort_l[rep((nrow(mort_l) - ssb_age[length(ssb_age)]):nrow(mort_l), depth),], year = year + rep(seq((1:depth)[1], (1:depth)[depth]), each = (length(ssb_age) + 1))))
-          mort_spawn_ssb <- rbind(mort_spawn_l, transform(mort_spawn_l[rep((nrow(mort_spawn_l) - ssb_age[length(ssb_age)]):nrow(mort_spawn_l), depth),], year = year + rep(seq((1:depth)[1], (1:depth)[depth]), each = (length(ssb_age) + 1))))
-          waa_ssb <- rbind(waa_l, transform(waa_l[rep((nrow(waa_l) - ssb_age[length(ssb_age)]):nrow(waa_l), depth),], year = year + rep(seq((1:depth)[1], (1:depth)[depth]), each = (length(ssb_age) + 1))))
-          mature_ssb <- rbind(mature_l, transform(mature_l[rep((nrow(mature_l) - ssb_age[length(ssb_age)]):nrow(mature_l), depth),], year = year + rep(seq((1:depth)[1], (1:depth)[depth]), each = (length(ssb_age) + 1))))
+          fmort_ssb <- fmort_l[which(fmort_l$species == unique(species)[sp]),]
+          fmort_ssb <- rbind(fmort_ssb, transform(fmort_ssb[rep((nrow(fmort_ssb) - ssb_age[length(ssb_age)]):nrow(fmort_ssb), depth),], year = year + rep(seq((1:depth)[1], (1:depth)[depth]), each = (length(ssb_age) + 1))))
+          fmort_spawn_ssb <- fmort_spawn_l[which(fmort_spawn_l$species == unique(species)[sp]),]
+          fmort_spawn_ssb <- rbind(fmort_spawn_ssb, transform(fmort_spawn_ssb[rep((nrow(fmort_spawn_ssb) - ssb_age[length(ssb_age)]):nrow(fmort_spawn_ssb), depth),], year = year + rep(seq((1:depth)[1], (1:depth)[depth]), each = (length(ssb_age) + 1))))
+          mort_ssb <- mort_l[which(mort_l$species == unique(species)[sp]),]
+          mort_ssb <- rbind(mort_ssb, transform(mort_ssb[rep((nrow(mort_ssb) - ssb_age[length(ssb_age)]):nrow(mort_ssb), depth),], year = year + rep(seq((1:depth)[1], (1:depth)[depth]), each = (length(ssb_age) + 1))))
+          mort_spawn_ssb <- mort_spawn_l[which(mort_spawn_l$species == unique(species)[sp]),]
+          mort_spawn_ssb <- rbind(mort_spawn_ssb, transform(mort_spawn_ssb[rep((nrow(mort_spawn_ssb) - ssb_age[length(ssb_age)]):nrow(mort_spawn_ssb), depth),], year = year + rep(seq((1:depth)[1], (1:depth)[depth]), each = (length(ssb_age) + 1))))
+          waa_ssb <- waa_l[which(waa_l$species == unique(species)[sp]),]
+          waa_ssb <- rbind(waa_ssb, transform(waa_ssb[rep((nrow(waa_ssb) - ssb_age[length(ssb_age)]):nrow(waa_ssb), depth),], year = year + rep(seq((1:depth)[1], (1:depth)[depth]), each = (length(ssb_age) + 1))))
+          mature_ssb <- mature_l[which(mature_l$species == unique(species)[sp]),]
+          mature_ssb <- rbind(mature_ssb, transform(mature_ssb[rep((nrow(mature_ssb) - ssb_age[length(ssb_age)]):nrow(mature_ssb), depth),], year = year + rep(seq((1:depth)[1], (1:depth)[depth]), each = (length(ssb_age) + 1))))
           
           for (y in 1:nrow(ssb_iter_sub)) {
             for(a in 1:length(ssb_age)) {
@@ -1421,7 +1427,7 @@ server <- function(input, output, session) {
       
       for (j in 1:length(unique(species))) {
         
-        sp_biomass_sub <- ssb_tot[which(ssb_tot$species == unique(species)[j]), ]
+        sp_biomass_sub <- ssb_df_tot[which(ssb_df_tot$species == unique(species)[j]), ]
         sp_biomass_wide <- data.frame(year = sp_biomass_sub$year[1:(nrow(sp_biomass_sub)/3)],
                                       species = sp_biomass_sub$species[1:(nrow(sp_biomass_sub)/3)],
                                       gsa = sp_biomass_sub$gsa[1:(nrow(sp_biomass_sub)/3)],
