@@ -1678,6 +1678,7 @@ server <- function(input, output, session) {
     testfit_results <<- l[["testfit_results"]]
     traintest_results <<- l[["traintest_results"]]
     traintest_plots <<- l[["traintest_plots"]]
+    taylor_diagram <<- l[["taylor_diagram"]]
     depth_pred <<- l[["depth_pred"]]
     plotPredCount <<- 1
     model_pred <<- l[["model_pred"]]
@@ -3621,7 +3622,7 @@ server <- function(input, output, session) {
       })
       
       output$taylorDiagram <- renderPlot({
-        plotTaylorDiagram(traintest_results[[i]], i)
+        plotTaylorDiagram(traintest_results[[plotTestCount]], plotTestCount)
       })
       
     } else {
@@ -3660,10 +3661,16 @@ server <- function(input, output, session) {
         output$plotTrainTest <- renderPlotly({
           ggplotly(traintest_plots[[plotTestCount]])
         })
+        output$taylorDiagram <- renderPlot({
+          plotTaylorDiagram(traintest_results[[plotTestCount]], plotTestCount)
+        })
       } else {
         plotTestCount <<- plotTestCount - 1
         output$plotTrainTest <- renderPlotly({
           ggplotly(traintest_plots[[plotTestCount]])
+        })
+        output$taylorDiagram <- renderPlot({
+          plotTaylorDiagram(traintest_results[[plotTestCount]], plotTestCount)
         })
       }
     } else {
@@ -3683,10 +3690,16 @@ server <- function(input, output, session) {
         output$plotTrainTest <- renderPlotly({
           ggplotly(traintest_plots[[plotTestCount]])
         })
+        output$taylorDiagram <- renderPlot({
+          plotTaylorDiagram(traintest_results[[plotTestCount]], plotTestCount)
+        })
       } else {
         plotTestCount <<- plotTestCount + 1
         output$plotTrainTest <- renderPlotly({
           ggplotly(traintest_plots[[plotTestCount]])
+        })
+        output$taylorDiagram <- renderPlot({
+          plotTaylorDiagram(traintest_results[[plotTestCount]], plotTestCount)
         })
       }
     } else {
@@ -4001,6 +4014,7 @@ server <- function(input, output, session) {
           testfit_results = testfit_results,
           traintest_results = traintest_results,
           traintest_plots = traintest_plots,
+          taylor_diagram = taylor_diagram,
           depth_pred = depth_pred,
           model_pred = model_pred,
           pred_iter_partial = pred_iter_partial,
