@@ -1160,7 +1160,8 @@ server <- function(input, output, session) {
     year = as.integer(max(unique(proj_biomass$year))) - 6
     
     g = taylor.diagram(ref = proj_biomass[which(proj_biomass$year > year), "ssb_obs"],
-                       model = proj_biomass[which(proj_biomass$year > year), "ssb_mean"])
+                       model = proj_biomass[which(proj_biomass$year > year), "ssb_mean"],
+                       col = "red", pcex = 2.5)
     
     return(g)
   }
