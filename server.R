@@ -89,6 +89,7 @@ range_outputs <- data.frame() #range for outputs denormalization
 
 plotTestCount <- 0 #traintest species counter
 testfit_results <- data.frame() #testfit results
+traintest_iter_results <- data.frame() #traintest results per iteration
 traintest_results <- data.frame() #traintest results
 traintest_plots <- list() #traintest plots
 taylor_diagram <- list() #Taylor diagrams
@@ -1034,6 +1035,8 @@ server <- function(input, output, session) {
       
       }
     })
+    
+    traintest_iter_results <<- ssb_df_tot
     
     proj_biomass_spec <- list()
     
@@ -4013,6 +4016,7 @@ server <- function(input, output, session) {
           f_tot = f_tot,
           f_adj_display = f_adj_display,
           testfit_results = testfit_results,
+          traintest_partial_results = traintest_partial_results,
           traintest_results = traintest_results,
           traintest_plots = traintest_plots,
           taylor_diagram = taylor_diagram,
