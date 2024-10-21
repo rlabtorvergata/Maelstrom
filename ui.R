@@ -667,7 +667,7 @@ ui <- fluidPage(
                                    h5("Return Sequence", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
                             ),
                             column(3,
-                                   h5("Empty", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
+                                   h5(" ", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
                             ),
                           ),
                           fluidRow(
@@ -774,7 +774,7 @@ ui <- fluidPage(
                                               h5("Return Sequence", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
                                        ),
                                        column(3,
-                                              h5("Empty", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
+                                              h5(" ", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
                                        ),
                                      ),
                                      fluidRow(
@@ -898,7 +898,7 @@ ui <- fluidPage(
                                        h5("Return Sequence", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
                                 ),
                                 column(3,
-                                       h5("Empty", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
+                                       h5(" ", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
                                 ),
                               ),
                               fluidRow(
@@ -1025,7 +1025,7 @@ ui <- fluidPage(
                                               h5("Return Sequence", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
                                        ),
                                        column(3,
-                                              h5("Empty", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
+                                              h5(" ", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
                                        ),
                                      ),
                                      fluidRow(
@@ -1146,7 +1146,7 @@ ui <- fluidPage(
                                               h5("Return Sequence", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
                                        ),
                                        column(3,
-                                              h5("Empty", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
+                                              h5(" ", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
                                        ),
                                      ),
                                      fluidRow(
