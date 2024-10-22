@@ -4016,7 +4016,7 @@ server <- function(input, output, session) {
           f_tot = f_tot,
           f_adj_display = f_adj_display,
           testfit_results = testfit_results,
-          traintest_partial_results = traintest_partial_results,
+          traintest_iter_results = traintest_iter_results,
           traintest_results = traintest_results,
           traintest_plots = traintest_plots,
           taylor_diagram = taylor_diagram,
