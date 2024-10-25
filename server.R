@@ -874,9 +874,11 @@ server <- function(input, output, session) {
       envMult <- randomEnvVarSum(as.integer(input$depthPred), as.integer(input$envParamMult))
     }
     
+    niter <- 10
+    
     withProgress(message = "Calculating...", value = 0, detail = "0%", {
       
-      for (iter in 1:3) {
+      for (iter in 1:niter) {
         
         norm_inputs = netInputs
         norm_inputs[,2:ncol(norm_inputs)] = normalizeInputs(norm_inputs[,2:ncol(norm_inputs)], range_inputs)
@@ -959,7 +961,7 @@ server <- function(input, output, session) {
             iter_df[,2:ncol(iter_df)] <- normalizeInputs(iter_df[,2:ncol(iter_df)], range_inputs)
           }
           
-          incProgress(amount = 1/15, detail = paste0(as.character(round((i + (iter - 1) * 5)/15 * 100, 2)), "%"))
+          incProgress(amount = 1/(5 * niter), detail = paste0(as.character(round((i + (iter - 1) * 5)/(5 * niter) * 100, 2)), "%"))
           
         }
       
@@ -1043,9 +1045,9 @@ server <- function(input, output, session) {
     if (length(unique(species)) == 1) {
       
       sp_biomass_sub <- ssb_df_tot
-      sp_biomass_wide <- data.frame(year = sp_biomass_sub$year[1:(nrow(sp_biomass_sub)/6)],
-                                    species = sp_biomass_sub$species[1:(nrow(sp_biomass_sub)/6)],
-                                    gsa = sp_biomass_sub$gsa[1:(nrow(sp_biomass_sub)/6)],
+      sp_biomass_wide <- data.frame(year = sp_biomass_sub$year[1:(nrow(sp_biomass_sub)/(niter * 2))],
+                                    species = sp_biomass_sub$species[1:(nrow(sp_biomass_sub)/(niter * 2))],
+                                    gsa = sp_biomass_sub$gsa[1:(nrow(sp_biomass_sub)/(niter * 2))],
                                     ssb_obs = sp_biomass_sub$ssb[which(sp_biomass_sub$type == "Observed" & sp_biomass_sub$iter == 1)],
                                     ssb_min = NA, ssb_mean = NA, ssb_max = NA,
                                     recr_min = NA, recr_mean = NA, recr_max = NA,
@@ -1053,12 +1055,12 @@ server <- function(input, output, session) {
                                     mae_min = NA, mae_mean = NA, mae_max = NA)
 
       for (i in 1:nrow(sp_biomass_wide)) {
-        sp_biomass_wide[i, "ssb_min"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "ssb"])[1]
-        sp_biomass_wide[i, "ssb_mean"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "ssb"])[2]
-        sp_biomass_wide[i, "ssb_max"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "ssb"])[3]
-        sp_biomass_wide[i, "recr_min"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "recruitment"])[1]
-        sp_biomass_wide[i, "recr_mean"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "recruitment"])[2]
-        sp_biomass_wide[i, "recr_max"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "recruitment"])[3]
+        sp_biomass_wide[i, "ssb_min"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "ssb"])[3]
+        sp_biomass_wide[i, "ssb_mean"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "ssb"])[6]
+        sp_biomass_wide[i, "ssb_max"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "ssb"])[8]
+        sp_biomass_wide[i, "recr_min"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "recruitment"])[3]
+        sp_biomass_wide[i, "recr_mean"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "recruitment"])[6]
+        sp_biomass_wide[i, "recr_max"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "recruitment"])[8]
       }
       
       results_incasting <- sp_biomass_wide[(nrow(sp_biomass_wide) - 4):nrow(sp_biomass_wide), c("ssb_obs", "ssb_min", "ssb_mean", "ssb_max")]
@@ -1086,12 +1088,12 @@ server <- function(input, output, session) {
                                       mae_min = NA, mae_mean = NA, mae_max = NA)
         
         for (i in 1:nrow(sp_biomass_wide)) {
-          sp_biomass_wide[i, "ssb_min"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "ssb"])[1]
-          sp_biomass_wide[i, "ssb_mean"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "ssb"])[2]
-          sp_biomass_wide[i, "ssb_max"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "ssb"])[3]
-          sp_biomass_wide[i, "recr_min"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "recruitment"])[1]
-          sp_biomass_wide[i, "recr_mean"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "recruitment"])[2]
-          sp_biomass_wide[i, "recr_max"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "recruitment"])[3]
+          sp_biomass_wide[i, "ssb_min"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "ssb"])[3]
+          sp_biomass_wide[i, "ssb_mean"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "ssb"])[6]
+          sp_biomass_wide[i, "ssb_max"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "ssb"])[8]
+          sp_biomass_wide[i, "recr_min"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "recruitment"])[3]
+          sp_biomass_wide[i, "recr_mean"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "recruitment"])[6]
+          sp_biomass_wide[i, "recr_max"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "recruitment"])[8]
         }
         
         results_incasting <- sp_biomass_wide[(nrow(sp_biomass_wide) - 4):nrow(sp_biomass_wide), c("ssb_obs", "ssb_min", "ssb_mean", "ssb_max")]
