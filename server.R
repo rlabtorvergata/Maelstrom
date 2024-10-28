@@ -1078,9 +1078,9 @@ server <- function(input, output, session) {
       for (sp in 1:length(unique(species))) {
         
         sp_biomass_sub <- ssb_df_tot[which(ssb_df_tot$species == unique(species)[sp]),]
-        sp_biomass_wide <- data.frame(year = sp_biomass_sub$year[1:(nrow(sp_biomass_sub)/6)],
-                                      species = sp_biomass_sub$species[1:(nrow(sp_biomass_sub)/6)],
-                                      gsa = sp_biomass_sub$gsa[1:(nrow(sp_biomass_sub)/6)],
+        sp_biomass_wide <- data.frame(year = sp_biomass_sub$year[1:(nrow(sp_biomass_sub)/(niter * 2))],
+                                      species = sp_biomass_sub$species[1:(nrow(sp_biomass_sub)/(niter * 2))],
+                                      gsa = sp_biomass_sub$gsa[1:(nrow(sp_biomass_sub)/(niter * 2))],
                                       ssb_obs = sp_biomass_sub$ssb[which(sp_biomass_sub$type == "Observed" & sp_biomass_sub$iter == 1)],
                                       ssb_min = NA, ssb_mean = NA, ssb_max = NA,
                                       recr_min = NA, recr_mean = NA, recr_max = NA,
@@ -4072,8 +4072,6 @@ server <- function(input, output, session) {
 
 return(server)
 
-### Sistemare plot input e test nel load
-# 
 # recurrent_activation is for activate input/forget/output gate.
 # 
 # activation if for cell state and hidden state.
