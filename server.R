@@ -840,7 +840,7 @@ server <- function(input, output, session) {
     return(g)
   }
   
-  trainTestFitNet <- function(netInputs) {
+  trainTestFitNet <- function(netInputs, depthTest) {
     
     norm_inputs = netInputs
     norm_inputs[,2:ncol(norm_inputs)] = normalizeInputs(norm_inputs[,2:ncol(norm_inputs)], range_inputs)
@@ -884,9 +884,9 @@ server <- function(input, output, session) {
         norm_inputs[,2:ncol(norm_inputs)] = normalizeInputs(norm_inputs[,2:ncol(norm_inputs)], range_inputs)
         train_df <- as.matrix(norm_inputs[, 2:ncol(norm_inputs)])
         val_df <- as.matrix(norm_inputs[, 2:ncol(norm_inputs)])
-        iter_df <- norm_inputs[1:(nrow(train_df) - 5),]
+        iter_df <- norm_inputs[1:(nrow(train_df) - depthTest),]
     
-        for (i in 1:5) {
+        for (i in 1:depthTest) {
           
           inputs <- layer_input(shape = c((nrow(iter_df)), (ncol(iter_df) - 1)))
           outputs <- inputs
@@ -957,11 +957,11 @@ server <- function(input, output, session) {
           
           iter_df[(nrow(iter_df) + 1),] <- cbind(as.integer(iter_df$year[nrow(iter_df)] + 1), pred_vec)
           
-          if (i != 5) {
+          if (i != depthTest) {
             iter_df[,2:ncol(iter_df)] <- normalizeInputs(iter_df[,2:ncol(iter_df)], range_inputs)
           }
           
-          incProgress(amount = 1/(5 * niter), detail = paste0(as.character(round((i + (iter - 1) * 5)/(5 * niter) * 100, 2)), "%"))
+          incProgress(amount = 1/(depthTest * niter), detail = paste0(as.character(round((i + (iter - 1) * depthTest)/(depthTest * niter) * 100, 2)), "%"))
           
         }
       
@@ -1114,9 +1114,9 @@ server <- function(input, output, session) {
     
   }
   
-  plotTrainTestFitNet <- function(proj_biomass, plotTrainTestFitCount) {
+  plotTrainTestFitNet <- function(proj_biomass, plotTrainTestFitCount, depthTest) {
     
-    year = as.integer(max(unique(proj_biomass$year))) - 6
+    year = as.integer(max(unique(proj_biomass$year))) - (depthTest + 1)
     
     line_obs <- as.data.frame(spline(x = proj_biomass$year,
                                      y = proj_biomass$ssb_obs,
@@ -3603,7 +3603,7 @@ server <- function(input, output, session) {
   observeEvent(input$testTrainTestButton, {
     if (length(neuralNetInputs) > 0) {
       showModal(tags$div(id = "modalBackground", modalDialog("", footer = NULL)))
-      traintest_results <<- trainTestFitNet(neuralNetInputs)
+      traintest_results <<- trainTestFitNet(neuralNetInputs, as.integer(input$depthTest))
       removeModal()
     } else {
       showModal(tags$div(id = "modalWarning",
@@ -3619,7 +3619,7 @@ server <- function(input, output, session) {
       plotTestCount <<- 1
       
       for (i in 1:length(traintest_results)) {
-        traintest_plots[[i]] <<- plotTrainTestFitNet(traintest_results[[i]], i)
+        traintest_plots[[i]] <<- plotTrainTestFitNet(traintest_results[[i]], i, as.integer(input$depthTest))
         taylor_diagram[[i]] <<- plotTaylorDiagram(traintest_results[[i]], i)
       }
       

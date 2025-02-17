@@ -1292,6 +1292,11 @@ ui <- fluidPage(
                                    align = "left"
                             ),
                             column(4,
+                                   pickerInput(
+                                     inputId = "depthTest",
+                                     choices = c(2:10),
+                                     options = list(style = "picker-input", title = "Depth", width = "75%")
+                                   )
                             )
                           ),
                           fluidRow(
