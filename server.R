@@ -3638,6 +3638,10 @@ server <- function(input, output, session) {
                                      easyClose = TRUE)))
     }
     
+    output$showSpeciesTest <- renderText({
+      species[[plotTestCount]]
+    })
+    
     
   })
   
@@ -3670,6 +3674,9 @@ server <- function(input, output, session) {
         output$taylorDiagram <- renderPlot({
           plotTaylorDiagram(traintest_results[[plotTestCount]], plotTestCount)
         })
+        output$showSpeciesTest <- renderText({
+          species[[plotTestCount]]
+        })
       } else {
         plotTestCount <<- plotTestCount - 1
         output$plotTrainTest <- renderPlotly({
@@ -3677,6 +3684,9 @@ server <- function(input, output, session) {
         })
         output$taylorDiagram <- renderPlot({
           plotTaylorDiagram(traintest_results[[plotTestCount]], plotTestCount)
+        })
+        output$showSpeciesTest <- renderText({
+          species[[plotTestCount]]
         })
       }
     } else {
@@ -3699,6 +3709,9 @@ server <- function(input, output, session) {
         output$taylorDiagram <- renderPlot({
           plotTaylorDiagram(traintest_results[[plotTestCount]], plotTestCount)
         })
+        output$showSpeciesTest <- renderText({
+          species[[plotTestCount]]
+        })
       } else {
         plotTestCount <<- plotTestCount + 1
         output$plotTrainTest <- renderPlotly({
@@ -3706,6 +3719,9 @@ server <- function(input, output, session) {
         })
         output$taylorDiagram <- renderPlot({
           plotTaylorDiagram(traintest_results[[plotTestCount]], plotTestCount)
+        })
+        output$showSpeciesTest <- renderText({
+          species[[plotTestCount]]
         })
       }
     } else {
@@ -3758,7 +3774,6 @@ server <- function(input, output, session) {
       
       output$plotPred <- renderPlotly({
         ggplotly(pred_plots[[plotPredCount]]
-                 # , tooltip = "text"
                  )
       })
       
@@ -3766,10 +3781,10 @@ server <- function(input, output, session) {
         ratio_plots[[plotPredCount]]
       }, height = 700)
       
-      output$showSpecies <- renderText({
+      output$showSpeciesPred <- renderText({
         species[[plotPredCount]]
       })
-     
+    
     } else {
       showModal(tags$div(id = "modalWarning",
                          modalDialog("Warning: predict one or more stock objects first!",
@@ -3807,7 +3822,7 @@ server <- function(input, output, session) {
           output$plotRatio <- renderPlot({
             ratio_plots[[plotPredCount]]
           }, height = 700)
-          output$showSpecies <- renderText({
+          output$showSpeciesPred <- renderText({
             species[[plotPredCount]]
           })
         } else {
@@ -3818,7 +3833,7 @@ server <- function(input, output, session) {
           output$plotRatio <- renderPlot({
             ratio_plots[[plotPredCount]]
           }, height = 700)
-          output$showSpecies <- renderText({
+          output$showSpeciesPred <- renderText({
             species[[plotPredCount]]
           })
         }
@@ -3842,7 +3857,7 @@ server <- function(input, output, session) {
           output$plotRatio <- renderPlot({
             ratio_plots[[plotPredCount]]
           }, height = 700)
-          output$showSpecies <- renderText({
+          output$showSpeciesPred <- renderText({
             species[[plotPredCount]]
           })
         } else {
@@ -3853,7 +3868,7 @@ server <- function(input, output, session) {
           output$plotRatio <- renderPlot({
             ratio_plots[[plotPredCount]]
           }, height = 700)
-          output$showSpecies <- renderText({
+          output$showSpeciesPred <- renderText({
             species[[plotPredCount]]
             })
         }
@@ -3870,19 +3885,6 @@ server <- function(input, output, session) {
     if (length(pred_results) > 0) {
       output$zoomPred <- renderPlot({
         pred_plots[[plotPredCount]]
-      })
-    } else {
-      showModal(tags$div(id = "modalWarning",
-                         modalDialog("Warning: predict one or more stock objects first!",
-                                     footer = NULL,
-                                     easyClose = TRUE)))
-    }
-  })
-  
-  observeEvent(input$zoomRatioButton, {
-    if (length(pred_results) > 0) {
-      output$zoomRatio <- renderPlot({
-        ratio_plots[[plotPredCount]]
       })
     } else {
       showModal(tags$div(id = "modalWarning",

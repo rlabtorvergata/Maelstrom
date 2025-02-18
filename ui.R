@@ -1,9 +1,5 @@
 gsa = 1:30
 
-tri = c("ANE", "ANK", "ARA", "ARS", "BSS", "DGS", "DPS", "GFB", "HKE", "HMM",
-        "HOM", "MON", "MTS", "MUR", "MUT", "NEP", "PAC", "PIL", "POD",
-        "RJC", "RPW", "SBG", "SOL", "SPC", "SPR", "TUR", "WHB", "WHG")
-
 ui <- fluidPage(
   theme = bs_theme(version = 3),
   setBackgroundImage(src = "https://miro.medium.com/max/1400/1*JEDiI4tGpVZYM2Y5kzW5XA.png"),
@@ -161,10 +157,6 @@ ui <- fluidPage(
       left: 20%;
       font-size: 100%;
       }
-      .shiny-notification {
-      background-color: #87CEFA;
-      text-shadow: 2px 2px 2px rgba(255, 255, 255, 0.5);
-      }
       #modalBackground .modal-body {
       height: 0px; !important;
       width: 0px; !important;
@@ -172,6 +164,10 @@ ui <- fluidPage(
       padding: 0px;
       background-color: rgba(0, 0, 0, 0) !important;
       font-size: 0%;
+      }
+      .shiny-notification {
+      background-color: #87CEFA;
+      text-shadow: 2px 2px 2px rgba(255, 255, 255, 0.5);
       }
       "
       )
@@ -1282,21 +1278,16 @@ ui <- fluidPage(
                           ),
                           fluidRow(
                             column(3,
+                            ),
+                            column(3,
                                    actionButton("testFitButton", "Fit", width = "100%"),
                                    align = "left"
-                            ),
-                            column(2,
                             ),
                             column(3,
                                    actionButton("plotFitButton", "Results", width = "100%"),
                                    align = "left"
                             ),
-                            column(4,
-                                   pickerInput(
-                                     inputId = "depthTest",
-                                     choices = c(2:10),
-                                     options = list(style = "picker-input", title = "Depth", width = "75%")
-                                   )
+                            column(3,
                             )
                           ),
                           fluidRow(
@@ -1305,15 +1296,23 @@ ui <- fluidPage(
                           ),
                           fluidRow(
                             column(3,
+                                   pickerInput(
+                                     inputId = "depthTest",
+                                     choices = c(2:10),
+                                     options = list(style = "picker-input", title = "Depth", width = "75%")
+                                   ),
+                                   align = "right"
+                            ),
+                            column(3,
                                    actionButton("testTrainTestButton", "Test", width = "100%"),
-                                   align = "left"
+                                   align = "center"
                             ),
                             column(3,
                                    actionButton("plotTrainTestButton", "Plot", width = "100%"),
-                                   align = "left"
+                                   align = "center"
                             ),
-                            column(2,
-                                   actionButton("zoomPlotFitButton", "Zoom", width = "100%"),
+                            column(3,
+                                   actionButton("zoomPlotFitButton", "Zoom", width = "75%"),
                                    bsModal("modalZoomPlotFitButton",
                                            "Prediction Plot",
                                            "zoomPlotFitButton",
@@ -1322,16 +1321,24 @@ ui <- fluidPage(
                                            downloadButton("downloadFit", "Download")
                                    ),
                                    align = "left"
-                            ),
-                            column(2,
-                                   actionButton("plotTestBack", icon("angle-left"), width = "100%"),
-                                   align = "right"
-                            ),
-                            column(2,
-                                   actionButton("plotTestForward", icon("angle-right"), width = "100%"),
-                                   align = "right"
                             )
-                          )
+                          ),
+                          fluidRow(
+                            column(3,
+                                   ),
+                            column(3,
+                                   actionButton("plotTestBack", icon("angle-left"), width = "100%"),
+                                   align = "center"
+                                   ),
+                            column(3,
+                                   actionButton("plotTestForward", icon("angle-right"), width = "100%"),
+                                   align = "center"
+                                   ),
+                            column(3,
+                                   verbatimTextOutput("showSpeciesTest"),
+                                   align = "left"
+                                   )
+                            ),
                         ),
                         mainPanel(
                           tabsetPanel(
@@ -1353,9 +1360,12 @@ ui <- fluidPage(
                       sidebarLayout(
                         sidebarPanel(
                           id = "sidebar",
-                          fluidRow(h2(" ")),
                           fluidRow(
-                            column(6,
+                            h3("Fishing Mortality", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)"),
+                            align = "center"
+                          ),
+                          fluidRow(
+                            column(12,
                                    actionButton("fModalButton", "Adjust Fishing Mortality"),
                                    bsModal("modalFishingMortality",
                                            "Set Fishing Mortality",
@@ -1423,19 +1433,7 @@ ui <- fluidPage(
                                              )
                                            )
                                    ),
-                                   align = "left"
-                            ),
-                            column(4,
-                                   h4("Depth of Prediction:", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                            ),
-                            column(2,
-                                   pickerInput(
-                                     inputId = "depthPred",
-                                     choices = c(1:15),
-                                     selected = 5,
-                                     options = list(style = "picker-input", title = "Depth")
-                                   ),
-                                   align = "left"
+                                   align = "center"
                             )
                           ),
                           fluidRow(
@@ -1444,33 +1442,23 @@ ui <- fluidPage(
                           ),
                           fluidRow(
                             column(3,
+                                   pickerInput(
+                                     inputId = "depthPred",
+                                     choices = c(1:15),
+                                     options = list(style = "picker-input", title = "Depth", width = "75%")
+                                   ),
+                                   align = "right"
+                            ),
+                            column(3,
                                    actionButton("calcPredButton", "Predict", width = "100%"),
-                                   align = "left"
+                                   align = "center"
                             ),
                             column(3,
                                    actionButton("plotPredButton", "Plot", width = "100%"),
-                                   align = "left"
+                                   align = "center"
                             ),
-                            column(2,
-                                   actionButton("plotPredBack", icon("angle-left"), width = "100%"),
-                                   align = "right"
-                            ),
-                            column(2,
-                                   actionButton("plotPredForward", icon("angle-right"), width = "100%"),
-                                   align = "right"
-                            ),
-                            column(2,
-                                   verbatimTextOutput("showSpecies"),
-                                   align = "right"
-                            )
-                          ),
-                          fluidRow(
-                            h3("Zoom Plots", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)"),
-                            align = "center"
-                          ),
-                          fluidRow(
-                            column(4,
-                                   actionButton("zoomPredButton", "Forecast", width = "75%"),
+                            column(3,
+                                   actionButton("zoomPredButton", "Zoom", width = "75%"),
                                    bsModal("modalZoomPred",
                                            "Prediction Plot",
                                            "zoomPredButton",
@@ -1479,19 +1467,22 @@ ui <- fluidPage(
                                            downloadButton("downloadPred", "Download")
                                    ),
                                    align = "left"
-                            ),
-                            column(4,
-                                   actionButton("zoomRatioButton", "Recr/SSB Ratio", width = "75%"),
-                                   bsModal("modalZoomRatio",
-                                           "Correlation Between Recruitment and SSB",
-                                           "zoomRatioButton",
-                                           size = "large",
-                                           plotOutput("zoomRatio"),
-                                           downloadButton("downloadRatio", "Download")
+                            )
+                          ),
+                          fluidRow(
+                            column(3,
                                    ),
+                            column(3,
+                                   actionButton("plotPredBack", icon("angle-left"), width = "100%"),
                                    align = "center"
-                            ),
-                            column(4,
+                                   ),
+                            column(3,
+                                   actionButton("plotPredForward", icon("angle-right"), width = "100%"),
+                                   align = "center"
+                                   ),
+                            column(3,
+                                   verbatimTextOutput("showSpeciesPred"),
+                                   align = "left"
                                    )
                           ),
                           fluidRow(
@@ -1572,7 +1563,8 @@ ui <- fluidPage(
                                    shinyFilesButton("file",
                                                     "Choose a file",
                                                     title = "Please select a file:",
-                                                    multiple = FALSE
+                                                    multiple = FALSE,
+                                                    width = "75%"
                                    ),
                                    align = "left"
                             ),
