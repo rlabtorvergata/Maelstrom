@@ -87,6 +87,7 @@ f_adj_display <- data.frame() #adjusted fishing mortality vector (for modal disp
 range_inputs <- data.frame() #range for inputs denormalization
 range_outputs <- data.frame() #range for outputs denormalization
 
+depth_test <- NULL #number of years to forecast
 plotTestCount <- 0 #traintest species counter
 testfit_results <- data.frame() #testfit results
 traintest_iter_results <- data.frame() #traintest results per iteration
@@ -1680,6 +1681,7 @@ server <- function(input, output, session) {
     f_adj <<- l[["f_adj"]]
     f_tot <<- l[["f_tot"]]
     f_adj_display <<- l[["f_adj_display"]]
+    depth_test <<- l[["depth_test"]]
     plotTestCount <<- 1
     testfit_results <<- l[["testfit_results"]]
     traintest_results <<- l[["traintest_results"]]
@@ -3573,19 +3575,21 @@ server <- function(input, output, session) {
   ##### TEST #####
   
   observeEvent(input$testFitButton, {
-    if (length(neuralNetInputs) > 0) {
-      showModal(tags$div(id = "modalBackground", modalDialog("", footer = NULL)))
-      testfit_results <<- testFitNet(neuralNetInputs)
-      removeModal()
-    } else {
-     showModal(tags$div(id = "modalWarning",
+    
+    if (length(species) == 0) {
+      showModal(tags$div(id = "modalWarning",
                          modalDialog("Warning: upload one or more stock objects first!",
                                      footer = NULL,
                                      easyClose = TRUE)))
+    } else {
+      showModal(tags$div(id = "modalBackground", modalDialog("", footer = NULL)))
+      testfit_results <<- testFitNet(neuralNetInputs)
+      removeModal()
     }
   })
   
   observeEvent(input$plotFitButton, {
+    
     if (length(testfit_results) > 0) {
       testfit_plots <- plotFitNet(testfit_results)
       
@@ -3601,15 +3605,23 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$testTrainTestButton, {
-    if (length(neuralNetInputs) > 0) {
-      showModal(tags$div(id = "modalBackground", modalDialog("", footer = NULL)))
-      traintest_results <<- trainTestFitNet(neuralNetInputs, as.integer(input$depthTest))
-      removeModal()
-    } else {
+    
+    depth_test <<- input$depthTest
+    
+    if (length(species) == 0) {
       showModal(tags$div(id = "modalWarning",
                          modalDialog("Warning: upload one or more stock objects first!",
                                      footer = NULL,
                                      easyClose = TRUE)))
+    } else if (depth_test == "") {
+      showModal(tags$div(id = "modalWarning",
+                         modalDialog("Warning: select the depth first!",
+                                     footer = NULL,
+                                     easyClose = TRUE)))
+    } else {
+      showModal(tags$div(id = "modalBackground", modalDialog("", footer = NULL)))
+      traintest_results <<- trainTestFitNet(neuralNetInputs, as.integer(depth_test))
+      removeModal()
     }
   })
   
@@ -3622,6 +3634,10 @@ server <- function(input, output, session) {
         traintest_plots[[i]] <<- plotTrainTestFitNet(traintest_results[[i]], i, as.integer(input$depthTest))
         taylor_diagram[[i]] <<- plotTaylorDiagram(traintest_results[[i]], i)
       }
+      
+      output$showSpeciesTest <- renderText({
+        species[[plotTestCount]]
+      })
       
       output$plotTrainTest <- renderPlotly({
         ggplotly(traintest_plots[[plotTestCount]])
@@ -3638,11 +3654,6 @@ server <- function(input, output, session) {
                                      easyClose = TRUE)))
     }
     
-    output$showSpeciesTest <- renderText({
-      species[[plotTestCount]]
-    })
-    
-    
   })
   
   observeEvent(input$plotLogTrainTest, {
@@ -3650,10 +3661,12 @@ server <- function(input, output, session) {
       if (input$plotLogTrainTest == T) {
         output$plotTrainTest <- renderPlotly({
           ggplotly(traintest_plots[[plotTestCount]] + scale_y_continuous(trans = "log10"))
-          })}
+          })
+        }
         else {output$plotTrainTest <- renderPlotly({
           ggplotly(traintest_plots[[plotTestCount]])
-        })}
+          })
+        }
     } else {
       showModal(tags$div(id = "modalWarning",
                          modalDialog("Warning: test one or more stock objects first!",
@@ -3750,16 +3763,28 @@ server <- function(input, output, session) {
   plotPredCount <- 0
   
   observeEvent(input$calcPredButton, {
-    if (length(neuralNetInputs) > 0) {
-      depth_pred <<- as.integer(input$depthPred)
-      showModal(tags$div(id = "modalBackground", modalDialog("", footer = NULL)))
-      pred_results <<- predNet(neuralNetInputs, f_adj, as.integer(input$depthPred), biomassm_w)
-      removeModal()
-    } else {
+    
+    depth_pred <<- input$depthPred
+    
+    if (length(species) == 0) {
       showModal(tags$div(id = "modalWarning",
                          modalDialog("Warning: upload one or more stock objects first!",
                                      footer = NULL,
                                      easyClose = TRUE)))
+    } else if (input$baseline == "") {
+      showModal(tags$div(id = "modalWarning",
+                         modalDialog("Warning: calculate fishing mortality first!",
+                                     footer = NULL,
+                                     easyClose = TRUE)))
+    } else if (depth_pred == "") {
+      showModal(tags$div(id = "modalWarning",
+                         modalDialog("Warning: select the depth first!",
+                                     footer = NULL,
+                                     easyClose = TRUE)))
+    } else {
+      showModal(tags$div(id = "modalBackground", modalDialog("", footer = NULL)))
+      pred_results <<- predNet(neuralNetInputs, f_adj, as.integer(depth_pred), biomassm_w)
+      removeModal()
     }
   })
   
@@ -4019,6 +4044,7 @@ server <- function(input, output, session) {
           f_adj = f_adj,
           f_tot = f_tot,
           f_adj_display = f_adj_display,
+          depth_test = depth_test,
           testfit_results = testfit_results,
           traintest_iter_results = traintest_iter_results,
           traintest_results = traintest_results,
@@ -4066,7 +4092,7 @@ server <- function(input, output, session) {
     filename = "report.pdf",
     content = function(file) {
       output <- rmarkdown::render(input = "maelstrom.Rmd",
-                       output_format = "pdf_document")
+                                  output_format = "pdf_document")
       file.rename(output, file)
     })
   

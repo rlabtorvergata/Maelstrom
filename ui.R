@@ -502,31 +502,6 @@ ui <- fluidPage(
                             )
                           ),
                           ##### LOADING (cont.) #####
-                          # fluidRow(
-                          #   h3("Input Environmental Parameters", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)"),
-                          #   align = "center"
-                          # ),
-                          # fluidRow(
-                          #   column(4,
-                          #          pickerInput(
-                          #            inputId = "envParamTest",
-                          #            choices = c("PP" = "pp"),
-                          #            multiple = TRUE,
-                          #            options = list(style = "picker-input", title = "Parameters", width = "75%")
-                          #          ),
-                          #          align = "left"
-                          #   ),
-                          #   column(4,
-                          #          pickerInput(
-                          #            inputId = "envParamMult",
-                          #            choices = c(-25, -20, -15, -10, -5, 0, 5, 10, 15, 20, 25),
-                          #            selected = 0,
-                          #            multiple = FALSE,
-                          #            options = list(style = "picker-input", title = "Param. Multiplier", width = "75%")
-                          #          ),
-                          #          align = "center"
-                          #   )
-                          # ),
                           fluidRow(
                             h3("Process DataFrames", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)"),
                             align = "center"
