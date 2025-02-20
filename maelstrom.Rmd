@@ -34,14 +34,14 @@ if (length(testfit_results) > 0 | length(traintest_results) > 0) {cat("## Test P
 if (length(testfit_results) > 0) {
   cat("# Model Fit on whole dataset", "\n\n")
   cat("Test run on whole dataset to assess the model fit by evaluating mean squared error (MSE) and mean absolute error (MAE).", "\n\n")
-  cat("The best epoch was epoch n°", "with a value of MSE of", "\n\n")
 }
 
 if (length(traintest_results) > 0) {
-  cat("# Forecast on observed years", "\n\n")
-  cat("Test run on train and test datasets (last 5 years of the whole).", "\n\n")
+  cat("# Test on observed years", "\n\n")
+  cat("Test run on train and test datasets (last", input$depthTest, "years of the whole).", "\n\n")
   for (i in 1:length(traintest_plots)) {
-    # cat("Results for", species[i])
+    sp <- species[[i]]
+    cat("Results for", sp)
     print(traintest_plots[[i]])
     cat("\n\n")
   }
@@ -68,24 +68,14 @@ if (length(f_tot) > 0) {
     
       if (pred > obs) {
         cat("The population of", subpred$species[i], "in year", max(subpred$year), "increases by",
-            (round(pred/obs, 2)*100 - 100), "percent")
+            (round(pred/obs, 2) * 100 - 100), "percent")
         } else {
           cat("The population of", subpred$species[i], "in year", max(subpred$year), "decreases by",
-              (round(pred/obs, 2)*100 - 100)*(-1), "percent")
+              (round(pred/obs, 2) * 100 - 100) * (-1), "percent")
         }
     
       cat("\n\n")
       print(plotPred(subpred, neuralNetInputs, i))
-    
-      # if (length(comp_results) > 0) {
-      #   cat("Comparison with Status Quo fishing mortality (in red):", "\n\n")
-      #   print(plotCompare(pred_results[[i]], comp_results[[i]], i, neuralNetInputs))
-      #   cat("\n\n\\newpage\n")
-      # }
-      # 
-      #   cat("Last Predicted/Observed Year Comparison:", "\n\n")
-      #   print(plotConf(subpred, neuralNetInputs, i))
-      #   cat("\n\n")
     
       cat("Stock/Recruitment Ratio for", subpred$species[i], "\n\n")
       print(plotRatio(subpred, i))
