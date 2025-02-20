@@ -1728,20 +1728,19 @@ server <- function(input, output, session) {
                              - Set layer type and other parameters for each layer<br>
                              - The network will be used both during test and<br>
                              forecast phases<br><br>
-                             Next steps are not mandatory and not consequential to <br>
-                             each other, with the exception of the Sensitivity Analysis<br><br>
-                             TEST PHASE:<br>
+                             TEST PHASE (not mandatory):<br>
                              - Press 'Fit' Button to run a single analysis over<br>
                              the whole dataset to tune the neural network<br>
+                             - Set number of years (depth) for the prediction<br>
                              - Press 'Test' Button to train the network over the first<br>
-                             chunk of time series and predict the last 5 observed years<br><br>
+                             chunk of time series and predict selected observed years<br><br>
                              FORECAST PHASE:<br>
                              - Inside 'Fishing Mortality' panel set the baseline<br>
                              and adjust values for every class/age combination<br>
                              - Set number of years (depth) for the prediction<br>
                              - Press 'Predict' Button to start the prediction<br>
                              - Switch results for each species with the arrow buttons<br>
-                             - Press 'Calc' to run a Sensitivity Analysis<br>
+                             - Press 'Sens. Analysis' to run a Sensitivity Analysis<br>
                              (a previous prediction is needed)<br><br>
                              EXPORT AND LOAD PHASE:<br>
                              - You can save your session by selecting a folder<br>
@@ -3556,20 +3555,27 @@ server <- function(input, output, session) {
   
   observeEvent(input$plotNetButton, {
     
-    layerTypeTot <- vector()
-    neuronsTot <- vector()
-    dropoutTot <- vector()
-    inputNames <- colnames(neuralNetInputs[,-1])
-    
-    for (i in 1:as.integer(input$nLayers)) {
-      layerTypeTot[i] <- input[[paste0("layerType", i)]]
-      neuronsTot[i] <- as.integer(input[[paste0("neurons", i)]])
-      dropoutTot[i] <- as.numeric(input[[paste0("dropout", i)]])
+    if (length(species) == 0) {
+      showModal(tags$div(id = "modalWarning",
+                         modalDialog("Warning: upload one or more stock objects first!",
+                                     footer = NULL,
+                                     easyClose = TRUE)))
+    } else {
+      layerTypeTot <- vector()
+      neuronsTot <- vector()
+      dropoutTot <- vector()
+      inputNames <- colnames(neuralNetInputs[,-1])
+      
+      for (i in 1:as.integer(input$nLayers)) {
+        layerTypeTot[i] <- input[[paste0("layerType", i)]]
+        neuronsTot[i] <- as.integer(input[[paste0("neurons", i)]])
+        dropoutTot[i] <- as.numeric(input[[paste0("dropout", i)]])
+      }
+      
+      output$plotNet <- renderPlot({
+        plotNet(as.integer(input$nLayers), layerTypeTot, neuronsTot, dropoutTot, inputNames)
+      }, height = 700)
     }
-    
-    output$plotNet <- renderPlot({
-    plotNet(as.integer(input$nLayers), layerTypeTot, neuronsTot, dropoutTot, inputNames)
-    }, height = 700)
   })
   
   ##### TEST #####
@@ -3667,11 +3673,6 @@ server <- function(input, output, session) {
           ggplotly(traintest_plots[[plotTestCount]])
           })
         }
-    } else {
-      showModal(tags$div(id = "modalWarning",
-                         modalDialog("Warning: test one or more stock objects first!",
-                                     footer = NULL,
-                                     easyClose = TRUE)))
     }
   })
   
@@ -3823,15 +3824,12 @@ server <- function(input, output, session) {
       if (input$plotLogPred == T) {
         output$plotPred <- renderPlotly({
           ggplotly(pred_plots[[plotPredCount]] + scale_y_continuous(trans = "log10"))
-        })}
+          })
+        }
       else {output$plotPred <- renderPlotly({
         ggplotly(pred_plots[[plotPredCount]])
-      })}
-    } else {
-      showModal(tags$div(id = "modalWarning",
-                         modalDialog("Warning: predict one or more stock objects first!",
-                                     footer = NULL,
-                                     easyClose = TRUE)))
+        })
+      }
     }
   })
   

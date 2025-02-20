@@ -1466,7 +1466,7 @@ ui <- fluidPage(
                           ),
                           fluidRow(
                             column(4,
-                                   actionButton("calcSensButton", "Calc", width = "75%"),
+                                   actionButton("calcSensButton", "Sens. Analysis", width = "75%"),
                                    align = "left"
                             ),
                             column(4,
