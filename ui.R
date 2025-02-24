@@ -110,14 +110,16 @@ ui <- fluidPage(
       font-size: 250%;
       text-align: center;
       }
-      #modalWelcome .modal-dialog {
+      #modalHelp .modal-dialog {
       position: fixed;
       height: 80%;
-      width: 30%;
+      width: 40%;
       top: 10%;
       left: 35%;
       font-size: 100%;
-      text-align: center;
+      text-align: left;
+      overflow: auto;
+      max-height: 100vh;
       }
       .modal-content {
       border-radius: 100px !important; 
@@ -201,7 +203,7 @@ ui <- fluidPage(
                                    
                             ),
                             column(4,
-                                   actionButton("showHelp", "Instructions", width = "100%")
+                                   actionButton("generalHelp", "Instructions", width = "100%")
                             )
                           ),
                           fluidRow(
@@ -580,27 +582,37 @@ ui <- fluidPage(
                         sidebarPanel(
                           id = "sidebar",
                           fluidRow(
-                            column(4,
-                                   h4("Number of Layers:", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
+                            column(3,
+                                   h4("Show Help:", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)"),
+                                   align = "left"
                             ),
-                            column(4,
-                                   h4("Number of Epochs:", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
+                            column(3,
+                                   h4("N° of Layers:", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)"),
+                                   align = "center"
                             ),
-                            column(4,
-                                   h4("Learning Parameter:", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
+                            column(3,
+                                   h4("N° of Epochs:", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)"),
+                                   align = "center"
+                            ),
+                            column(3,
+                                   h4("Learning Rate:", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)"),
+                                   align = "right"
                             )
                           ),
                           fluidRow(
-                            column(4,
+                            column(3,
+                                   actionButton("netHelp", "Instructions", width = "100%")
+                            ),
+                            column(3,
                                    pickerInput(
                                      inputId = "nLayers",
                                      choices = c(1:5),
                                      selected = 3,
                                      options = list(style = "picker-input", title = "Layers", width = "75%")
                                    ),
-                                   align = "left"
+                                   align = "center"
                             ),
-                            column(4,
+                            column(3,
                                    pickerInput(
                                      inputId = "nEpochs",
                                      choices = c(25, 50, 100, 200, 300),
@@ -609,7 +621,7 @@ ui <- fluidPage(
                                    ),
                                    align = "center"
                             ),
-                            column(4,
+                            column(3,
                                    sliderInput("learnParam",
                                                label = NULL,
                                                min = 0.005,

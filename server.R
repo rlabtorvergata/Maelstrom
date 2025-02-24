@@ -1707,13 +1707,17 @@ server <- function(input, output, session) {
       })
     }
   
-  ##### INPUT UPLOAD #####
+  ##### HELP MODALS #####
   
   output$stk_choose <- reactive({
-    if(is.null(input$sobj1))
-    {"Upload a file."} else {"File uploaded."}
-  })
-  welcomeModal <- tags$div(id = "modalWelcome",
+    if(is.null(input$sobj1)) {
+      "Upload a file."
+      } else {
+        "File uploaded."
+        }
+    })
+  
+  generalHelp <- tags$div(id = "modalHelp",
                            modalDialog(
                              HTML(
                              "INSTRUCTIONS:<br><br>
@@ -1752,10 +1756,39 @@ server <- function(input, output, session) {
                              "),
                              footer = NULL,
                              easyClose = TRUE))
-  showModal(welcomeModal)
+  showModal(generalHelp)
   
-  observeEvent(input$showHelp, {
-    showModal(welcomeModal)
+  observeEvent(input$generalHelp, {
+    showModal(generalHelp)
+  })
+  
+  netHelp <- tags$div(id = "modalHelp",
+                          modalDialog(
+                            HTML(
+                            "INSTRUCTIONS:<br><br>
+                            GENERAL PARAMETERS:<br>
+                            - N° of Layers: number of layers of the neural network<br>
+                            - N° of Epochs: max number of epochs for each iteration<br>
+                            - Learning Rate: how fast the model adapts to the data<br><br>
+                            LAYER PARAMETERS:<br>
+                            - Layer Type: type of layer (Dense, Dropout, LSTM or RNN)<br>
+                            - N° of Neurons: number of neurons for the layer<br>
+                            - Return Sequence: number of hidden states that the layer<br>
+                            will output: if TRUE, all the sequence of hidden states <br>
+                            (select if there are other recurrent layers after the current);<br>
+                            if FALSE, only the hidden state of the last time step<br>
+                            (select if there is a dropout or dense layer after the current)<br>
+                            - Dropout: proportion of nodes to be dropped from the layer<br>
+                            - Recurrent Dropout: dropout for the recurrent state<br>
+                            - Activation: function for the activation of input/forget/output gate<br>
+                            - Recurrent Activation: function for the activation<br>
+                            of cell and hidden states<br>
+                             "),
+                            footer = NULL,
+                            easyClose = TRUE))
+  
+  observeEvent(input$netHelp, {
+    showModal(netHelp)
   })
   
   ##### REACTIVE VALUES #####
@@ -4097,7 +4130,3 @@ server <- function(input, output, session) {
 }
 
 return(server)
-
-# recurrent_activation is for activate input/forget/output gate.
-# 
-# activation if for cell state and hidden state.
