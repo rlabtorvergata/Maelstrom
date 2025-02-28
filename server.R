@@ -1507,19 +1507,19 @@ server <- function(input, output, session) {
   SRRicker <- function(Theta, biomass) {
     log.alpha = Theta$log.alpha
     beta = Theta$beta
-    logValue = log.alpha + log(biomass) - beta * biomass + log(1000)
+    logValue = log.alpha + log(biomass) - beta * biomass
     value = exp(logValue)
     return(value)
   }
   
   plotRatio <- function(proj_biomass, plotPredCount) {
     
-    proj_biomass$ssb = proj_biomass$ssb_mean/10^3
-    proj_biomass$recruitment = proj_biomass$recr_mean/10^3
-    biomass_vec = seq(0, ceiling(max(proj_biomass$ssb)), by = 1)
-    z = proj_biomass[,c("recruitment", "ssb")]
-    y = log(z$recruitment) - log(1000) - log(z$ssb)
-    fit = lm(y ~ proj_biomass$ssb)
+    proj_biomass$ssb_mean = proj_biomass$ssb_mean
+    proj_biomass$recr_mean = proj_biomass$recr_mean
+    biomass_vec = seq(0, ceiling(max(proj_biomass$ssb_mean)), by = 1)
+    z = proj_biomass[,c("recr_mean", "ssb_mean")]
+    y = log(z$recr_mean) - log(z$ssb_mean)
+    fit = lm(y ~ proj_biomass$ssb_mean)
     log.alpha = as.numeric(coefficients(fit)[1])
     beta = as.numeric(coefficients(fit)[2])
     
@@ -1530,8 +1530,7 @@ server <- function(input, output, session) {
     
     g = ggplot(data = df_plot, aes(x = ssb, y = R)) + 
       geom_point(size = 0.5) + 
-      geom_point(data = proj_biomass, aes(x = ssb, y = recruitment, fill = type), pch = 21, size = 6) + 
-      scale_y_continuous(trans = "log10") +
+      geom_point(data = proj_biomass, aes(x = ssb_mean, y = recr_mean, fill = type), pch = 21, size = 6) + 
       scale_fill_manual(name = "Ratio", values = c("deepskyblue", "darkblue")) +
       ggtitle(paste0(unique(proj_biomass$species), " - ", unique(proj_biomass$gsa))) +
       xlab("SSB") +
