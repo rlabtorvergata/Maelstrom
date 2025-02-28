@@ -17,7 +17,7 @@ install.packages(repos = c(FLR = "https://flr.r-universe.dev", CRAN = "https://c
 
 as specified in the [FLR package site](https://flr-project.org/), and choose **FLR** from the libraries menù.
 
-To install Keras and Tensorflow, you have to install first Python on your PC. You can download it on its [website](https://www.python.org/downloads/); it is advised to download the latest stable version, which usually is **two** versions before the current.
+To install *Keras* and *Tensorflow* packages, you have to install first Python on your PC. You can download it on its [website](https://www.python.org/downloads/); it is advised to download the latest stable version, which usually is **two** versions before the current.
 
 After installing Python, you can install the libraries **keras** and **tensorflow** via the RStudio installer, then you have to run the following functions in a fresh R session:
 
