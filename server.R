@@ -1629,7 +1629,7 @@ server <- function(input, output, session) {
                              - Select and load any number of stock objects<br>
                              - Select the maximum cohort to consider for each species<br>
                              (cohorts over the selected one will be aggregated to it)<br>
-                             - Press 'Load' Button to process datas<br>
+                             - Press 'Load' Button to process data<br>
                              - Press 'Adjust' if you find any outlying value<br><br>
                              NET BUILDING PHASE:<br>
                              - Set number of layers and other hyperparameters<br>
