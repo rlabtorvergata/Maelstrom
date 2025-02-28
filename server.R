@@ -72,9 +72,6 @@ mort_spawn_w <- data.frame() #natural mortality before spawning processing
 matures <- list() #mature ratio processing
 mature_l <- data.frame() #mature ratio processing
 mature_w <- data.frame() #mature ratio processing
-biomassms <- list() #biomass multiplier processing
-biomassm_l <- data.frame() #biomass multiplier processing
-biomassm_w <- data.frame() #biomass multiplier processing
 
 neuralNetInputs <- data.frame() #neural network input dataframe
 f_w <- data.frame() #fishing mortality dataframe
@@ -107,40 +104,6 @@ sens_results <- data.frame() #sensitivity analysis results
 sens_plots <- list() #sensitivity analysis plot
 
 save_list <- list() #saved files list
-
-##### AMBIENTAL #####
-
-pp <- data.frame(
-  year = c(2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021),
-  GSA1 = c(10244.25, 9729.033, 10298.79, 11589.80, 11712.67, 10329.92, 10475.56, 11389.00, 11812.35,  9495.63, 10942.59, 10970.49, 10602.43, 8981.911, 9867.827, 9709.191, 11750.82, 10546.57, 10716.51, 13013.30),
-  GSA2 = c(589.6691, 598.0702, 627.7929, 672.2489, 655.5533, 625.0090, 659.8044, 695.9435, 701.2333, 607.9361, 677.6224, 646.7877, 641.1380, 574.1598, 667.7024, 587.1129, 721.7747, 646.6526, 675.8074, 817.3495),
-  GSA3 = c(6329.225, 6976.454, 6674.087, 7183.146, 7095.723, 6959.898, 6736.979, 7491.467, 7532.008, 6271.641, 7376.077, 6872.068, 6688.171, 6462.249, 7136.752, 6233.229, 7350.424, 7151.143, 6432.927, 8750.791),
-  GSA4 = c(25130.17, 26800.27, 28866.68, 27905.09, 29321.96, 30439.74, 27479.31, 31728.23, 30415.31, 27208.77, 26955.74, 30808.19, 31636.53, 27543.98, 28512.67, 26672.25, 31856.13, 28424.46, 27373.53, 38474.08),
-  GSA5 = c(16310.98, 18798.76, 20277.91, 20229.43, 22124.90, 22288.06, 20238.66, 20996.98, 21498.29, 19105.07, 18396.04, 21818.95, 21238.50, 19630.89, 20163.70, 19549.58, 22159.05, 20491.80, 20666.57, 25727.51),
-  GSA6 = c(18534.28, 21837.39, 22600.65, 23184.71, 24763.44, 24086.73, 22129.00, 21662.85, 24737.61, 21636.42, 20490.54, 24287.70, 23227.50, 20773.27, 23093.50, 20980.17, 24011.68, 23101.20, 24086.76, 27446.95),
-  GSA7 = c(14482.52, 14881.93, 15550.66, 17939.60, 17713.35, 17516.26, 17812.42, 15231.93, 18145.77, 15440.16, 16059.60, 17198.84, 17220.14, 14502.03, 17532.77, 14551.11, 16262.17, 16329.68, 16525.20, 17727.17),
-  GSA8 = c(4131.792, 4822.893, 5380.070, 6564.359, 5647.303, 5621.297, 6055.189, 5084.251, 6149.678, 5003.304, 5481.033, 5366.824, 5338.590, 5085.508, 5224.433, 4869.408, 5364.349, 5492.859, 5220.715, 6163.947),
-  GSA9 = c(9271.031, 10714.10, 12333.45, 13045.27, 12403.98, 11555.75, 12331.62, 11334.32, 13445.45, 11294.33, 11261.56, 12504.75, 11622.00, 11245.48, 11894.07, 10713.59, 11362.97, 11732.54, 11892.59, 13582.60),
-  GSA10 = c(16989.00, 20782.56, 22759.54, 23309.67, 22368.19, 21485.69, 21363.61, 22075.04, 24493.62, 21627.18, 20289.45, 23167.04, 21892.20, 22890.42, 21249.55, 21020.20, 23170.84, 22546.61, 21316.23, 25536.27),
-  GSA11 = c(18430.48, 20583.18, 21802.50, 24743.52, 23414.19, 23293.12, 22725.42, 22847.39, 24598.90, 21785.40, 20997.34, 24903.23, 23066.78, 23070.31, 22122.23, 21092.16, 24233.62, 23018.78, 22000.67, 27210.10),
-  GSA12 = c(5993.409, 7076.711, 7362.986, 7600.086, 7394.874, 7671.994, 7175.817, 7995.528, 7866.468, 7161.144, 7008.909, 8368.976, 7991.283, 7500.908, 7032.760, 7261.937, 7839.672, 7718.865, 7115.316, 8604.147),
-  GSA13 = c(7094.965, 8554.749, 8125.751, 7964.883, 7548.377, 7738.310, 7642.026, 8184.146, 8081.285, 7881.899, 7907.322, 8378.254, 8235.281, 8106.112, 7881.768, 7837.581, 7888.435, 8250.610, 7735.791, 8271.480),
-  GSA14 = c(15710.12, 16924.58, 16267.19, 15733.12, 15922.04, 15482.18, 15577.73, 14893.01, 16020.20, 15566.07, 15115.40, 14809.62, 15202.81, 15121.63, 15409.36, 15288.81, 15482.77, 15118.42, 15216.41, 14315.94),
-  GSA15 = c(3394.706, 3983.982, 4146.702, 4168.459, 3780.261, 3907.022, 3722.232, 4042.219, 4233.087, 4207.445, 3927.861, 4123.659, 4143.011, 4154.593, 4119.490, 3749.420, 3951.069, 4031.194, 3981.010, 4698.133),
-  GSA16 = c(5741.087, 6520.132, 6892.717, 7105.883, 6568.862, 6794.010, 6624.109, 7133.681, 7300.990, 6630.483, 6562.937, 7385.813, 7022.618, 6764.651, 6668.021, 6646.200, 7165.248, 7111.742, 6655.675, 7700.996),
-  GSA17 = c(25831.25, 21594.01, 27338.06, 25202.09, 23435.16, 24416.95, 24484.44, 28609.15, 30847.17, 28404.35, 24724.78, 32945.35, 31529.85, 27001.47, 27780.25, 25616.02, 28471.78, 27132.26, 30557.90, 25022.43),
-  GSA18 = c(11017.58, 10548.96, 12120.75, 11565.67, 12047.47, 11255.83, 10887.70, 12509.51, 13057.54, 11539.80, 10787.46, 12245.27, 12034.90, 11612.29, 12081.72, 10837.73, 11659.06, 11350.89, 13089.08, 13125.27),
-  GSA19 = c(22094.09, 24495.46, 27089.39, 26033.99, 25011.97, 24325.72, 24039.31, 25711.82, 28181.63, 25397.15, 23731.61, 25767.58, 24190.04, 25454.68, 25801.96, 24186.13, 25026.27, 26334.44, 28011.80, 31563.82),
-  GSA20 = c(14087.32, 16840.76, 17572.05, 17355.84, 17252.85, 17157.95, 16721.06, 17367.88, 17381.92, 16486.81, 16261.95, 16804.43, 15489.01, 16717.21, 17502.45, 17139.70, 17568.30, 18029.46, 18805.84, 21466.27),
-  GSA21 = c(38975.58, 46056.71, 49115.09, 46611.57, 45611.09, 47271.79, 45037.82, 45834.07, 46082.52, 46219.87, 45552.46, 45709.80, 44220.07, 47104.25, 47266.46, 45787.47, 45032.76, 48113.48, 48186.54, 56986.85),
-  GSA22 = c(31419.72, 39526.72, 38801.94, 38092.96, 41333.42, 38078.20, 37818.77, 36524.33, 40078.02, 39063.07, 35953.59, 36999.62, 35038.00, 41799.87, 37387.32, 38635.90, 38652.00, 40448.61, 39295.71, 44328.21),
-  GSA23 = c(6803.593, 8761.482, 8554.959, 8081.821, 8240.977, 8476.934, 8332.452, 8330.986, 8270.548, 8062.048, 7980.835, 8015.699, 7607.560, 8307.684, 8148.720, 8339.683, 8098.652, 9054.360, 9277.245, 10834.51),
-  GSA24 = c(10630.97, 14311.57, 13873.57, 13578.11, 14796.26, 14355.36, 13424.28, 13882.43, 13541.59, 13385.04, 13511.89, 13347.00, 12387.84, 13504.62, 12862.57, 13865.51, 13253.16, 14728.95, 15290.27, 17743.92),
-  GSA25 = c(4259.723, 5602.161, 5560.685, 5495.746, 5732.694, 5942.124, 5548.213, 5447.151, 5290.512, 5453.932, 5414.167, 5247.524, 5211.055, 5421.592, 5249.132, 5674.287, 5390.549, 5773.391, 6258.438, 7514.001),
-  GSA26 = c(32543.92, 41675.76, 42345.13, 41081.15, 41047.90, 42377.43, 40841.84, 40679.61, 40302.49, 40629.51, 38740.39, 40381.66, 38826.99, 40388.80, 41126.80, 40355.47, 39321.45, 42132.36, 45615.16, 55088.15),
-  GSA27 = c(3703.390, 5326.922, 4879.239, 4838.633, 4806.908, 4882.936, 4577.611, 4607.241, 4689.100, 4848.776, 4781.825, 4914.756, 4403.847, 4783.745, 4667.031, 4661.406, 4556.354, 5056.754, 5705.640, 6738.782),
-  GSA28 = c(5378.125, 12054.63, 17418.60, 12361.15, 12435.85, 8260.557, 15213.99, 10674.12, 14370.93, 17470.32, 10867.15, 14507.06, 12754.81, 16640.05, 10790.34, 9446.886, 13243.32, 12322.46, 9950.202, 9696.405)
-)
 
 ##### SERVER LOGIC #####
 
@@ -426,56 +389,6 @@ server <- function(input, output, session) {
       }
     }
     return(dfwide)
-  }
-  
-  procBiomassMultLong <- function(stock, gsa, tri, minAge, baseline) {
-    if (minAge == 0) {baseline = baseline + 1}
-    stk_temp_n = stock.n(stock)
-    if (nrow(stock.n(stock)) > baseline) {
-      stk_temp_n = stk_temp_n[1:baseline,]
-      stk_temp_n[baseline,] = colSums(stock.n(stock)[baseline:nrow(stock.n(stock)), ])
-    }
-    stk_temp_wt = stock.wt(stock)
-    if (nrow(stock.wt(stock)) > baseline) {
-      stk_temp_wt = stk_temp_wt[1:baseline,]
-      stk_temp_wt[baseline,] = colSums(stock.wt(stock)[baseline:nrow(stock.wt(stock)), ])
-    }
-    stock_n = as.data.frame(stk_temp_n)[, c("year", "age", "data")] #Thousands
-    stock_wt = as.data.frame(stk_temp_wt)[, c("year", "age", "data")] #Thousands
-    stock_biomass = data.frame(year = stock_n$year,
-                           age = stock_n$age,
-                           biomass = (stock_n[,3] * stock_wt[,3])*1000)
-    stock_biomass = aggregate(data = stock_biomass, biomass ~ year, FUN = "sum")
-    obj_biomass = as.data.frame(biomass(stock))
-    stock_biomass[, 2] = (obj_biomass[, 7] * 1000) / stock_biomass[, 2]
-    stock_biomass[, 3] = procGSA(paste0(gsa, collapse = "-"))
-    stock_biomass[, 4] = tri
-    colnames(stock_biomass) <- c("year", "biomassMult", "gsa", "species")
-    stock_biomass <- aggregate(data = stock_biomass, biomassMult ~ gsa + species, FUN = "mean")
-    stock_biomass <- rbind(stock_biomass, stock_biomass[rep(1, (length(unique(stock_n$age))) - 1),])
-    stock_biomass[, 4] = rep(unique(stock_n$age))
-    colnames(stock_biomass) <- c("gsa", "species", "biomassMult", "age")
-    return(stock_biomass)
-  }
-  
-  procBiomassMultWide <- function(biomassmultlong) {
-    biomassm_w <- dcast(biomassmultlong, biomassMult ~ species + gsa + age)
-    for (i in 1:nrow(biomassm_w)) {
-      for (j in 2:ncol(biomassm_w)) {
-        if (!is.na(biomassm_w[i, j])) {
-          biomassm_w[i, j] = biomassm_w$biomassMult[i]
-        }
-      }
-    }
-    biomassm_w$biomassMult <- NULL
-    for (i in 1:ncol(biomassm_w)) {
-      colnames(biomassm_w)[i] <- paste0(strsplit(colnames(biomassm_w)[i], "_")[[1]][1], "_",
-                                    strsplit(colnames(biomassm_w)[i], "_")[[1]][length(strsplit(colnames(biomassm_w)[i], "_")[[1]])], "_S_",
-                                    strsplit(colnames(biomassm_w)[i], "_")[[1]][2])
-    }
-    biomassm_w[is.na(biomassm_w)] = 0
-    biomassm_w <- mutate_all(biomassm_w, function(x) as.numeric(as.character(x)))
-    biomassm_w <- as.data.frame(lapply(biomassm_w, sum))
   }
   
   totDf <- function(df1, df2, df3, df4, df5, df6, df7, df8, df9, df10) {
@@ -1172,7 +1085,7 @@ server <- function(input, output, session) {
     return(g)
   }
   
-  predNet <- function(netInputs, f_adj, depth, biomassMult) {
+  predNet <- function(netInputs, f_adj, depth) {
     
     norm_inputs = netInputs
     norm_inputs[,2:ncol(norm_inputs)] = normalizeInputs(norm_inputs[,2:ncol(norm_inputs)], range_inputs)
@@ -1192,11 +1105,6 @@ server <- function(input, output, session) {
     min_age_vec = vector()
     for (i in 1:length(unique(species))) {
       min_age_vec[i] = min(substr(colnames(netInputs[which(substr(colnames(netInputs), 1, 3) == unique(species)[i])]), 5, 5))
-    }
-    
-    pred_biomassMult <- vector()
-    for (i in 1:length(unique(species))) {
-      pred_biomassMult[i] = rowMeans(biomassMult[, grep(unique(species)[i], names(biomassMult))])
     }
     
     env_var <- length(grep("PrP_", names(netInputs)))
@@ -1670,9 +1578,6 @@ server <- function(input, output, session) {
     morts <<- l[["morts"]]
     mort_l <<- l[["mort_l"]]
     mort_w <<- l[["mort_w"]]
-    biomassms <<- l[["biomassms"]]
-    biomassm_l <<- l[["biomassm_l"]]
-    biomassm_w <<- l[["biomassm_w"]]
     neuralNetInputs <<- l[["neuralNetInputs"]]
     f_w <<- l[["f_w"]]
     fmort_baseline <<- l[["fmort_baseline"]]
@@ -3360,89 +3265,6 @@ server <- function(input, output, session) {
     if (length(pops_l) > 0) {neuralNetInputs <<- procInputs(pops_w, catches_w)}
   })
   
-  ##### BIOMASS MULTIPLIER #####
-  
-  biomassm1 <- reactive({
-    if (!is.null(stk1) & !is.null(rv1$tri) & !is.null(rv1$gsa) & !is.null(rv1$min))
-      procBiomassMultLong(stk1, rv1$gsa, rv1$tri, rv1$min, as.integer(input$baseline1))
-  })
-  
-  biomassm2 <- reactive({
-    if (!is.null(stk2) & !is.null(rv2$tri) & !is.null(rv2$gsa) & !is.null(rv2$min))
-      procBiomassMultLong(stk2, rv2$gsa, rv2$tri, rv2$min, as.integer(input$baseline2))
-  })
-  
-  biomassm3 <- reactive({
-    if (!is.null(stk3) & !is.null(rv3$tri) & !is.null(rv3$gsa) & !is.null(rv3$min))
-      procBiomassMultLong(stk3, rv3$gsa, rv3$tri, rv3$min, as.integer(input$baseline3))
-  })
-  
-  biomassm4 <- reactive({
-    if (!is.null(stk4) & !is.null(rv4$tri) & !is.null(rv4$gsa) & !is.null(rv4$min))
-      procBiomassMultLong(stk4, rv4$gsa, rv4$tri, rv4$min, as.integer(input$baseline4))
-  })
-  
-  biomassm5 <- reactive({
-    if (!is.null(stk5) & !is.null(rv5$tri) & !is.null(rv5$gsa) & !is.null(rv5$min))
-      procBiomassMultLong(stk5, rv5$gsa, rv5$tri, rv5$min, as.integer(input$baseline5))
-  })
-  
-  biomassm6 <- reactive({
-    if (!is.null(stk6) & !is.null(rv6$tri) & !is.null(rv6$gsa) & !is.null(rv6$min))
-      procBiomassMultLong(stk6, rv6$gsa, rv6$tri, rv6$min, as.integer(input$baseline6))
-  })
-  
-  biomassm7 <- reactive({
-    if (!is.null(stk7) & !is.null(rv7$tri) & !is.null(rv7$gsa) & !is.null(rv7$min))
-      procBiomassMultLong(stk7, rv7$gsa, rv7$tri, rv7$min, as.integer(input$baseline7))
-  })
-  
-  biomassm8 <- reactive({
-    if (!is.null(stk8) & !is.null(rv8$tri) & !is.null(rv8$gsa) & !is.null(rv8$min))
-      procBiomassMultLong(stk8, rv8$gsa, rv8$tri, rv8$min, as.integer(input$baseline8))
-  })
-  
-  biomassm9 <- reactive({
-    if (!is.null(stk9) & !is.null(rv9$tri) & !is.null(rv9$gsa) & !is.null(rv9$min))
-      procBiomassMultLong(stk9, rv9$gsa, rv9$tri, rv9$min, as.integer(input$baseline9))
-  })
-  
-  biomassm10 <- reactive({
-    if (!is.null(stk10) & !is.null(rv10$tri) & !is.null(rv10$gsa) & !is.null(rv10$min))
-      procBiomassMultLong(stk10, rv10$gsa, rv10$tri, rv10$min, as.integer(input$baseline10))
-  })
-  
-  observeEvent(input$loadButton, {
-    if (is.null(biomassm1()) &
-        is.null(biomassm2()) &
-        is.null(biomassm3()) &
-        is.null(biomassm4()) &
-        is.null(biomassm5()) &
-        is.null(biomassm6()) &
-        is.null(biomassm7()) &
-        is.null(biomassm8()) &
-        is.null(biomassm9()) &
-        is.null(biomassm10()))
-      return(NULL)
-    if (!is.null(biomassm1())) {biomassms[[1]] <- biomassm1()}
-    if (!is.null(biomassm2())) {biomassms[[2]] <- biomassm2()}
-    if (!is.null(biomassm3())) {biomassms[[3]] <- biomassm3()}
-    if (!is.null(biomassm4())) {biomassms[[4]] <- biomassm4()}
-    if (!is.null(biomassm5())) {biomassms[[5]] <- biomassm5()}
-    if (!is.null(biomassm6())) {biomassms[[6]] <- biomassm6()}
-    if (!is.null(biomassm7())) {biomassms[[7]] <- biomassm7()}
-    if (!is.null(biomassm8())) {biomassms[[8]] <- biomassm8()}
-    if (!is.null(biomassm9())) {biomassms[[9]] <- biomassm9()}
-    if (!is.null(biomassm10())) {biomassms[[10]] <- biomassm10()}
-    
-    biomassms <<- biomassms
-    
-    if (length(biomassms) > 0) {
-      biomassm_l <<- do.call(totDfBiomass, biomassms)
-      biomassm_w <<- procBiomassMultWide(biomassm_l)
-    }
-  })
-  
   ##### FISHING MORTALITY #####
   
   observeEvent(input$loadButton, {
@@ -3816,7 +3638,7 @@ server <- function(input, output, session) {
                                      easyClose = TRUE)))
     } else {
       showModal(tags$div(id = "modalBackground", modalDialog("", footer = NULL)))
-      pred_results <<- predNet(neuralNetInputs, f_adj, as.integer(depth_pred), biomassm_w)
+      pred_results <<- predNet(neuralNetInputs, f_adj, as.integer(depth_pred))
       removeModal()
     }
   })
@@ -4064,9 +3886,6 @@ server <- function(input, output, session) {
           morts = morts,
           mort_l = mort_l,
           mort_w = mort_w,
-          biomassms = biomassms,
-          biomassm_l = biomassm_l,
-          biomassm_w = biomassm_w,
           neuralNetInputs = neuralNetInputs,
           f_w = f_w,
           fmort_baseline = fmort_baseline,
