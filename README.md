@@ -9,13 +9,13 @@ To run the ShinyApp you have to download all the files in this repository, open 
 > [!IMPORTANT]
 > Some packages, listed below, require a slightly more complex installation.
 
-To install the *FLR* package you can run the following line of code:
+To install the *FLCore* package and its dependencies, you can run the following line of code:
 
 ```         
-install.packages(repos = c(FLR = "https://flr.r-universe.dev", CRAN = "https://cloud.r-project.org"))
+remotes::install_github("flr/FLCore")
 ```
 
-as specified in the [FLR package site](https://flr-project.org/), and choose **FLR** from the libraries menù.
+as specified in the [FLCore Github page](https://github.com/flr/FLCore).
 
 To install *Keras* and *Tensorflow* packages, you have to install first Python on your PC. You can download it on its [website](https://www.python.org/downloads/); it is advised to download the latest stable version, which usually is **two** versions before the current.
 
