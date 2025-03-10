@@ -4,7 +4,7 @@ Multi-species predictive stock assessment model based on a customizable neural n
 
 ### Prerequisites
 
-To run the ShinyApp you have to download all the files in this repository, open **server.R** and run all the libraries in the first lines of the script, nested within the **LIBRARIES** section.
+To run the ShinyApp you have to download all the files in this repository, open **server.R** and run all the libraries in the first lines of the script, nested within the **LIBRARIES** section, then click on the "Run App" button on the top right of the main RStudio panel..
 
 > [!IMPORTANT]
 > Some packages, listed below, require a slightly more complex installation.
