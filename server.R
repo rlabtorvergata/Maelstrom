@@ -2556,20 +2556,6 @@ server <- function(input, output, session) {
     }
     })
   
-  observeEvent(input$adjustButton, {
-    if (length(pops_w) == 0) {return(NULL)} else {
-      pops_w <<- adjDfWide(pops_l, pops_w)
-      output$plotPop <- renderPlotly({
-        plotPopObj <- layout(ggplotly(plotPop(pops_l), tooltip = "y"), hovermode = "x unified")
-        return(plotPopObj)
-      })
-      showModal(tags$div(id = "modalWarning",
-                         modalDialog("DataFrame Adjusted!",
-                                     footer = NULL,
-                                     easyClose = TRUE)))
-    }
-  })
-  
   observeEvent(input$zoomPopButton, {
     if (length(pops_l) > 0) {
       output$zoomPop <- renderPlot({
@@ -2686,16 +2672,6 @@ server <- function(input, output, session) {
     }
   })
   
-  observeEvent(input$adjustButton, {
-    if (length(catches_w) == 0) {return(NULL)} else {
-      catches_w <<- adjDfWide(catches_l, catches_w)
-      output$plotCatch <- renderPlotly({
-        plotCatchObj <- layout(ggplotly(plotCatch(catches_l), tooltip = "y"), hovermode = "x unified")
-        return(plotCatchObj)
-      })
-    }
-  })
-  
   observeEvent(input$zoomCatchButton, {
     if (length(catches_l) > 0) {
       output$zoomCatch <- renderPlot({
@@ -2805,16 +2781,6 @@ server <- function(input, output, session) {
       output$uiWaa <- renderUI({
         withSpinner(plotlyOutput("plotWaa"), type = 3, color.background = "transparent")
       })
-      output$plotWaa <- renderPlotly({
-        plotWaaObj <- layout(ggplotly(plotWaa(waa_l, pops_l), tooltip = "y"), hovermode = "x unified")
-        return(plotWaaObj)
-      })
-    }
-  })
-  
-  observeEvent(input$adjustButton, {
-    if (length(waa_w) == 0) {return(NULL)} else {
-      waa_w <<- adjDfWide(waa_l, waa_w)
       output$plotWaa <- renderPlotly({
         plotWaaObj <- layout(ggplotly(plotWaa(waa_l, pops_l), tooltip = "y"), hovermode = "x unified")
         return(plotWaaObj)

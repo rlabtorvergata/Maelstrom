@@ -510,12 +510,10 @@ ui <- fluidPage(
                           ),
                           fluidRow(
                             column(4,
-                                   actionButton("loadButton", "Load", width = "75%"),
-                                   align = "left"
                             ),
                             column(4,
-                                   actionButton("adjustButton", "Adjust", width = "75%"),
-                                   align = "center"
+                                   actionButton("loadButton", "Load", width = "75%"),
+                                   align = "left"
                             ),
                             column(4,
                             )
