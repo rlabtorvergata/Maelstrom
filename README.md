@@ -39,10 +39,3 @@ You can find three sample input datasets in the repository folder **Sample Data*
 
 > [!WARNING]
 > Due to code necessities, input stock objects must be formatted as following: 3ACODE_GSA1-GSA2-GSA3.rds or .rdata (e.g. for *Parapenaeus longirostris* in GSAs 9, 10 and 11, the file must be named DPS_9-10-11.rds).
-
-### Authors
-
-Matteo STEFANI (University of Rome Tor Vergata), Simone LIBRALATO (OGS), Cecilia PINTO (University of Genova), Tommaso RUSSO (University of Rome Tor Vergata, CoNiSMa, CNR-IRBIM)
-
-
-
