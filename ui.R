@@ -1364,10 +1364,13 @@ ui <- fluidPage(
                                                       options = list(style = "picker-input", title = "Baseline")
                                                     )
                                              ),
-                                             column(6,
-                                             ),
                                              column(3,
                                                     actionButton("calcFmortButton", "Calc", width = "75%")
+                                             ),
+                                             column(3,
+                                             ),
+                                             column(3,
+                                                    actionButton("mortalityHelp", "Instructions", width = "100%")
                                              )
                                            ),
                                            fluidRow(

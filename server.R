@@ -1695,6 +1695,34 @@ server <- function(input, output, session) {
     showModal(netHelp)
   })
   
+  mortalityHelp <- tags$div(id = "mortalityHelp",
+                          modalDialog(
+                            HTML(
+                            "INSTRUCTIONS:<br><br>
+                            - Through the baseline drop-down menù select a number of years<br>
+                            of the time series (starting from the end and going backwards)<br>
+                            to consider as a baseline for the average; press 'Calc' to<br>
+                            perform the moving average.<br><br>
+                            - The 'Status Quo' table shows the baseline values of<br>
+                            Fishing Mortality after the calculation of the moving average.<br><br>
+                            - The 'New Exploitation Pattern' table shows the values of<br>
+                            Fishing Mortality after the tuning. To tune the baseline Fishing<br>
+                            Mortality, the user must first select a species or cohort using<br>
+                            the drop-down menù on the bottom left and then adjust it through<br>
+                            the slider on the right. The adjusted value will then appear<br>
+                            on the relative column in the table.<br><br>
+                            - The user can download the adjusted Fishing Mortality vector<br>
+                            in .rdata format in the last row by clicking the left button,<br>
+                            while the button on the right can be used to load a previously<br>
+                            exported Fishing Mortality vector.
+                             "),
+                            footer = NULL,
+                            easyClose = TRUE))
+  
+  observeEvent(input$mortalityHelp, {
+    showModal(mortalityHelp)
+  })
+  
   ##### REACTIVE VALUES #####
   
   output$sobj1 <- renderUI({
