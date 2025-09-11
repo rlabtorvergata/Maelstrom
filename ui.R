@@ -9,172 +9,184 @@ ui <- fluidPage(
     tags$style(
       HTML(
         "
-      .navbar-default {
-      background-color: rgba(156, 210, 246, 0.3) !important;
-      }
-      .navbar-default .navbar-brand {
-      color: white;
-      text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.75);
-      }
-      .navbar-default .navbar-nav > .active > a:hover {
-      color: black;
-      background-color: rgba(156, 210, 246, 0.7) !important;
-      }
-      .navbar-default .navbar-nav > li > a:hover {
-      color: black;
-      background-color: rgba(156, 210, 246, 0.7) !important;
-      text-shadow: 2px 2px 2px rgba(255, 255, 255, 0.75);
-      text-decoration: underline;
-      }
-      .navbar-default .navbar-nav > li > a {
-      color: white;
-      text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.75);
-      }
-      .well {
-      min-width: 600px;
-      padding-top: 0px;
-      }
-      .btn {
-      border-color: transparent;
-      border-radius: 4px;
-      background-color: #87CEFA;
-      color: black;
-      text-shadow: 2px 2px 2px rgba(255, 255, 255, 0.75);
-      }
-      .picker-input {
-      border-radius: 4px;
-      background-color: #87CEFA;
-      color: black !important;
-      text-shadow: 2px 2px 2px rgba(255, 255, 255, 0.75);
-      }
-      .selected {
-      background-color: #87CEFA;
-      text-shadow: 2px 2px 2px rgba(255, 255, 255, 0.25);
-      }
-      .js-irs-0 .irs-bar {
-      background: transparent;
-      border: transparent;
-      }
-      .irs-handle {
-      background: transparent !important;
-      border: transparent !important;
-      }
-      .irs-min {
-      background: #69B2E0 !important;
-      text-shadow: 2px 2px 2px rgba(255, 255, 255, 0.5) !important
-      }
-      .irs-max {
-      background: #69B2E0 !important;
-      text-shadow: 2px 2px 2px rgba(255, 255, 255, 0.5) !important
-      }
-      .irs-single {
-      background: #4682B4 !important;
-      top: 20px;
-      }
-      .tabbable {
-      width: calc(100vw - 670px);
-      position: fixed;
-      right: 20px
-      }
-      .tabbable > .nav > li[class = active] > a {
-      background-color: #87CEFA;
-      color: black;
-      text-shadow: 2px 2px 2px rgba(255, 255, 255, 0.75);
-      }
-      li > a {
-      color: white;
-      }
-      .shiny-notification {
-      max-height: 100px !important;
-      max-width: 800px !important;
-      height: 100px;
-      width: 800px;
-      position: fixed;
-      top: calc(50% - 50px);
-      left: calc(50% - 400px);
-      font-size: 250%;
-      text-align: center;
-      }
-      .tooltip {
-      width: max-content;
-      }
-      #sidebar {
-      background-color: rgba(156, 210, 246, 0.3);
-      }
-      #modalWarning .modal-dialog {
-      height: 100px !important;
-      width: 800px !important;
-      position: fixed;
-      top: calc(50% - 100px);
-      left: calc(50% - 400px);
-      font-size: 250%;
-      text-align: center;
-      }
-      #modalHelp .modal-dialog {
-      position: fixed;
-      height: 80%;
-      width: 40%;
-      top: 10%;
-      left: 35%;
-      font-size: 100%;
-      text-align: left;
-      overflow: auto;
-      max-height: 100vh;
-      }
-      .modal-content {
-      border-radius: 100px !important; 
-      }
-      .modal-body {
-      background-color: #69B2E0;
-      font-weight: bold;
-      text-shadow: 2px 2px 2px rgba(255, 255, 255, 0.5);
-      }
-      .modal-title {
-      text-shadow: 2px 2px 2px rgba(255, 255, 255, 0.5);
-      }
-      .modal-header {
-      background-color: #69B2E0;
-      }
-      .modal-footer {
-      background-color: #69B2E0;
-      }
-      .modal-lg {
-      max-height: 1500px !important;
-      max-width: 2000px !important;
-      position: fixed;
-      height: 80%;
-      width: 80%;
-      top: 10%;
-      left: 10%;
-      font-size: 250%;
-      text-align: center;
-      }
-      .modal-sm {
-      max-height: 1200px !important;
-      max-width: 1500px !important;
-      position: fixed;
-      height: 60%;
-      width: 60%;
-      top: 20%;
-      left: 20%;
-      font-size: 100%;
-      }
-      #modalBackground .modal-body {
-      height: 0px; !important;
-      width: 0px; !important;
-      margin: 0px;
-      padding: 0px;
-      background-color: rgba(0, 0, 0, 0) !important;
-      font-size: 0%;
-      }
-      .shiny-notification {
-      background-color: #87CEFA;
-      text-shadow: 2px 2px 2px rgba(255, 255, 255, 0.5);
-      }
-      "
+        h3 {
+        color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)
+        }
+        h4 {
+        color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)
+        }
+        h5 {
+        color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)
+        }
+        h6 {
+        color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)
+        }
+        .navbar-default {
+        background-color: rgba(156, 210, 246, 0.3) !important;
+        }
+        .navbar-default .navbar-brand {
+        color: white;
+        text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.75);
+        }
+        .navbar-default .navbar-nav > .active > a:hover {
+        color: black;
+        background-color: rgba(156, 210, 246, 0.7) !important;
+        }
+        .navbar-default .navbar-nav > li > a:hover {
+        color: black;
+        background-color: rgba(156, 210, 246, 0.7) !important;
+        text-shadow: 2px 2px 2px rgba(255, 255, 255, 0.75);
+        text-decoration: underline;
+        }
+        .navbar-default .navbar-nav > li > a {
+        color: white;
+        text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.75);
+        }
+        .well {
+        min-width: 600px;
+        padding-top: 0px;
+        }
+        .btn {
+        border-color: transparent;
+        border-radius: 4px;
+        background-color: #87CEFA;
+        color: black;
+        text-shadow: 2px 2px 2px rgba(255, 255, 255, 0.75);
+        }
+        .picker-input {
+        border-radius: 4px;
+        background-color: #87CEFA;
+        color: black !important;
+        text-shadow: 2px 2px 2px rgba(255, 255, 255, 0.75);
+        }
+        .selected {
+        background-color: #87CEFA;
+        text-shadow: 2px 2px 2px rgba(255, 255, 255, 0.25);
+        }
+        .js-irs-0 .irs-bar {
+        background: transparent;
+        border: transparent;
+        }
+        .irs-handle {
+        background: transparent !important;
+        border: transparent !important;
+        }
+        .irs-min {
+        background: #69B2E0 !important;
+        text-shadow: 2px 2px 2px rgba(255, 255, 255, 0.5) !important
+        }
+        .irs-max {
+        background: #69B2E0 !important;
+        text-shadow: 2px 2px 2px rgba(255, 255, 255, 0.5) !important
+        }
+        .irs-single {
+        background: #4682B4 !important;
+        top: 20px;
+        }
+        .tabbable {
+        width: calc(100vw - 670px);
+        position: fixed;
+        right: 20px
+        }
+        .tabbable > .nav > li[class = active] > a {
+        background-color: #87CEFA;
+        color: black;
+        text-shadow: 2px 2px 2px rgba(255, 255, 255, 0.75);
+        }
+        li > a {
+        color: white;
+        }
+        .shiny-notification {
+        max-height: 100px !important;
+        max-width: 800px !important;
+        height: 100px;
+        width: 800px;
+        position: fixed;
+        top: calc(50% - 50px);
+        left: calc(50% - 400px);
+        font-size: 250%;
+        text-align: center;
+        }
+        .tooltip {
+        width: max-content;
+        }
+        #sidebar {
+        background-color: rgba(156, 210, 246, 0.3);
+        }
+        #modalWarning .modal-dialog {
+        height: 100px !important;
+        width: 800px !important;
+        position: fixed;
+        top: calc(50% - 100px);
+        left: calc(50% - 400px);
+        font-size: 250%;
+        text-align: center;
+        }
+        #modalHelp .modal-dialog {
+        position: fixed;
+        height: 80%;
+        width: 40%;
+        top: 10%;
+        left: 35%;
+        font-size: 100%;
+        text-align: left;
+        overflow: auto;
+        max-height: 100vh;
+        }
+        .modal-content {
+        border-radius: 100px !important; 
+        }
+        .modal-body {
+        background-color: #69B2E0;
+        font-weight: bold;
+        text-shadow: 2px 2px 2px rgba(255, 255, 255, 0.5);
+        }
+        .modal-title {
+        text-shadow: 2px 2px 2px rgba(255, 255, 255, 0.5);
+        }
+        .modal-header {
+        background-color: #69B2E0;
+        }
+        .modal-footer {
+        background-color: #69B2E0;
+        }
+        .modal-lg {
+        max-height: 1500px !important;
+        max-width: 2000px !important;
+        position: fixed;
+        height: 80%;
+        width: 80%;
+        top: 10%;
+        left: 10%;
+        font-size: 250%;
+        text-align: center;
+        }
+        .modal-sm {
+        max-height: 1200px !important;
+        max-width: 1500px !important;
+        position: fixed;
+        height: 60%;
+        width: 60%;
+        top: 20%;
+        left: 20%;
+        font-size: 100%;
+        }
+        #modalBackground .modal-body {
+        height: 0px; !important;
+        width: 0px; !important;
+        margin: 0px;
+        padding: 0px;
+        background-color: rgba(0, 0, 0, 0) !important;
+        font-size: 0%;
+        }
+        .shiny-notification {
+        background-color: #87CEFA;
+        text-shadow: 2px 2px 2px rgba(255, 255, 255, 0.5);
+        }
+        "
+        )
       )
-    )
-  ),
+    ),
   ##### NAVBAR #####
   navbarPage("Maelstrom",
              inverse = TRUE,
@@ -185,10 +197,10 @@ ui <- fluidPage(
                           id = "sidebar",
                           fluidRow(
                             column(8,
-                                   h4("Number of Stock Objects:", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
+                                   h4("Number of Stock Objects:")
                             ),
                             column(4,
-                                   h4("Show Help:", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
+                                   h4("Show Help:")
                             )
                           ),
                           fluidRow(
@@ -207,7 +219,7 @@ ui <- fluidPage(
                             )
                           ),
                           fluidRow(
-                            h3("Input Stock Objects", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)"),
+                            h3("Input Stock Objects"),
                             align = "center"
                           ),
                           ##### STOCK OBJECT 1 #####
@@ -505,7 +517,7 @@ ui <- fluidPage(
                           ),
                           ##### LOADING (cont.) #####
                           fluidRow(
-                            h3("Process DataFrames", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)"),
+                            h3("Process DataFrames"),
                             align = "center"
                           ),
                           fluidRow(
@@ -519,7 +531,7 @@ ui <- fluidPage(
                             )
                           ),
                           fluidRow(
-                            h3("Zoom Plots", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)"),
+                            h3("Zoom Plots"),
                             align = "center"
                           ),
                           fluidRow(
@@ -581,19 +593,19 @@ ui <- fluidPage(
                           id = "sidebar",
                           fluidRow(
                             column(3,
-                                   h4("Show Help:", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)"),
+                                   h4("Show Help:"),
                                    align = "left"
                             ),
                             column(3,
-                                   h4("N° of Layers:", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)"),
+                                   h4("N° of Layers:"),
                                    align = "center"
                             ),
                             column(3,
-                                   h4("N° of Epochs:", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)"),
+                                   h4("N° of Epochs:"),
                                    align = "center"
                             ),
                             column(3,
-                                   h4("Learning Rate:", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)"),
+                                   h4("Learning Rate:"),
                                    align = "right"
                             )
                           ),
@@ -604,7 +616,7 @@ ui <- fluidPage(
                             column(3,
                                    pickerInput(
                                      inputId = "nLayers",
-                                     choices = c(1:5),
+                                     choices = c(2:5),
                                      selected = 3,
                                      options = list(style = "picker-input", title = "Layers", width = "75%")
                                    ),
@@ -634,34 +646,34 @@ ui <- fluidPage(
                           ##### LAYER 1 #####
                           fluidRow(
                             column(12, 
-                                   h4("Layer 1", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
+                                   h4("Layer 1")
                             )
                           ),
                           fluidRow(
-                            column(3,
-                                   h5("Layer Type", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
+                            column(4,
+                                   h5("Layer Type")
                             ),
-                            column(3,
-                                   h5("N° of Neurons", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
+                            column(4,
+                                   h5("N° of Neurons")
                             ),
-                            column(3,
-                                   h5("Return Sequence", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                            ),
-                            column(3,
-                                   h5(" ", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                            ),
+                            column(4,
+                                   conditionalPanel(
+                                     condition = "input.layerType1 == 'LSTM' || input.layerType1 == 'SimpleRNN'",
+                                     h5("Return Sequence")
+                                   )
+                            )
                           ),
                           fluidRow(
-                            column(3,
+                            column(4,
                                    pickerInput(
                                      inputId = "layerType1",
-                                     choices = c("Dense", "Dropout", "LSTM", "SimpleRNN"),
+                                     choices = c("Dense", "LSTM", "SimpleRNN"),
                                      selected = "SimpleRNN",
                                      multiple = FALSE,
                                      options = list(style = "picker-input", title = "Type")
                                    )
                             ),
-                            column(3,
+                            column(4,
                                    pickerInput(
                                      inputId = "neurons1",
                                      choices = NA,
@@ -670,566 +682,799 @@ ui <- fluidPage(
                                      options = list(style = "picker-input", title = "Neurons")
                                    )
                             ),
-                            column(3,
-                                   pickerInput(
-                                     inputId = "returnSeq1",
-                                     choices = c(TRUE, FALSE),
-                                     selected = FALSE,
-                                     multiple = FALSE,
-                                     options = list(style = "picker-input", title = "Return Seq.")
+                            column(4,
+                                   conditionalPanel(
+                                     condition = "input.layerType1 == 'LSTM' || input.layerType1 == 'SimpleRNN'",
+                                     pickerInput(
+                                       inputId = "returnSeq1",
+                                       choices = c(TRUE, FALSE),
+                                       selected = FALSE,
+                                       multiple = FALSE,
+                                       options = list(style = "picker-input", title = "Return Seq.")
+                                     )
                                    )
-                            ),
-                            column(3,
                             )
                           ),
+                          conditionalPanel(
+                            condition = "input.layerType1 == 'LSTM' || input.layerType1 == 'SimpleRNN'",
+                            fluidRow(
+                              column(4,
+                                       h5("Dropout")
+                                     ),
+                              column(2,
+                                       h5("Help")
+                                     ),
+                              column(4,
+                                     h5("Recurr. Dropout")
+                                     ),
+                              column(2,
+                                     h5("Help")
+                                     )
+                              )
+                            ),
+                          conditionalPanel(
+                            condition = "input.layerType1 == 'LSTM' || input.layerType1 == 'SimpleRNN'",
+                            fluidRow(
+                              column(4,
+                                     sliderInput("dropout1",
+                                                 label = NULL,
+                                                 min = 0,
+                                                 max = 1,
+                                                 step = 0.05,
+                                                 value = 0.2,
+                                                 round = -2,
+                                                 ticks = TRUE)
+                                     ),
+                              column(2,
+                                     htmlOutput("dropHelp1")
+                                     ),
+                              column(4,
+                                     sliderInput("recdropout1",
+                                                 label = NULL,
+                                                 min = 0,
+                                                 max = 1,
+                                                 step = 0.05,
+                                                 value = 0.2,
+                                                 round = -2,
+                                                 ticks = TRUE)
+                                     ),
+                              column(2,
+                                     htmlOutput("recdropHelp1")
+                                     )
+                              )
+                            ),
                           fluidRow(
-                            column(3,
-                                   h5("Dropout", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
+                            column(4,
+                                   h5("Activation")
                             ),
-                            column(3,
-                                   h5("Activation", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
+                            column(2,
+                                   h5("Help")
                             ),
-                            column(3,
-                                   h5("Recurr. Dropout", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                            ),
-                            column(3,
-                                   h5("Recurr. Activation", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                            ),
+                            column(4,
+                                   conditionalPanel(
+                                     condition = "input.layerType1 == 'LSTM' || input.layerType1 == 'SimpleRNN'",
+                                     h5("Recurr. Activation")
+                                     )
+                                   ),
+                            column(2,
+                                   conditionalPanel(
+                                     condition = "input.layerType1 == 'LSTM' || input.layerType1 == 'SimpleRNN'",
+                                     h5("Help")
+                                     )
+                                   )
                           ),
                           fluidRow(
-                            column(3,
-                                   pickerInput(
-                                     inputId = "dropout1",
-                                     choices = c(0, 0.25, 0.5, 0.75),
-                                     selected = 0,
-                                     multiple = FALSE,
-                                     options = list(style = "picker-input", title = "Dropout")
-                                   )
-                            ),
-                            column(3,
+                            column(4,
                                    pickerInput(
                                      inputId = "activation1",
                                      choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
                                      selected = "tanh",
                                      multiple = FALSE,
                                      options = list(style = "picker-input", title = "Activation")
-                                   )
-                            ),
-                            column(3,
-                                   pickerInput(
-                                     inputId = "recdropout1",
-                                     choices = c(0, 0.25, 0.5, 0.75),
-                                     selected = 0,
-                                     multiple = FALSE,
-                                     options = list(style = "picker-input", title = "Recurrent Dropout")
-                                   )
-                            ),
-                            column(3,
-                                   pickerInput(
-                                     inputId = "recactivation1",
-                                     choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
-                                     selected = "tanh",
-                                     multiple = FALSE,
-                                     options = list(style = "picker-input", title = "Recurrent Activation")
-                                   )
-                            )
-                          ),
-                          ##### LAYER 2 #####
-                          fluidRow(
-                            column(12,
+                                     )
+                                   ),
+                            column(2,
+                                   htmlOutput("actHelp1")
+                                   ),
+                            column(4,
                                    conditionalPanel(
-                                     condition = "input.nLayers >= 2",
-                                     fluidRow(
-                                       column(12,
-                                              h4("Layer 2", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                       )
-                                     ),
-                                     fluidRow(
-                                       column(3,
-                                              h5("Layer Type", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                       ),
-                                       column(3,
-                                              h5("N° of Neurons", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                       ),
-                                       column(3,
-                                              h5("Return Sequence", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                       ),
-                                       column(3,
-                                              h5(" ", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                       ),
-                                     ),
-                                     fluidRow(
-                                       column(3,
-                                              pickerInput(
-                                                inputId = "layerType2",
-                                                choices = c("Dense", "Dropout", "LSTM", "SimpleRNN"),
-                                                selected = "Dropout",
-                                                multiple = FALSE,
-                                                options = list(style = "picker-input", title = "Type")
-                                              )
-                                       ),
-                                       column(3,
-                                              conditionalPanel(
-                                                condition = "input.layerType2 == 'Dense' || input.layerType2 == 'LSTM' || input.layerType2 == 'SimpleRNN'",
-                                                pickerInput(
-                                                  inputId = "neurons2",
-                                                  choices = NA,
-                                                  multiple = FALSE,
-                                                  options = list(style = "picker-input", title = "Neurons")
-                                                )
-                                              )
-                                       ),
-                                       column(3,
-                                              conditionalPanel(
-                                                condition = "input.layerType2 == 'LSTM' || input.layerType2 == 'SimpleRNN'",
-                                                pickerInput(
-                                                  inputId = "returnSeq2",
-                                                  choices = c(TRUE, FALSE),
-                                                  multiple = FALSE,
-                                                  options = list(style = "picker-input", title = "Return Seq.")
-                                                )
-                                              )
-                                       ),
-                                       column(3,
-                                       )
-                                     ),
-                                     fluidRow(
-                                       column(3,
-                                              h5("Dropout", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                       ),
-                                       column(3,
-                                              h5("Activation", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                       ),
-                                       column(3,
-                                              h5("Recurr. Dropout", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                       ),
-                                       column(3,
-                                              h5("Recurr. Activation", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                       ),
-                                     ),
-                                     fluidRow(
-                                       column(3,
-                                              conditionalPanel(
-                                                condition = "input.layerType2 == 'Dropout' || input.layerType2 == 'LSTM' || input.layerType2 == 'SimpleRNN'",
-                                                pickerInput(
-                                                  inputId = "dropout2",
-                                                  choices = c(0, 0.25, 0.5, 0.75),
-                                                  selected = 0.25,
-                                                  multiple = FALSE,
-                                                  options = list(style = "picker-input", title = "Dropout")
-                                                )
-                                              )
-                                       ),
-                                       column(3,
-                                              conditionalPanel(
-                                                condition = "input.layerType2 == 'Dense' || input.layerType2 == 'LSTM' || input.layerType2 == 'SimpleRNN'",
-                                                pickerInput(
-                                                  inputId = "activation2",
-                                                  choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
-                                                  multiple = FALSE,
-                                                  options = list(style = "picker-input", title = "Activation")
-                                                )
-                                              )
-                                       ),
-                                       column(3,
-                                              conditionalPanel(
-                                                condition = "input.layerType2 == 'Dropout' || input.layerType2 == 'LSTM' || input.layerType2 == 'SimpleRNN'",
-                                                pickerInput(
-                                                  inputId = "recdropout2",
-                                                  choices = c(0, 0.25, 0.5, 0.75),
-                                                  selected = 0.25,
-                                                  multiple = FALSE,
-                                                  options = list(style = "picker-input", title = "Recurrent Dropout")
-                                                )
-                                              )
-                                       ),
-                                       column(3,
-                                              conditionalPanel(
-                                                condition = "input.layerType2 == 'Dense' || input.layerType2 == 'LSTM' || input.layerType2 == 'SimpleRNN'",
-                                                pickerInput(
-                                                  inputId = "recactivation2",
-                                                  choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
-                                                  multiple = FALSE,
-                                                  options = list(style = "picker-input", title = "Recurrent Activation")
-                                                )
-                                              )
-                                       )
+                                     condition = "input.layerType1 == 'LSTM' || input.layerType1 == 'SimpleRNN'",
+                                     pickerInput(
+                                       inputId = "recactivation1",
+                                       choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
+                                       selected = "NULL",
+                                       multiple = FALSE,
+                                       options = list(style = "picker-input", title = "Recurrent Activation")
                                      )
                                    )
-                            )
-                          ),
-                          ##### LAYER 3 #####
-                          fluidRow(
-                            column(12,
-                            conditionalPanel(
-                              condition = "input.nLayers >= 3",
-                              fluidRow(
-                                column(12, 
-                                       h4("Layer 3", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                )
+                            ),
+                            column(2,
+                                   conditionalPanel(
+                                     condition = "input.layerType1 == 'LSTM' || input.layerType1 == 'SimpleRNN'",
+                                     htmlOutput("recactHelp1")
+                                     )
+                                   )
+                            ),
+                          ##### LAYER 2 #####
+                          conditionalPanel(
+                            condition = "input.nLayers >= 2",
+                            fluidRow(
+                              column(12,
+                                     h4("Layer 2")
+                                     )
                               ),
-                              fluidRow(
-                                column(3,
-                                       h5("Layer Type", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                ),
-                                column(3,
-                                       h5("N° of Neurons", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                ),
-                                column(3,
-                                       h5("Return Sequence", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                ),
-                                column(3,
-                                       h5(" ", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                ),
+                            fluidRow(
+                              column(4,
+                                     h5("Layer Type")
+                                     ),
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType2 == 'Dense' || input.layerType2 == 'LSTM' || input.layerType2 == 'SimpleRNN'",
+                                       h5("N° of Neurons")
+                                       )
+                                     ),
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType2 == 'LSTM' || input.layerType2 == 'SimpleRNN'",
+                                       h5("Return Sequence")
+                                       )
+                                     )
                               ),
-                              fluidRow(
-                                column(3,
+                            fluidRow(
+                              column(4,
+                                     pickerInput(
+                                       inputId = "layerType2",
+                                       choices = c("Dense", "Dropout", "LSTM", "SimpleRNN"),
+                                       selected = "Dropout",
+                                       multiple = FALSE,
+                                       options = list(style = "picker-input", title = "Type")
+                                       )
+                                     ),
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType2 == 'Dense' || input.layerType2 == 'LSTM' || input.layerType2 == 'SimpleRNN'",
                                        pickerInput(
-                                         inputId = "layerType3",
-                                         choices = c("Dense", "Dropout", "LSTM", "SimpleRNN"),
-                                         selected = "Dense",
+                                         inputId = "neurons2",
+                                         choices = NA,
                                          multiple = FALSE,
-                                         options = list(style = "picker-input", title = "Type")
-                                       )
-                                ),
-                                column(3,
-                                       conditionalPanel(
-                                         condition = "input.layerType3 == 'Dense' || input.layerType3 == 'LSTM' || input.layerType3 == 'SimpleRNN'",
-                                         pickerInput(
-                                           inputId = "neurons3",
-                                           choices = NA,
-                                           selected = NA,
-                                           multiple = FALSE,
-                                           options = list(style = "picker-input", title = "Neurons")
+                                         options = list(style = "picker-input", title = "Neurons")
                                          )
                                        )
-                                ),
-                                column(3,
-                                       conditionalPanel(
-                                         condition = "input.layerType3 == 'LSTM' || input.layerType3 == 'SimpleRNN'",
-                                         pickerInput(
-                                           inputId = "returnSeq3",
-                                           choices = c(TRUE, FALSE),
-                                           multiple = FALSE,
-                                           options = list(style = "picker-input", title = "Return Seq.")
+                                     ),
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType2 == 'LSTM' || input.layerType2 == 'SimpleRNN'",
+                                       pickerInput(
+                                         inputId = "returnSeq2",
+                                         choices = c(TRUE, FALSE),
+                                         multiple = FALSE,
+                                         options = list(style = "picker-input", title = "Return Seq.")
                                          )
                                        )
-                                ),
-                                column(3,
+                                     )
+                              ),
+                            conditionalPanel(
+                              condition = "input.layerType2 == 'Dropout' || input.layerType2 == 'LSTM' || input.layerType2 == 'SimpleRNN'",
+                              fluidRow(
+                                column(4,
+                                       h5("Dropout")
+                                       ),
+                                column(2,
+                                       h5("Help")
+                                       ),
+                                column(4,
+                                       h5("Recurr. Dropout")
+                                       ),
+                                column(2,
+                                       h5("Help")
+                                       )
                                 )
                               ),
+                            conditionalPanel(
+                              condition = "input.layerType2 == 'Dropout' || input.layerType2 == 'LSTM' || input.layerType2 == 'SimpleRNN'",
                               fluidRow(
-                                column(3,
-                                       h5("Dropout", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                ),
-                                column(3,
-                                       h5("Activation", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                ),
-                                column(3,
-                                       h5("Recurr. Dropout", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                ),
-                                column(3,
-                                       h5("Recurr. Activation", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                ),
+                                column(4,
+                                       sliderInput("dropout2",
+                                                   label = NULL,
+                                                   min = 0,
+                                                   max = 1,
+                                                   step = 0.05,
+                                                   value = 0.2,
+                                                   round = -2,
+                                                   ticks = TRUE)
+                                       ),
+                                column(2,
+                                       htmlOutput("dropHelp2")
+                                       ),
+                                column(4,
+                                       sliderInput("recdropout2",
+                                                   label = NULL,
+                                                   min = 0,
+                                                   max = 1,
+                                                   step = 0.05,
+                                                   value = 0.2,
+                                                   round = -2,
+                                                   ticks = TRUE)
+                                       ),
+                                column(2,
+                                       htmlOutput("recdropHelp2")
+                                       )
+                                )
                               ),
+                            fluidRow(
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType2 == 'Dense' || input.layerType2 == 'LSTM' || input.layerType2 == 'SimpleRNN'",
+                                       h5("Activation")
+                                       )
+                                     ),
+                              column(2,
+                                     conditionalPanel(
+                                       condition = "input.layerType2 == 'Dense' || input.layerType2 == 'LSTM' || input.layerType2 == 'SimpleRNN'",
+                                       h5("Help")
+                                       )
+                                     ),
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType2 == 'LSTM' || input.layerType2 == 'SimpleRNN'",
+                                       h5("Recurr. Activation")
+                                       )
+                                     ),
+                              column(2,
+                                     conditionalPanel(
+                                       condition = "input.layerType2 == 'LSTM' || input.layerType2 == 'SimpleRNN'",
+                                       h5("Help")
+                                       )
+                                     )
+                              ),
+                            fluidRow(
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType2 == 'Dense' || input.layerType2 == 'LSTM' || input.layerType2 == 'SimpleRNN'",
+                                       pickerInput(
+                                         inputId = "activation2",
+                                         choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
+                                         multiple = FALSE,
+                                         options = list(style = "picker-input", title = "Activation")
+                                         )
+                                       )
+                                     ),
+                              column(2,
+                                     conditionalPanel(
+                                       condition = "input.layerType2 == 'Dense' || input.layerType2 == 'LSTM' || input.layerType2 == 'SimpleRNN'",
+                                       htmlOutput("actHelp2")
+                                       )
+                                     ),
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType2 == 'LSTM' || input.layerType2 == 'SimpleRNN'",
+                                       pickerInput(
+                                         inputId = "recactivation2",
+                                         choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
+                                         multiple = FALSE,
+                                         options = list(style = "picker-input", title = "Recurrent Activation")
+                                         )
+                                       )
+                                     ),
+                              column(2,
+                                     conditionalPanel(
+                                       condition = "input.layerType2 == 'LSTM' || input.layerType2 == 'SimpleRNN'",
+                                       htmlOutput("recactHelp2")
+                                       )
+                                     )
+                              )
+                            ),
+                          ##### LAYER 3 #####
+                          conditionalPanel(
+                            condition = "input.nLayers >= 3",
+                            fluidRow(
+                              column(12, 
+                                     h4("Layer 3")
+                              )
+                            ),
+                            fluidRow(
+                              column(4,
+                                     h5("Layer Type")
+                              ),
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType3 == 'Dense' || input.layerType3 == 'LSTM' || input.layerType3 == 'SimpleRNN'",
+                                       h5("N° of Neurons")
+                                     )
+                              ),
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType3 == 'LSTM' || input.layerType3 == 'SimpleRNN'",
+                                       h5("Return Sequence")
+                                     )
+                              )
+                            ),
+                            fluidRow(
+                              column(4,
+                                     pickerInput(
+                                       inputId = "layerType3",
+                                       choices = c("Dense", "Dropout", "LSTM", "SimpleRNN"),
+                                       selected = "Dense",
+                                       multiple = FALSE,
+                                       options = list(style = "picker-input", title = "Type")
+                                     )
+                              ),
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType3 == 'Dense' || input.layerType3 == 'LSTM' || input.layerType3 == 'SimpleRNN'",
+                                       pickerInput(
+                                         inputId = "neurons3",
+                                         choices = NA,
+                                         selected = NA,
+                                         multiple = FALSE,
+                                         options = list(style = "picker-input", title = "Neurons")
+                                       )
+                                     )
+                              ),
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType3 == 'LSTM' || input.layerType3 == 'SimpleRNN'",
+                                       pickerInput(
+                                         inputId = "returnSeq3",
+                                         choices = c(TRUE, FALSE),
+                                         multiple = FALSE,
+                                         options = list(style = "picker-input", title = "Return Seq.")
+                                       )
+                                     )
+                              )
+                            ),
+                            conditionalPanel(
+                              condition = "input.layerType3 == 'Dropout' || input.layerType3 == 'LSTM' || input.layerType3 == 'SimpleRNN'",
                               fluidRow(
-                                column(3,
-                                       conditionalPanel(
-                                         condition = "input.layerType3 == 'Dropout' || input.layerType3 == 'LSTM' || input.layerType3 == 'SimpleRNN'",
-                                         pickerInput(
-                                           inputId = "dropout3",
-                                           choices = c(0, 0.25, 0.5, 0.75),
-                                           selected = 0,
-                                           multiple = FALSE,
-                                           options = list(style = "picker-input", title = "Dropout")
-                                         )
-                                       )
+                                column(4,
+                                       h5("Dropout")
                                 ),
-                                column(3,
-                                       conditionalPanel(
-                                         condition = "input.layerType3 == 'Dense' || input.layerType3 == 'LSTM' || input.layerType3 == 'SimpleRNN'",
-                                         pickerInput(
-                                           inputId = "activation3",
-                                           choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
-                                           selected = "tanh",
-                                           multiple = FALSE,
-                                           options = list(style = "picker-input", title = "Activation")
-                                         )
-                                       )
+                                column(2,
+                                       h5("Help")
                                 ),
-                                column(3,
-                                       conditionalPanel(
-                                         condition = "input.layerType3 == 'Dropout' || input.layerType3 == 'LSTM' || input.layerType3 == 'SimpleRNN'",
-                                         pickerInput(
-                                           inputId = "recdropout3",
-                                           choices = c(0, 0.25, 0.5, 0.75),
-                                           selected = 0,
-                                           multiple = FALSE,
-                                           options = list(style = "picker-input", title = "Recurrent Dropout")
-                                         )
-                                       )
+                                column(4,
+                                       h5("Recurr. Dropout")
                                 ),
-                                column(3,
-                                       conditionalPanel(
-                                         condition = "input.layerType3 == 'LSTM' || input.layerType3 == 'SimpleRNN'",
-                                         pickerInput(
-                                           inputId = "recactivation3",
-                                           choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
-                                           selected = "NULL",
-                                           multiple = FALSE,
-                                           options = list(style = "picker-input", title = "Recurrent Activation")
-                                         )
-                                       )
+                                column(2,
+                                       h5("Help")
                                 )
                               )
-                            )
-                            )
                             ),
+                            conditionalPanel(
+                              condition = "input.layerType3 == 'Dropout' || input.layerType3 == 'LSTM' || input.layerType3 == 'SimpleRNN'",
+                              fluidRow(
+                                column(4,
+                                       sliderInput("dropout3",
+                                                   label = NULL,
+                                                   min = 0,
+                                                   max = 1,
+                                                   step = 0.05,
+                                                   value = 0.2,
+                                                   round = -2,
+                                                   ticks = TRUE)
+                                ),
+                                column(2,
+                                       htmlOutput("dropHelp3")
+                                ),
+                                column(4,
+                                       sliderInput("recdropout3",
+                                                   label = NULL,
+                                                   min = 0,
+                                                   max = 1,
+                                                   step = 0.05,
+                                                   value = 0.2,
+                                                   round = -2,
+                                                   ticks = TRUE)
+                                ),
+                                column(2,
+                                       htmlOutput("recdropHelp3")
+                                )
+                              )
+                            ),
+                            fluidRow(
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType3 == 'Dense' || input.layerType3 == 'LSTM' || input.layerType3 == 'SimpleRNN'",
+                                       h5("Activation")
+                                     )
+                              ),
+                              column(2,
+                                     conditionalPanel(
+                                       condition = "input.layerType3 == 'Dense' || input.layerType3 == 'LSTM' || input.layerType3 == 'SimpleRNN'",
+                                       h5("Help")
+                                     )
+                              ),
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType3 == 'LSTM' || input.layerType3 == 'SimpleRNN'",
+                                       h5("Recurr. Activation")
+                                     )
+                              ),
+                              column(2,
+                                     conditionalPanel(
+                                       condition = "input.layerType3 == 'LSTM' || input.layerType3 == 'SimpleRNN'",
+                                       h5("Help")
+                                     )
+                              )
+                            ),
+                            fluidRow(
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType3 == 'Dense' || input.layerType3 == 'LSTM' || input.layerType3 == 'SimpleRNN'",
+                                       pickerInput(
+                                         inputId = "activation3",
+                                         choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
+                                         selected = "tanh",
+                                         multiple = FALSE,
+                                         options = list(style = "picker-input", title = "Activation")
+                                       )
+                                     )
+                              ),
+                              column(2,
+                                     conditionalPanel(
+                                       condition = "input.layerType3 == 'Dense' || input.layerType3 == 'LSTM' || input.layerType3 == 'SimpleRNN'",
+                                       htmlOutput("actHelp3")
+                                     )
+                              ),
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType3 == 'LSTM' || input.layerType3 == 'SimpleRNN'",
+                                       pickerInput(
+                                         inputId = "recactivation3",
+                                         choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
+                                         selected = "NULL",
+                                         multiple = FALSE,
+                                         options = list(style = "picker-input", title = "Recurrent Activation")
+                                       )
+                                     )
+                              ),
+                              column(2,
+                                     conditionalPanel(
+                                       condition = "input.layerType3 == 'LSTM' || input.layerType3 == 'SimpleRNN'",
+                                       htmlOutput("recactHelp3")
+                                     )
+                              )
+                            )
+                          ),
                           ##### LAYER 4 #####
-                          fluidRow(
-                            column(12,
-                                   conditionalPanel(
-                                     condition = "input.nLayers >= 4",
-                                     fluidRow(
-                                       column(12, 
-                                              h4("Layer 4", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                       )
-                                     ),
-                                     fluidRow(
-                                       column(3,
-                                              h5("Layer Type", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                       ),
-                                       column(3,
-                                              h5("N° of Neurons", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                       ),
-                                       column(3,
-                                              h5("Return Sequence", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                       ),
-                                       column(3,
-                                              h5(" ", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                       ),
-                                     ),
-                                     fluidRow(
-                                       column(3,
-                                              pickerInput(
-                                                inputId = "layerType4",
-                                                choices = c("Dense", "Dropout", "LSTM", "SimpleRNN"),
-                                                multiple = FALSE,
-                                                options = list(style = "picker-input", title = "Type")
-                                              )
-                                       ),
-                                       column(3,
-                                              conditionalPanel(
-                                                condition = "input.layerType4 == 'Dense' || input.layerType4 == 'LSTM' || input.layerType4 == 'SimpleRNN'",
-                                                pickerInput(
-                                                  inputId = "neurons4",
-                                                  choices = NA,
-                                                  multiple = FALSE,
-                                                  options = list(style = "picker-input", title = "Neurons")
-                                                )
-                                              )
-                                       ),
-                                       column(3,
-                                              conditionalPanel(
-                                                condition = "input.layerType4 == 'LSTM' || input.layerType4 == 'SimpleRNN'",
-                                                pickerInput(
-                                                  inputId = "returnSeq4",
-                                                  choices = c(TRUE, FALSE),
-                                                  multiple = FALSE,
-                                                  options = list(style = "picker-input", title = "Return Seq.")
-                                                )
-                                              )
-                                       ),
-                                       column(3,
-                                       )
-                                     ),
-                                     fluidRow(
-                                       column(3,
-                                              h5("Dropout", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                       ),
-                                       column(3,
-                                              h5("Activation", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                       ),
-                                       column(3,
-                                              h5("Recurr. Dropout", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                       ),
-                                       column(3,
-                                              h5("Recurr. Activation", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                       ),
-                                     ),
-                                     fluidRow(
-                                       column(3,
-                                              conditionalPanel(
-                                                condition = "input.layerType4 == 'Dropout' || input.layerType4 == 'LSTM'",
-                                                pickerInput(
-                                                  inputId = "dropout4",
-                                                  choices = c(0, 0.25, 0.5, 0.75),
-                                                  multiple = FALSE,
-                                                  options = list(style = "picker-input", title = "Dropout")
-                                                )
-                                              )
-                                       ),
-                                       column(3,
-                                              conditionalPanel(
-                                                condition = "input.layerType4 == 'Dense' || input.layerType4 == 'LSTM' || input.layerType4 == 'SimpleRNN'",
-                                                pickerInput(
-                                                  inputId = "activation4",
-                                                  choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
-                                                  multiple = FALSE,
-                                                  options = list(style = "picker-input", title = "Activation")
-                                                )
-                                              )
-                                       ),
-                                       column(3,
-                                              conditionalPanel(
-                                                condition = "input.layerType4 == 'Dropout' || input.layerType4 == 'LSTM' || input.layerType4 == 'SimpleRNN'",
-                                                pickerInput(
-                                                  inputId = "recdropout4",
-                                                  choices = c(0, 0.25, 0.5, 0.75),
-                                                  multiple = FALSE,
-                                                  options = list(style = "picker-input", title = "Recurrent Dropout")
-                                                )
-                                              )
-                                       ),
-                                       column(3,
-                                              conditionalPanel(
-                                                condition = "input.layerType4 == 'LSTM' || input.layerType4 == 'SimpleRNN'",
-                                                pickerInput(
-                                                  inputId = "recactivation4",
-                                                  choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
-                                                  multiple = FALSE,
-                                                  options = list(style = "picker-input", title = "Recurrent Activation")
-                                                )
-                                              )
-                                       )
-                                     )
-                                   )
-                            )
+                          conditionalPanel(
+                            condition = "input.nLayers >= 4",
+                            fluidRow(
+                              column(12, 
+                                     h4("Layer 4")
+                              )
                             ),
-                          ##### LAYER 5 #####
-                          fluidRow(
-                            column(12,
-                                   conditionalPanel(
-                                     condition = "input.nLayers >= 5",
-                                     fluidRow(
-                                       column(12, 
-                                              h4("Layer 5", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                       )
-                                     ),
-                                     fluidRow(
-                                       column(3,
-                                              h5("Layer Type", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                       ),
-                                       column(3,
-                                              h5("N° of Neurons", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                       ),
-                                       column(3,
-                                              h5("Return Sequence", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                       ),
-                                       column(3,
-                                              h5(" ", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                       ),
-                                     ),
-                                     fluidRow(
-                                       column(3,
-                                              conditionalPanel(
-                                                condition = "input.nLayers >= 5",
-                                                pickerInput(
-                                                  inputId = "layerType5",
-                                                  choices = c("Dense", "Dropout", "LSTM", "SimpleRNN"),
-                                                  multiple = FALSE,
-                                                  options = list(style = "picker-input", title = "Type")
-                                                )
-                                              )
-                                       ),
-                                       column(3,
-                                              conditionalPanel(
-                                                condition = "input.nLayers >= 5 && input.layerType5 == 'Dense' || input.layerType5 == 'LSTM' || input.layerType5 == 'SimpleRNN'",
-                                                pickerInput(
-                                                  inputId = "neurons5",
-                                                  choices = NA,
-                                                  multiple = FALSE,
-                                                  options = list(style = "picker-input", title = "Neurons")
-                                                )
-                                              )
-                                       ),
-                                       column(3,
-                                              conditionalPanel(
-                                                condition = "input.nLayers >= 5 && input.layerType5 == 'LSTM' || input.layerType5 == 'SimpleRNN'",
-                                                pickerInput(
-                                                  inputId = "returnSeq5",
-                                                  choices = c(TRUE, FALSE),
-                                                  multiple = FALSE,
-                                                  options = list(style = "picker-input", title = "Return Seq.")
-                                                )
-                                              )
-                                       ),
-                                       column(3,
-                                       )
-                                     ),
-                                     fluidRow(
-                                       column(3,
-                                              h5("Dropout", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                       ),
-                                       column(3,
-                                              h5("Activation", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                       ),
-                                       column(3,
-                                              h5("Recurr. Dropout", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                       ),
-                                       column(3,
-                                              h5("Recurr. Activation", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)")
-                                       ),
-                                     ),
-                                     fluidRow(
-                                       column(3,
-                                              conditionalPanel(
-                                                condition = "input.nLayers >= 5 && input.layerType5 == 'Dropout' || input.layerType5 == 'LSTM' || input.layerType5 == 'SimpleRNN'",
-                                                pickerInput(
-                                                  inputId = "dropout5",
-                                                  choices = c(0, 0.25, 0.5, 0.75),
-                                                  multiple = FALSE,
-                                                  options = list(style = "picker-input", title = "Dropout")
-                                                )
-                                              )
-                                       ),
-                                       column(3,
-                                              conditionalPanel(
-                                                condition = "input.nLayers >= 5 && input.layerType5 == 'Dense' || input.layerType5 == 'LSTM' || input.layerType5 == 'SimpleRNN'",
-                                                pickerInput(
-                                                  inputId = "activation5",
-                                                  choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
-                                                  selected = "NULL",
-                                                  multiple = FALSE,
-                                                  options = list(style = "picker-input", title = "Activation")
-                                                )
-                                              )
-                                       )
-                                     ),
-                                     column(3,
-                                            conditionalPanel(
-                                              condition = "input.nLayers >= 5 && input.layerType5 == 'Dropout' || input.layerType5 == 'LSTM' || input.layerType5 == 'SimpleRNN'",
-                                              pickerInput(
-                                                inputId = "recdropout5",
-                                                choices = c(0, 0.25, 0.5, 0.75),
-                                                multiple = FALSE,
-                                                options = list(style = "picker-input", title = "Recurrent Dropout")
-                                              )
-                                            )
-                                     ),
-                                     column(3,
-                                            conditionalPanel(
-                                              condition = "input.nLayers >= 5 && input.layerType5 == 'LSTM' || input.layerType5 == 'SimpleRNN'",
-                                              pickerInput(
-                                                inputId = "recactivation5",
-                                                choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
-                                                selected = "NULL",
-                                                multiple = FALSE,
-                                                options = list(style = "picker-input", title = "Recurrent Activation")
-                                              )
-                                            )
+                            fluidRow(
+                              column(4,
+                                     h5("Layer Type")
+                              ),
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType4 == 'Dense' || input.layerType4 == 'LSTM' || input.layerType4 == 'SimpleRNN'",
+                                       h5("N° of Neurons")
                                      )
-                                   )
+                              ),
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType4 == 'LSTM' || input.layerType4 == 'SimpleRNN'",
+                                       h5("Return Sequence")
+                                     )
+                              )
+                            ),
+                            fluidRow(
+                              column(4,
+                                     pickerInput(
+                                       inputId = "layerType4",
+                                       choices = c("Dense", "Dropout", "LSTM", "SimpleRNN"),
+                                       selected = "SimpleRNN",
+                                       multiple = FALSE,
+                                       options = list(style = "picker-input", title = "Type")
+                                     )
+                              ),
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType4 == 'Dense' || input.layerType4 == 'LSTM' || input.layerType4 == 'SimpleRNN'",
+                                       pickerInput(
+                                         inputId = "neurons4",
+                                         choices = NA,
+                                         selected = NA,
+                                         multiple = FALSE,
+                                         options = list(style = "picker-input", title = "Neurons")
+                                       )
+                                     )
+                              ),
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType4 == 'LSTM' || input.layerType4 == 'SimpleRNN'",
+                                       pickerInput(
+                                         inputId = "returnSeq4",
+                                         choices = c(TRUE, FALSE),
+                                         multiple = FALSE,
+                                         options = list(style = "picker-input", title = "Return Seq.")
+                                       )
+                                     )
+                              )
+                            ),
+                            conditionalPanel(
+                              condition = "input.layerType4 == 'Dropout' || input.layerType4 == 'LSTM' || input.layerType4 == 'SimpleRNN'",
+                              fluidRow(
+                                column(4,
+                                       h5("Dropout")
+                                ),
+                                column(2,
+                                       h5("Help")
+                                ),
+                                column(4,
+                                       h5("Recurr. Dropout")
+                                ),
+                                column(2,
+                                       h5("Help")
+                                )
+                              )
+                            ),
+                            conditionalPanel(
+                              condition = "input.layerType4 == 'Dropout' || input.layerType4 == 'LSTM' || input.layerType4 == 'SimpleRNN'",
+                              fluidRow(
+                                column(4,
+                                       sliderInput("dropout4",
+                                                   label = NULL,
+                                                   min = 0,
+                                                   max = 1,
+                                                   step = 0.05,
+                                                   value = 0.2,
+                                                   round = -2,
+                                                   ticks = TRUE)
+                                ),
+                                column(2,
+                                       htmlOutput("dropHelp4")
+                                ),
+                                column(4,
+                                       sliderInput("recdropout4",
+                                                   label = NULL,
+                                                   min = 0,
+                                                   max = 1,
+                                                   step = 0.05,
+                                                   value = 0.2,
+                                                   round = -2,
+                                                   ticks = TRUE)
+                                ),
+                                column(2,
+                                       htmlOutput("recdropHelp4")
+                                )
+                              )
+                            ),
+                            fluidRow(
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType4 == 'Dense' || input.layerType4 == 'LSTM' || input.layerType4 == 'SimpleRNN'",
+                                       h5("Activation")
+                                     )
+                              ),
+                              column(2,
+                                     conditionalPanel(
+                                       condition = "input.layerType4 == 'Dense' || input.layerType4 == 'LSTM' || input.layerType4 == 'SimpleRNN'",
+                                       h5("Help")
+                                     )
+                              ),
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType4 == 'LSTM' || input.layerType4 == 'SimpleRNN'",
+                                       h5("Recurr. Activation")
+                                     )
+                              ),
+                              column(2,
+                                     conditionalPanel(
+                                       condition = "input.layerType4 == 'LSTM' || input.layerType4 == 'SimpleRNN'",
+                                       h5("Help")
+                                     )
+                              )
+                            ),
+                            fluidRow(
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType4 == 'Dense' || input.layerType4 == 'LSTM' || input.layerType4 == 'SimpleRNN'",
+                                       pickerInput(
+                                         inputId = "activation4",
+                                         choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
+                                         selected = "tanh",
+                                         multiple = FALSE,
+                                         options = list(style = "picker-input", title = "Activation")
+                                       )
+                                     )
+                              ),
+                              column(2,
+                                     conditionalPanel(
+                                       condition = "input.layerType4 == 'Dense' || input.layerType4 == 'LSTM' || input.layerType4 == 'SimpleRNN'",
+                                       htmlOutput("actHelp4")
+                                     )
+                              ),
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType4 == 'LSTM' || input.layerType4 == 'SimpleRNN'",
+                                       pickerInput(
+                                         inputId = "recactivation4",
+                                         choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
+                                         selected = "NULL",
+                                         multiple = FALSE,
+                                         options = list(style = "picker-input", title = "Recurrent Activation")
+                                       )
+                                     )
+                              ),
+                              column(2,
+                                     conditionalPanel(
+                                       condition = "input.layerType4 == 'LSTM' || input.layerType4 == 'SimpleRNN'",
+                                       htmlOutput("recactHelp4")
+                                     )
+                              )
+                            )
+                          ),
+                          ##### LAYER 5 #####
+                          conditionalPanel(
+                            condition = "input.nLayers >= 5",
+                            fluidRow(
+                              column(12, 
+                                     h4("Layer 5")
+                              )
+                            ),
+                            fluidRow(
+                              column(4,
+                                     h5("Layer Type")
+                              ),
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType5 == 'Dense' || input.layerType5 == 'LSTM' || input.layerType5 == 'SimpleRNN'",
+                                       h5("N° of Neurons")
+                                     )
+                              ),
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType5 == 'LSTM' || input.layerType5 == 'SimpleRNN'",
+                                       h5("Return Sequence")
+                                     )
+                              )
+                            ),
+                            fluidRow(
+                              column(4,
+                                     pickerInput(
+                                       inputId = "layerType5",
+                                       choices = c("Dense", "Dropout", "LSTM", "SimpleRNN"),
+                                       selected = "SimpleRNN",
+                                       multiple = FALSE,
+                                       options = list(style = "picker-input", title = "Type")
+                                     )
+                              ),
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType5 == 'Dense' || input.layerType5 == 'LSTM' || input.layerType5 == 'SimpleRNN'",
+                                       pickerInput(
+                                         inputId = "neurons5",
+                                         choices = NA,
+                                         multiple = FALSE,
+                                         options = list(style = "picker-input", title = "Neurons")
+                                       )
+                                     )
+                              ),
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType5 == 'LSTM' || input.layerType5 == 'SimpleRNN'",
+                                       pickerInput(
+                                         inputId = "returnSeq5",
+                                         choices = c(TRUE, FALSE),
+                                         multiple = FALSE,
+                                         options = list(style = "picker-input", title = "Return Seq.")
+                                       )
+                                     )
+                              )
+                            ),
+                            conditionalPanel(
+                              condition = "input.layerType5 == 'Dropout' || input.layerType5 == 'LSTM' || input.layerType5 == 'SimpleRNN'",
+                              fluidRow(
+                                column(4,
+                                       h5("Dropout")
+                                ),
+                                column(2,
+                                       h5("Help")
+                                ),
+                                column(4,
+                                       h5("Recurr. Dropout")
+                                ),
+                                column(2,
+                                       h5("Help")
+                                )
+                              )
+                            ),
+                            conditionalPanel(
+                              condition = "input.layerType5 == 'Dropout' || input.layerType5 == 'LSTM' || input.layerType5 == 'SimpleRNN'",
+                              fluidRow(
+                                column(4,
+                                       sliderInput("dropout5",
+                                                   label = NULL,
+                                                   min = 0,
+                                                   max = 1,
+                                                   step = 0.05,
+                                                   value = 0.2,
+                                                   round = -2,
+                                                   ticks = TRUE)
+                                ),
+                                column(2,
+                                       htmlOutput("dropHelp5")
+                                ),
+                                column(4,
+                                       sliderInput("recdropout5",
+                                                   label = NULL,
+                                                   min = 0,
+                                                   max = 1,
+                                                   step = 0.05,
+                                                   value = 0.2,
+                                                   round = -2,
+                                                   ticks = TRUE)
+                                ),
+                                column(2,
+                                       htmlOutput("recdropHelp5")
+                                )
+                              )
+                            ),
+                            fluidRow(
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType5 == 'Dense' || input.layerType5 == 'LSTM' || input.layerType5 == 'SimpleRNN'",
+                                       h5("Activation")
+                                     )
+                              ),
+                              column(2,
+                                     conditionalPanel(
+                                       condition = "input.layerType5 == 'Dense' || input.layerType5 == 'LSTM' || input.layerType5 == 'SimpleRNN'",
+                                       h5("Help")
+                                     )
+                              ),
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType5 == 'LSTM' || input.layerType5 == 'SimpleRNN'",
+                                       h5("Recurr. Activation")
+                                     )
+                              ),
+                              column(2,
+                                     conditionalPanel(
+                                       condition = "input.layerType5 == 'LSTM' || input.layerType5 == 'SimpleRNN'",
+                                       h5("Help")
+                                     )
+                              )
+                            ),
+                            fluidRow(
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType5 == 'Dense' || input.layerType5 == 'LSTM' || input.layerType5 == 'SimpleRNN'",
+                                       pickerInput(
+                                         inputId = "activation5",
+                                         choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
+                                         multiple = FALSE,
+                                         options = list(style = "picker-input", title = "Activation")
+                                       )
+                                     )
+                              ),
+                              column(2,
+                                     conditionalPanel(
+                                       condition = "input.layerType5 == 'Dense' || input.layerType5 == 'LSTM' || input.layerType5 == 'SimpleRNN'",
+                                       htmlOutput("actHelp5")
+                                     )
+                              ),
+                              column(4,
+                                     conditionalPanel(
+                                       condition = "input.layerType5 == 'LSTM' || input.layerType5 == 'SimpleRNN'",
+                                       pickerInput(
+                                         inputId = "recactivation5",
+                                         choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
+                                         multiple = FALSE,
+                                         options = list(style = "picker-input", title = "Recurrent Activation")
+                                       )
+                                     )
+                              ),
+                              column(2,
+                                     conditionalPanel(
+                                       condition = "input.layerType5 == 'LSTM' || input.layerType5 == 'SimpleRNN'",
+                                       htmlOutput("recactHelp5")
+                                     )
+                              )
                             )
                           ),
                           ##### NET BUILDING (cont.) #####
@@ -1258,7 +1503,7 @@ ui <- fluidPage(
                         sidebarPanel(
                           id = "sidebar",
                           fluidRow(
-                            h3("Test Model Fit", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)"),
+                            h3("Test Model Fit"),
                             align = "center"
                           ),
                           fluidRow(
@@ -1276,7 +1521,7 @@ ui <- fluidPage(
                             )
                           ),
                           fluidRow(
-                            h3("Test on Observed Data", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)"),
+                            h3("Test on Observed Data"),
                             align = "center"
                           ),
                           fluidRow(
@@ -1346,7 +1591,7 @@ ui <- fluidPage(
                         sidebarPanel(
                           id = "sidebar",
                           fluidRow(
-                            h3("Fishing Mortality", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)"),
+                            h3("Fishing Mortality"),
                             align = "center"
                           ),
                           fluidRow(
@@ -1425,7 +1670,7 @@ ui <- fluidPage(
                             )
                           ),
                           fluidRow(
-                            h3("Forecast Phase", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)"),
+                            h3("Forecast Phase"),
                             align = "center"
                           ),
                           fluidRow(
@@ -1474,7 +1719,7 @@ ui <- fluidPage(
                                    )
                           ),
                           fluidRow(
-                            h3("Sensitivity Analysis", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)"),
+                            h3("Sensitivity Analysis"),
                             align = "center"
                           ),
                           fluidRow(
@@ -1522,7 +1767,7 @@ ui <- fluidPage(
                           id = "sidebar",
                           fluidRow(
                             column(12,
-                                   h3("Save Workspace", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)"),
+                                   h3("Save Workspace"),
                                    align = "center"
                             )
                           ),
@@ -1542,7 +1787,7 @@ ui <- fluidPage(
                           ),
                           fluidRow(
                             column(12,
-                                   h3("Load Workspace", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)"),
+                                   h3("Load Workspace"),
                                    align = "center"
                             )
                           ),
@@ -1569,7 +1814,7 @@ ui <- fluidPage(
                             )
                           ),
                           fluidRow(
-                            h3("Generate Report", style = "color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)"),
+                            h3("Generate Report"),
                             align = "center"
                           ),
                           fluidRow(
@@ -1587,7 +1832,3 @@ ui <- fluidPage(
 ##### END #####
 
 return(ui)
-
-### https://miro.medium.com/max/1200/1*0O6TU6hxMIwMf2wZssbCgQ.jpeg
-### https://miro.medium.com/max/1400/1*JEDiI4tGpVZYM2Y5kzW5XA.png
-### https://wallpapercave.com/wp/wp6690929.jpg

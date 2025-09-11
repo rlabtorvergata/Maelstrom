@@ -1683,7 +1683,8 @@ server <- function(input, output, session) {
                             if FALSE, only the hidden state of the last time step<br>
                             (select if there is a dropout or dense layer after the current)<br>
                             - Dropout: proportion of nodes to be dropped from the layer<br>
-                            - Recurrent Dropout: dropout for the recurrent state<br>
+                            - Recurrent Dropout: dropout for the recurrent state, keeps<br>
+                            informations about the previous states<br>
                             - Activation: function for the activation of input/forget/output gate<br>
                             - Recurrent Activation: function for the activation<br>
                             of cell and hidden states<br>
@@ -1694,6 +1695,14 @@ server <- function(input, output, session) {
   observeEvent(input$netHelp, {
     showModal(netHelp)
   })
+  
+  drop_text <- "Use it if the model overfits. Start from a lower value, then raise it if overfitting persists."
+  
+  recdrop_text <- "Use it if the model overfits. Preferrable than regular dropout."
+  
+  act_text <- "The standard function is Tanh (-1 to 1). Others can flatten the results."
+  
+  recact_text <- "The standard function is Sigmoid."
   
   mortalityHelp <- tags$div(id = "mortalityHelp",
                           modalDialog(
@@ -2422,6 +2431,188 @@ server <- function(input, output, session) {
     if (!is.null(rv9$tri)) {species[[9]] <<- rv9$tri}
     if (!is.null(rv10$tri)) {species[[10]] <<- rv10$tri}
 
+  })
+  
+  # Neural network help icons
+  
+  output$dropHelp1 <- renderUI({
+    tags$span(
+      tipify(
+        icon("fas fa-info-circle"),
+        title = drop_text
+      )
+    )
+  })
+  
+  output$recdropHelp1 <- renderUI({
+    tags$span(
+      tipify(
+        icon("fas fa-info-circle"),
+        title = recdrop_text
+      )
+    )
+  })
+  
+  output$actHelp1 <- renderUI({
+    tags$span(
+      tipify(
+        icon("fas fa-info-circle"),
+        title = act_text
+      )
+    )
+  })
+  
+  output$recactHelp1 <- renderUI({
+    tags$span(
+      tipify(
+        icon("fas fa-info-circle"),
+        title = recact_text
+      )
+    )
+  })
+  
+  output$dropHelp2 <- renderUI({
+    tags$span(
+      tipify(
+        icon("fas fa-info-circle"),
+        title = drop_text
+      )
+    )
+  })
+  
+  output$recdropHelp2 <- renderUI({
+    tags$span(
+      tipify(
+        icon("fas fa-info-circle"),
+        title = recdrop_text
+      )
+    )
+  })
+  
+  output$actHelp2 <- renderUI({
+    tags$span(
+      tipify(
+        icon("fas fa-info-circle"),
+        title = act_text
+      )
+    )
+  })
+  
+  output$recactHelp2 <- renderUI({
+    tags$span(
+      tipify(
+        icon("fas fa-info-circle"),
+        title = recact_text
+      )
+    )
+  })
+  
+  output$dropHelp3 <- renderUI({
+    tags$span(
+      tipify(
+        icon("fas fa-info-circle"),
+        title = drop_text
+      )
+    )
+  })
+  
+  output$recdropHelp3 <- renderUI({
+    tags$span(
+      tipify(
+        icon("fas fa-info-circle"),
+        title = recdrop_text
+      )
+    )
+  })
+  
+  output$actHelp3 <- renderUI({
+    tags$span(
+      tipify(
+        icon("fas fa-info-circle"),
+        title = act_text
+      )
+    )
+  })
+  
+  output$recactHelp3 <- renderUI({
+    tags$span(
+      tipify(
+        icon("fas fa-info-circle"),
+        title = recact_text
+      )
+    )
+  })
+  
+  output$dropHelp4 <- renderUI({
+    tags$span(
+      tipify(
+        icon("fas fa-info-circle"),
+        title = drop_text
+      )
+    )
+  })
+  
+  output$recdropHelp4 <- renderUI({
+    tags$span(
+      tipify(
+        icon("fas fa-info-circle"),
+        title = recdrop_text
+      )
+    )
+  })
+  
+  output$actHelp4 <- renderUI({
+    tags$span(
+      tipify(
+        icon("fas fa-info-circle"),
+        title = act_text
+      )
+    )
+  })
+  
+  output$recactHelp4 <- renderUI({
+    tags$span(
+      tipify(
+        icon("fas fa-info-circle"),
+        title = recact_text
+      )
+    )
+  })
+  
+  output$dropHelp5 <- renderUI({
+    tags$span(
+      tipify(
+        icon("fas fa-info-circle"),
+        title = drop_text
+      )
+    )
+  })
+  
+  output$recdropHelp5 <- renderUI({
+    tags$span(
+      tipify(
+        icon("fas fa-info-circle"),
+        title = recdrop_text
+      )
+    )
+  })
+  
+  output$actHelp5 <- renderUI({
+    tags$span(
+      tipify(
+        icon("fas fa-info-circle"),
+        title = act_text
+      )
+    )
+  })
+  
+  output$recactHelp5 <- renderUI({
+    tags$span(
+      tipify(
+        icon("fas fa-info-circle"),
+        title = recact_text
+      )
+    )
   })
   
   ##### POP #####
