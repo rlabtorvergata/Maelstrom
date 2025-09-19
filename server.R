@@ -37,16 +37,7 @@ options(max.print = 99999)
 species <- list() #species loaded
 gsa <- list() #list of gsa per stock loaded
 gsa_tot <- vector() #unique gsa loaded
-stk1 <- NULL #first stock object
-stk2 <- NULL #second stock object
-stk3 <- NULL #third stock object
-stk4 <- NULL #fourth stock object
-stk5 <- NULL #fifth stock object
-stk6 <- NULL #sixth stock object
-stk7 <- NULL #seventh stock object
-stk8 <- NULL #eighth stock object
-stk9 <- NULL #ninth stock object
-stk10 <- NULL #tenth stock object
+rv <- list() #list of stocks loaded
 
 pops <- list() #population processing
 pops_l <- data.frame() #population processing
@@ -1734,41 +1725,15 @@ server <- function(input, output, session) {
   
   ##### REACTIVE VALUES #####
   
-  output$sobj1 <- renderUI({
-    input$reset1
-    fileInput(inputId = "sobj1",
-              label = NULL,
-              placeholder = "Stock Object #1",
-              accept = "RData"
-    )
-  })
-  
-  observe({
-    req(input$sobj1)
-    stk1 <<- if (strsplit(as.character(input$sobj1[4]), "[.]")[[1]][2] == "rds") {
-      readRDS(as.character(input$sobj1[4]))
-      } else {
-        loadRData(as.character(input$sobj1[4]))
-      }
-    rv1$min <- as.integer(stk1@range[1])
-    rv1$max <- as.integer(stk1@range[2])
-    updatePickerInput(
-      session,
-      "baseline1",
-      choices = rv1$min:rv1$max,
-      selected = rv1$max
-    )
-    rv1$tri <- as.character(strsplit(as.character(input$sobj1[1]), "_")[[1]][1])
-    rv1$spinfo <- speciesInfo(rv1$tri)
-    rv1$gsa <- as.vector(as.integer(strsplit(strsplit(strsplit(as.character(input$sobj1[1]), "_")[[1]][2], "\\.")[[1]][1], "-")[[1]]))
-    rv1$gsainfo <- gsaInfo(rv1$gsa)
-  })
+  # Stock 1
   
   rv1 <- reactiveValues(
+    stk = NULL,
     tri = NULL,
     gsa = NULL,
     min = 0,
     max = 0,
+    baseline = 0,
     spinfo = "No Species Selected",
     gsainfo = "No GSA Selected"
   )
@@ -1791,51 +1756,61 @@ server <- function(input, output, session) {
     )
   })
   
-  observeEvent(input$reset1, {
-    rv1$obj <- NULL
-    rv1$tri <- NULL
-    rv1$gsa <- NULL
-    info = "No Species Selected"
-  })
-  
-  output$sobj2 <- renderUI({
-    input$reset2
-    conditionalPanel(
-      condition = "input.nstocks >= 2",
-      fileInput(inputId = "sobj2",
-                label = NULL,
-                placeholder = "Stock Object #2",
-                accept = "RData"
-                )
+  output$sobj1 <- renderUI({
+    input$reset1
+    fileInput(inputId = "sobj1",
+              label = NULL,
+              placeholder = "Stock Object #1",
+              accept = "RData"
     )
   })
   
   observe({
-    req(input$sobj2)
-    stk2 <<- if (strsplit(as.character(input$sobj2[4]), "[.]")[[1]][2] == "rds") {
-      readRDS(as.character(input$sobj2[4]))
-    } else {
-      loadRData(as.character(input$sobj2[4]))
-    }
-    rv2$min <- as.integer(stk2@range[1])
-    rv2$max <- as.integer(stk2@range[2])
+    req(input$sobj1)
+    stk1 <- if (sub(".*\\.", "\\1", input$sobj1[4]) == "rds") {
+      readRDS(as.character(input$sobj1[4]))
+      } else {
+        loadRData(as.character(input$sobj1[4]))
+      }
+    rv1$stk <- stk1
+    rv1$min <- as.integer(stk1@range[1])
+    rv1$max <- as.integer(stk1@range[2])
     updatePickerInput(
       session,
-      "baseline2",
-      choices = rv2$min:rv2$max,
-      selected = rv2$max
+      "baseline1",
+      choices = rv1$min:rv1$max,
+      selected = rv1$max
     )
-    rv2$tri <- as.character(strsplit(as.character(input$sobj2[1]), "_")[[1]][1])
-    rv2$spinfo <- speciesInfo(rv2$tri)
-    rv2$gsa <- as.vector(as.integer(strsplit(strsplit(strsplit(as.character(input$sobj2[1]), "_")[[1]][2], "\\.")[[1]][1], "-")[[1]]))
-    rv2$gsainfo <- gsaInfo(rv2$gsa)
+    rv1$tri <- sub("_.*", "", input$sobj1[1])
+    rv1$spinfo <- speciesInfo(rv1$tri)
+    rv1$gsa <- as.vector(as.integer(strsplit(sub(".*_(.*)\\..*", "\\1", input$sobj1[1]), "-")[[1]]))
+    rv1$gsainfo <- gsaInfo(rv1$gsa)
   })
   
+  observeEvent(input$baseline1, {
+    rv1$baseline <- as.integer(input$baseline1)
+  })
+  
+  observeEvent(input$reset1, {
+    rv1$stk <- NULL
+    rv1$obj <- NULL
+    rv1$tri <- NULL
+    rv1$gsa <- NULL
+    rv1$min <- 0
+    rv1$max <- 0
+    rv1$baseline <- 0
+    info = "No Species Selected"
+  })
+  
+  # Stock 2
+  
   rv2 <- reactiveValues(
+    stk = NULL,
     tri = NULL,
     gsa = NULL,
     min = 0,
     max = 0,
+    baseline = 0,
     spinfo = "No Species Selected",
     gsainfo = "No GSA Selected"
   )
@@ -1858,51 +1833,64 @@ server <- function(input, output, session) {
     )
   })
   
-  observeEvent(input$reset2, {
-    rv2$obj <- NULL
-    rv2$tri <- NULL
-    rv2$gsa <- NULL
-    info = "No Species Selected"
-  })
-  
-  output$sobj3 <- renderUI({
-    input$reset3
+  output$sobj2 <- renderUI({
+    input$reset2
     conditionalPanel(
-      condition = "input.nstocks >= 3",
-      fileInput(inputId = "sobj3",
+      condition = "input.nstocks >= 2",
+      fileInput(inputId = "sobj2",
                 label = NULL,
-                placeholder = "Stock Object #3",
+                placeholder = "Stock Object #2",
                 accept = "RData"
                 )
-      )
+    )
   })
   
   observe({
-    req(input$sobj3)
-    stk3 <<- if (strsplit(as.character(input$sobj3[4]), "[.]")[[1]][2] == "rds") {
-      readRDS(as.character(input$sobj3[4]))
+    req(input$sobj2)
+    stk2 <- if (sub(".*\\.", "\\1", input$sobj2[4]) == "rds") {
+      readRDS(as.character(input$sobj2[4]))
     } else {
-      loadRData(as.character(input$sobj3[4]))
+      loadRData(as.character(input$sobj2[4]))
     }
-    rv3$min <- as.integer(stk3@range[1])
-    rv3$max <- as.integer(stk3@range[2])
+    rv2$stk <- stk2
+    rv2$min <- as.integer(stk2@range[1])
+    rv2$max <- as.integer(stk2@range[2])
     updatePickerInput(
       session,
-      "baseline3",
-      choices = rv3$min:rv3$max,
-      selected = rv3$max
+      "baseline2",
+      choices = rv2$min:rv2$max,
+      selected = rv2$max
     )
-    rv3$tri <- as.character(strsplit(as.character(input$sobj3[1]), "_")[[1]][1])
-    rv3$spinfo <- speciesInfo(rv3$tri)
-    rv3$gsa <- as.vector(as.integer(strsplit(strsplit(strsplit(as.character(input$sobj3[1]), "_")[[1]][2], "\\.")[[1]][1], "-")[[1]]))
-    rv3$gsainfo <- gsaInfo(rv3$gsa)
+    rv2$tri <- sub("_.*", "", input$sobj2[1])
+    rv2$spinfo <- speciesInfo(rv2$tri)
+    rv2$gsa <- as.vector(as.integer(strsplit(sub(".*_(.*)\\..*", "\\1", input$sobj2[1]), "-")[[1]]))
+    rv2$gsainfo <- gsaInfo(rv2$gsa)
   })
   
+  observeEvent(input$baseline2, {
+    rv2$baseline <- as.integer(input$baseline2)
+  })
+  
+  observeEvent(input$reset2, {
+    rv2$stk <- NULL
+    rv2$obj <- NULL
+    rv2$tri <- NULL
+    rv2$gsa <- NULL
+    rv2$min <- 0
+    rv2$max <- 0
+    rv2$baseline <- 0
+    info = "No Species Selected"
+  })
+  
+  # Stock 3
+  
   rv3 <- reactiveValues(
+    stk = NULL,
     tri = NULL,
     gsa = NULL,
     min = 0,
     max = 0,
+    baseline = 0,
     spinfo = "No Species Selected",
     gsainfo = "No GSA Selected"
   )
@@ -1925,51 +1913,64 @@ server <- function(input, output, session) {
     )
   })
   
-  observeEvent(input$reset3, {
-    rv3$obj <- NULL
-    rv3$tri <- NULL
-    rv3$gsa <- NULL
-    info = "No Species Selected"
-  })
-  
-  output$sobj4 <- renderUI({
-    input$reset4
+  output$sobj3 <- renderUI({
+    input$reset3
     conditionalPanel(
-      condition = "input.nstocks >= 4",
-      fileInput(inputId = "sobj4",
+      condition = "input.nstocks >= 3",
+      fileInput(inputId = "sobj3",
                 label = NULL,
-                placeholder = "Stock Object #4",
+                placeholder = "Stock Object #3",
                 accept = "RData"
+                )
       )
-    )
   })
   
   observe({
-    req(input$sobj4)
-    stk4 <<- if (strsplit(as.character(input$sobj4[4]), "[.]")[[1]][2] == "rds") {
-      readRDS(as.character(input$sobj4[4]))
+    req(input$sobj3)
+    stk3 <- if (sub(".*\\.", "\\1", input$sobj3[4]) == "rds") {
+      readRDS(as.character(input$sobj3[4]))
     } else {
-      loadRData(as.character(input$sobj4[4]))
+      loadRData(as.character(input$sobj3[4]))
     }
-    rv4$min <- as.integer(stk4@range[1])
-    rv4$max <- as.integer(stk4@range[2])
+    rv3$stk <- stk3
+    rv3$min <- as.integer(stk3@range[1])
+    rv3$max <- as.integer(stk3@range[2])
     updatePickerInput(
       session,
-      "baseline4",
-      choices = rv4$min:rv4$max,
-      selected = rv4$max
+      "baseline3",
+      choices = rv3$min:rv3$max,
+      selected = rv3$max
     )
-    rv4$tri <- as.character(strsplit(as.character(input$sobj4[1]), "_")[[1]][1])
-    rv4$spinfo <- speciesInfo(rv4$tri)
-    rv4$gsa <- as.vector(as.integer(strsplit(strsplit(strsplit(as.character(input$sobj4[1]), "_")[[1]][2], "\\.")[[1]][1], "-")[[1]]))
-    rv4$gsainfo <- gsaInfo(rv4$gsa)
+    rv3$tri <- sub("_.*", "", input$sobj3[1])
+    rv3$spinfo <- speciesInfo(rv3$tri)
+    rv3$gsa <- as.vector(as.integer(strsplit(sub(".*_(.*)\\..*", "\\1", input$sobj3[1]), "-")[[1]]))
+    rv3$gsainfo <- gsaInfo(rv3$gsa)
   })
   
+  observeEvent(input$baseline3, {
+    rv3$baseline <- as.integer(input$baseline3)
+  })
+  
+  observeEvent(input$reset3, {
+    rv3$stk <- NULL
+    rv3$obj <- NULL
+    rv3$tri <- NULL
+    rv3$gsa <- NULL
+    rv3$min <- 0
+    rv3$max <- 0
+    rv3$baseline <- 0
+    info = "No Species Selected"
+  })
+  
+  # Stock 4
+  
   rv4 <- reactiveValues(
+    stk = NULL,
     tri = NULL,
     gsa = NULL,
     min = 0,
     max = 0,
+    baseline = 0,
     spinfo = "No Species Selected",
     gsainfo = "No GSA Selected"
   )
@@ -1992,51 +1993,64 @@ server <- function(input, output, session) {
     )
   })
   
-  observeEvent(input$reset4, {
-    rv4$obj <- NULL
-    rv4$tri <- NULL
-    rv4$gsa <- NULL
-    info = "No Species Selected"
-  })
-  
-  output$sobj5 <- renderUI({
-    input$reset5
+  output$sobj4 <- renderUI({
+    input$reset4
     conditionalPanel(
-      condition = "input.nstocks >= 5",
-      fileInput(inputId = "sobj5",
+      condition = "input.nstocks >= 4",
+      fileInput(inputId = "sobj4",
                 label = NULL,
-                placeholder = "Stock Object #5",
+                placeholder = "Stock Object #4",
                 accept = "RData"
       )
     )
   })
   
   observe({
-    req(input$sobj5)
-    stk5 <<- if (strsplit(as.character(input$sobj5[4]), "[.]")[[1]][2] == "rds") {
-      readRDS(as.character(input$sobj5[4]))
+    req(input$sobj4)
+    stk4 <- if (sub(".*\\.", "\\1", input$sobj4[4]) == "rds") {
+      readRDS(as.character(input$sobj4[4]))
     } else {
-      loadRData(as.character(input$sobj5[4]))
+      loadRData(as.character(input$sobj4[4]))
     }
-    rv5$min <- as.integer(stk5@range[1])
-    rv5$max <- as.integer(stk5@range[2])
+    rv4$stk <- stk4
+    rv4$min <- as.integer(stk4@range[1])
+    rv4$max <- as.integer(stk4@range[2])
     updatePickerInput(
       session,
-      "baseline5",
-      choices = rv5$min:rv5$max,
-      selected = rv5$max
+      "baseline4",
+      choices = rv4$min:rv4$max,
+      selected = rv4$max
     )
-    rv5$tri <- as.character(strsplit(as.character(input$sobj5[1]), "_")[[1]][1])
-    rv5$spinfo <- speciesInfo(rv5$tri)
-    rv5$gsa <- as.vector(as.integer(strsplit(strsplit(strsplit(as.character(input$sobj5[1]), "_")[[1]][2], "\\.")[[1]][1], "-")[[1]]))
-    rv5$gsainfo <- gsaInfo(rv5$gsa)
+    rv4$tri <- sub("_.*", "", input$sobj4[1])
+    rv4$spinfo <- speciesInfo(rv4$tri)
+    rv4$gsa <- as.vector(as.integer(strsplit(sub(".*_(.*)\\..*", "\\1", input$sobj4[1]), "-")[[1]]))
+    rv4$gsainfo <- gsaInfo(rv4$gsa)
   })
   
+  observeEvent(input$baseline4, {
+    rv4$baseline <- as.integer(input$baseline4)
+  })
+  
+  observeEvent(input$reset4, {
+    rv4$stk <- NULL
+    rv4$obj <- NULL
+    rv4$tri <- NULL
+    rv4$gsa <- NULL
+    rv4$min <- 0
+    rv4$max <- 0
+    rv4$baseline <- 0
+    info = "No Species Selected"
+  })
+  
+  # Stock 5
+  
   rv5 <- reactiveValues(
+    stk = NULL,
     tri = NULL,
     gsa = NULL,
     min = 0,
     max = 0,
+    baseline = 0,
     spinfo = "No Species Selected",
     gsainfo = "No GSA Selected"
   )
@@ -2059,51 +2073,64 @@ server <- function(input, output, session) {
     )
   })
   
-  observeEvent(input$reset5, {
-    rv5$obj <- NULL
-    rv5$tri <- NULL
-    rv5$gsa <- NULL
-    info = "No Species Selected"
-  })
-  
-  output$sobj6 <- renderUI({
-    input$reset6
+  output$sobj5 <- renderUI({
+    input$reset5
     conditionalPanel(
-      condition = "input.nstocks >= 6",
-      fileInput(inputId = "sobj6",
+      condition = "input.nstocks >= 5",
+      fileInput(inputId = "sobj5",
                 label = NULL,
-                placeholder = "Stock Object #6",
+                placeholder = "Stock Object #5",
                 accept = "RData"
       )
     )
   })
   
   observe({
-    req(input$sobj6)
-    stk6 <<- if (strsplit(as.character(input$sobj6[4]), "[.]")[[1]][2] == "rds") {
-      readRDS(as.character(input$sobj6[4]))
+    req(input$sobj5)
+    stk5 <- if (sub(".*\\.", "\\1", input$sobj5[4]) == "rds") {
+      readRDS(as.character(input$sobj5[4]))
     } else {
-      loadRData(as.character(input$sobj6[4]))
+      loadRData(as.character(input$sobj5[4]))
     }
-    rv6$min <- as.integer(stk6@range[1])
-    rv6$max <- as.integer(stk6@range[2])
+    rv5$stk <- stk5
+    rv5$min <- as.integer(stk5@range[1])
+    rv5$max <- as.integer(stk5@range[2])
     updatePickerInput(
       session,
-      "baseline6",
-      choices = rv6$min:rv6$max,
-      selected = rv6$max
+      "baseline5",
+      choices = rv5$min:rv5$max,
+      selected = rv5$max
     )
-    rv6$tri <- as.character(strsplit(as.character(input$sobj6[1]), "_")[[1]][1])
-    rv6$spinfo <- speciesInfo(rv6$tri)
-    rv6$gsa <- as.vector(as.integer(strsplit(strsplit(strsplit(as.character(input$sobj6[1]), "_")[[1]][2], "\\.")[[1]][1], "-")[[1]]))
-    rv6$gsainfo <- gsaInfo(rv6$gsa)
+    rv5$tri <- sub("_.*", "", input$sobj5[1])
+    rv5$spinfo <- speciesInfo(rv5$tri)
+    rv5$gsa <- as.vector(as.integer(strsplit(sub(".*_(.*)\\..*", "\\1", input$sobj5[1]), "-")[[1]]))
+    rv5$gsainfo <- gsaInfo(rv5$gsa)
   })
   
+  observeEvent(input$baseline5, {
+    rv5$baseline <- as.integer(input$baseline5)
+  })
+  
+  observeEvent(input$reset5, {
+    rv5$stk <- NULL
+    rv5$obj <- NULL
+    rv5$tri <- NULL
+    rv5$gsa <- NULL
+    rv5$min <- 0
+    rv5$max <- 0
+    rv5$baseline <- 0
+    info = "No Species Selected"
+  })
+  
+  # Stock 6
+  
   rv6 <- reactiveValues(
+    stk = NULL,
     tri = NULL,
     gsa = NULL,
     min = 0,
     max = 0,
+    baseline = 0,
     spinfo = "No Species Selected",
     gsainfo = "No GSA Selected"
   )
@@ -2126,51 +2153,64 @@ server <- function(input, output, session) {
     )
   })
   
-  observeEvent(input$reset6, {
-    rv6$obj <- NULL
-    rv6$tri <- NULL
-    rv6$gsa <- NULL
-    info = "No Species Selected"
-  })
-  
-  output$sobj7 <- renderUI({
-    input$reset7
+  output$sobj6 <- renderUI({
+    input$reset6
     conditionalPanel(
-      condition = "input.nstocks >= 7",
-      fileInput(inputId = "sobj7",
+      condition = "input.nstocks >= 6",
+      fileInput(inputId = "sobj6",
                 label = NULL,
-                placeholder = "Stock Object #7",
+                placeholder = "Stock Object #6",
                 accept = "RData"
       )
     )
   })
   
   observe({
-    req(input$sobj7)
-    stk7 <<- if (strsplit(as.character(input$sobj7[4]), "[.]")[[1]][2] == "rds") {
-      readRDS(as.character(input$sobj7[4]))
+    req(input$sobj6)
+    stk6 <- if (sub(".*\\.", "\\1", input$sobj6[4]) == "rds") {
+      readRDS(as.character(input$sobj6[4]))
     } else {
-      loadRData(as.character(input$sobj7[4]))
+      loadRData(as.character(input$sobj6[4]))
     }
-    rv7$min <- as.integer(stk7@range[1])
-    rv7$max <- as.integer(stk7@range[2])
+    rv6$stk <- stk6
+    rv6$min <- as.integer(stk6@range[1])
+    rv6$max <- as.integer(stk6@range[2])
     updatePickerInput(
       session,
-      "baseline7",
-      choices = rv7$min:rv7$max,
-      selected = rv7$max
+      "baseline6",
+      choices = rv6$min:rv6$max,
+      selected = rv6$max
     )
-    rv7$tri <- as.character(strsplit(as.character(input$sobj7[1]), "_")[[1]][1])
-    rv7$spinfo <- speciesInfo(rv7$tri)
-    rv7$gsa <- as.vector(as.integer(strsplit(strsplit(strsplit(as.character(input$sobj7[1]), "_")[[1]][2], "\\.")[[1]][1], "-")[[1]]))
-    rv7$gsainfo <- gsaInfo(rv7$gsa)
+    rv6$tri <- sub("_.*", "", input$sobj6[1])
+    rv6$spinfo <- speciesInfo(rv6$tri)
+    rv6$gsa <- as.vector(as.integer(strsplit(sub(".*_(.*)\\..*", "\\1", input$sobj6[1]), "-")[[1]]))
+    rv6$gsainfo <- gsaInfo(rv6$gsa)
   })
   
+  observeEvent(input$baseline6, {
+    rv6$baseline <- as.integer(input$baseline6)
+  })
+  
+  observeEvent(input$reset6, {
+    rv6$stk <- NULL
+    rv6$obj <- NULL
+    rv6$tri <- NULL
+    rv6$gsa <- NULL
+    rv6$min <- 0
+    rv6$max <- 0
+    rv6$baseline <- 0
+    info = "No Species Selected"
+  })
+  
+  # Stock 7
+  
   rv7 <- reactiveValues(
+    stk = NULL,
     tri = NULL,
     gsa = NULL,
     min = 0,
     max = 0,
+    baseline = 0,
     spinfo = "No Species Selected",
     gsainfo = "No GSA Selected"
   )
@@ -2193,51 +2233,64 @@ server <- function(input, output, session) {
     )
   })
   
-  observeEvent(input$reset7, {
-    rv7$obj <- NULL
-    rv7$tri <- NULL
-    rv7$gsa <- NULL
-    info = "No Species Selected"
-  })
-  
-  output$sobj8 <- renderUI({
-    input$reset8
+  output$sobj7 <- renderUI({
+    input$reset7
     conditionalPanel(
-      condition = "input.nstocks >= 8",
-      fileInput(inputId = "sobj8",
+      condition = "input.nstocks >= 7",
+      fileInput(inputId = "sobj7",
                 label = NULL,
-                placeholder = "Stock Object #8",
+                placeholder = "Stock Object #7",
                 accept = "RData"
       )
     )
   })
   
   observe({
-    req(input$sobj8)
-    stk8 <<- if (strsplit(as.character(input$sobj8[4]), "[.]")[[1]][2] == "rds") {
-      readRDS(as.character(input$sobj8[4]))
+    req(input$sobj7)
+    stk7 <- if (sub(".*\\.", "\\1", input$sobj7[4]) == "rds") {
+      readRDS(as.character(input$sobj7[4]))
     } else {
-      loadRData(as.character(input$sobj8[4]))
+      loadRData(as.character(input$sobj7[4]))
     }
-    rv8$min <- as.integer(stk8@range[1])
-    rv8$max <- as.integer(stk8@range[2])
+    rv7$stk <- stk7
+    rv7$min <- as.integer(stk7@range[1])
+    rv7$max <- as.integer(stk7@range[2])
     updatePickerInput(
       session,
-      "baseline8",
-      choices = rv8$min:rv8$max,
-      selected = rv8$max
+      "baseline7",
+      choices = rv7$min:rv7$max,
+      selected = rv7$max
     )
-    rv8$tri <- as.character(strsplit(as.character(input$sobj8[1]), "_")[[1]][1])
-    rv8$spinfo <- speciesInfo(rv8$tri)
-    rv8$gsa <- as.vector(as.integer(strsplit(strsplit(strsplit(as.character(input$sobj8[1]), "_")[[1]][2], "\\.")[[1]][1], "-")[[1]]))
-    rv8$gsainfo <- gsaInfo(rv8$gsa)
+    rv7$tri <- sub("_.*", "", input$sobj7[1])
+    rv7$spinfo <- speciesInfo(rv7$tri)
+    rv7$gsa <- as.vector(as.integer(strsplit(sub(".*_(.*)\\..*", "\\1", input$sobj7[1]), "-")[[1]]))
+    rv7$gsainfo <- gsaInfo(rv7$gsa)
   })
   
+  observeEvent(input$baseline7, {
+    rv7$baseline <- as.integer(input$baseline7)
+  })
+  
+  observeEvent(input$reset7, {
+    rv7$stk <- NULL
+    rv7$obj <- NULL
+    rv7$tri <- NULL
+    rv7$gsa <- NULL
+    rv7$min <- 0
+    rv7$max <- 0
+    rv7$baseline <- 0
+    info = "No Species Selected"
+  })
+  
+  # Stock 8
+  
   rv8 <- reactiveValues(
+    stk = NULL,
     tri = NULL,
     gsa = NULL,
     min = 0,
     max = 0,
+    baseline = 0,
     spinfo = "No Species Selected",
     gsainfo = "No GSA Selected"
   )
@@ -2260,51 +2313,64 @@ server <- function(input, output, session) {
     )
   })
   
-  observeEvent(input$reset8, {
-    rv8$obj <- NULL
-    rv8$tri <- NULL
-    rv8$gsa <- NULL
-    info = "No Species Selected"
-  })
-  
-  output$sobj9 <- renderUI({
-    input$reset9
+  output$sobj8 <- renderUI({
+    input$reset8
     conditionalPanel(
-      condition = "input.nstocks >= 9",
-      fileInput(inputId = "sobj9",
+      condition = "input.nstocks >= 8",
+      fileInput(inputId = "sobj8",
                 label = NULL,
-                placeholder = "Stock Object #9",
+                placeholder = "Stock Object #8",
                 accept = "RData"
       )
     )
   })
   
   observe({
-    req(input$sobj9)
-    stk9 <<- if (strsplit(as.character(input$sobj9[4]), "[.]")[[1]][2] == "rds") {
-      readRDS(as.character(input$sobj9[4]))
+    req(input$sobj8)
+    stk8 <- if (sub(".*\\.", "\\1", input$sobj8[4]) == "rds") {
+      readRDS(as.character(input$sobj8[4]))
     } else {
-      loadRData(as.character(input$sobj9[4]))
+      loadRData(as.character(input$sobj8[4]))
     }
-    rv9$min <- as.integer(stk9@range[1])
-    rv9$max <- as.integer(stk9@range[2])
+    rv8$stk <- stk8
+    rv8$min <- as.integer(stk8@range[1])
+    rv8$max <- as.integer(stk8@range[2])
     updatePickerInput(
       session,
-      "baseline9",
-      choices = rv9$min:rv9$max,
-      selected = rv9$max
+      "baseline8",
+      choices = rv8$min:rv8$max,
+      selected = rv8$max
     )
-    rv9$tri <- as.character(strsplit(as.character(input$sobj9[1]), "_")[[1]][1])
-    rv9$spinfo <- speciesInfo(rv9$tri)
-    rv9$gsa <- as.vector(as.integer(strsplit(strsplit(strsplit(as.character(input$sobj9[1]), "_")[[1]][2], "\\.")[[1]][1], "-")[[1]]))
-    rv9$gsainfo <- gsaInfo(rv9$gsa)
+    rv8$tri <- sub("_.*", "", input$sobj8[1])
+    rv8$spinfo <- speciesInfo(rv8$tri)
+    rv8$gsa <- as.vector(as.integer(strsplit(sub(".*_(.*)\\..*", "\\1", input$sobj8[1]), "-")[[1]]))
+    rv8$gsainfo <- gsaInfo(rv8$gsa)
   })
   
+  observeEvent(input$baseline8, {
+    rv8$baseline <- as.integer(input$baseline8)
+  })
+  
+  observeEvent(input$reset8, {
+    rv8$stk <- NULL
+    rv8$obj <- NULL
+    rv8$tri <- NULL
+    rv8$gsa <- NULL
+    rv8$min <- 0
+    rv8$max <- 0
+    rv8$baseline <- 0
+    info = "No Species Selected"
+  })
+  
+  # Stock 9
+  
   rv9 <- reactiveValues(
+    stk = NULL,
     tri = NULL,
     gsa = NULL,
     min = 0,
     max = 0,
+    baseline = 0,
     spinfo = "No Species Selected",
     gsainfo = "No GSA Selected"
   )
@@ -2327,51 +2393,64 @@ server <- function(input, output, session) {
     )
   })
   
-  observeEvent(input$reset9, {
-    rv9$obj <- NULL
-    rv9$tri <- NULL
-    rv9$gsa <- NULL
-    info = "No Species Selected"
-  })
-  
-  output$sobj10 <- renderUI({
-    input$reset10
+  output$sobj9 <- renderUI({
+    input$reset9
     conditionalPanel(
-      condition = "input.nstocks >= 10",
-      fileInput(inputId = "sobj10",
+      condition = "input.nstocks >= 9",
+      fileInput(inputId = "sobj9",
                 label = NULL,
-                placeholder = "Stock Object #10",
+                placeholder = "Stock Object #9",
                 accept = "RData"
       )
     )
   })
   
   observe({
-    req(input$sobj10)
-    stk10 <<- if (strsplit(as.character(input$sobj10[4]), "[.]")[[1]][2] == "rds") {
-      readRDS(as.character(input$sobj10[4]))
+    req(input$sobj9)
+    stk9 <- if (sub(".*\\.", "\\1", input$sobj9[4]) == "rds") {
+      readRDS(as.character(input$sobj9[4]))
     } else {
-      loadRData(as.character(input$sobj10[4]))
+      loadRData(as.character(input$sobj9[4]))
     }
-    rv10$min <- as.integer(stk10@range[1])
-    rv10$max <- as.integer(stk10@range[2])
+    rv9$stk <- stk9
+    rv9$min <- as.integer(stk9@range[1])
+    rv9$max <- as.integer(stk9@range[2])
     updatePickerInput(
       session,
-      "baseline10",
-      choices = rv10$min:rv10$max,
-      selected = rv10$max
+      "baseline9",
+      choices = rv9$min:rv9$max,
+      selected = rv9$max
     )
-    rv10$tri <- as.character(strsplit(as.character(input$sobj10[1]), "_")[[1]][1])
-    rv10$spinfo <- speciesInfo(rv10$tri)
-    rv10$gsa <- as.vector(as.integer(strsplit(strsplit(strsplit(as.character(input$sobj10[1]), "_")[[1]][2], "\\.")[[1]][1], "-")[[1]]))
-    rv10$gsainfo <- gsaInfo(rv10$gsa)
+    rv9$tri <- sub("_.*", "", input$sobj9[1])
+    rv9$spinfo <- speciesInfo(rv9$tri)
+    rv9$gsa <- as.vector(as.integer(strsplit(sub(".*_(.*)\\..*", "\\1", input$sobj9[1]), "-")[[1]]))
+    rv9$gsainfo <- gsaInfo(rv9$gsa)
   })
   
+  observeEvent(input$baseline9, {
+    rv9$baseline <- as.integer(input$baseline9)
+  })
+  
+  observeEvent(input$reset9, {
+    rv9$stk <- NULL
+    rv9$obj <- NULL
+    rv9$tri <- NULL
+    rv9$gsa <- NULL
+    rv9$min <- 0
+    rv9$max <- 0
+    rv9$baseline <- 0
+    info = "No Species Selected"
+  })
+  
+  # Stock 10
+  
   rv10 <- reactiveValues(
+    stk = NULL,
     tri = NULL,
     gsa = NULL,
     min = 0,
     max = 0,
+    baseline = 0,
     spinfo = "No Species Selected",
     gsainfo = "No GSA Selected"
   )
@@ -2394,13 +2473,57 @@ server <- function(input, output, session) {
     )
   })
   
+  output$sobj10 <- renderUI({
+    input$reset10
+    conditionalPanel(
+      condition = "input.nstocks >= 10",
+      fileInput(inputId = "sobj10",
+                label = NULL,
+                placeholder = "Stock Object #10",
+                accept = "RData"
+      )
+    )
+  })
+  
+  observe({
+    req(input$sobj10)
+    stk10 <- if (sub(".*\\.", "\\1", input$sobj10[4]) == "rds") {
+      readRDS(as.character(input$sobj10[4]))
+    } else {
+      loadRData(as.character(input$sobj10[4]))
+    }
+    rv10$stk <- stk10
+    rv10$min <- as.integer(stk10@range[1])
+    rv10$max <- as.integer(stk10@range[2])
+    updatePickerInput(
+      session,
+      "baseline10",
+      choices = rv10$min:rv10$max,
+      selected = rv10$max
+    )
+    rv10$tri <- sub("_.*", "", input$sobj10[1])
+    rv10$spinfo <- speciesInfo(rv10$tri)
+    rv10$gsa <- as.vector(as.integer(strsplit(sub(".*_(.*)\\..*", "\\1", input$sobj10[1]), "-")[[1]]))
+    rv10$gsainfo <- gsaInfo(rv10$gsa)
+  })
+  
+  observeEvent(input$baseline10, {
+    rv10$baseline <- as.integer(input$baseline10)
+  })
+  
   observeEvent(input$reset10, {
+    rv10$stk <- NULL
     rv10$obj <- NULL
     rv10$tri <- NULL
     rv10$gsa <- NULL
+    rv10$min <- 0
+    rv10$max <- 0
+    rv10$baseline <- 0
     info = "No Species Selected"
   })
-    
+  
+  # Load GSAs and 3A codes
+  
   observeEvent(input$loadButton, {
     
     if (!is.null(rv1$gsa)) {gsa[[1]] <<- as.integer(rv1$gsa)}
@@ -2430,12 +2553,28 @@ server <- function(input, output, session) {
     if (!is.null(rv8$tri)) {species[[8]] <<- rv8$tri}
     if (!is.null(rv9$tri)) {species[[9]] <<- rv9$tri}
     if (!is.null(rv10$tri)) {species[[10]] <<- rv10$tri}
-
+    
+    rv <<- list()
+    if (!is.null(rv1$stk)) {rv[[1]] <<- rv1}
+    if (!is.null(rv2$stk)) {rv[[2]] <<- rv2}
+    if (!is.null(rv3$stk)) {rv[[3]] <<- rv3}
+    if (!is.null(rv4$stk)) {rv[[4]] <<- rv4}
+    if (!is.null(rv5$stk)) {rv[[5]] <<- rv5}
+    if (!is.null(rv6$stk)) {rv[[6]] <<- rv6}
+    if (!is.null(rv7$stk)) {rv[[7]] <<- rv7}
+    if (!is.null(rv8$stk)) {rv[[8]] <<- rv8}
+    if (!is.null(rv9$stk)) {rv[[9]] <<- rv9}
+    if (!is.null(rv10$stk)) {rv[[10]] <<- rv10}
+    
   })
   
   # Neural network help icons
   
-  output$dropHelp1 <- renderUI({
+  output$dropHelp1 =
+    output$dropHelp2 =
+    output$dropHelp3 =
+    output$dropHelp4 =
+    output$dropHelp5 = renderUI({
     tags$span(
       tipify(
         icon("fas fa-info-circle"),
@@ -2444,7 +2583,11 @@ server <- function(input, output, session) {
     )
   })
   
-  output$recdropHelp1 <- renderUI({
+  output$recdropHelp1 =
+    output$recdropHelp2 =
+    output$recdropHelp3 =
+    output$recdropHelp4 =
+    output$recdropHelp5 = renderUI({
     tags$span(
       tipify(
         icon("fas fa-info-circle"),
@@ -2453,7 +2596,11 @@ server <- function(input, output, session) {
     )
   })
   
-  output$actHelp1 <- renderUI({
+  output$actHelp1 =
+    output$actHelp2 =
+    output$actHelp3 =
+    output$actHelp4 =
+    output$actHelp5 = renderUI({
     tags$span(
       tipify(
         icon("fas fa-info-circle"),
@@ -2462,7 +2609,11 @@ server <- function(input, output, session) {
     )
   })
   
-  output$recactHelp1 <- renderUI({
+  output$recactHelp1 =
+    output$recactHelp2 =
+    output$recactHelp3 =
+    output$recactHelp4 =
+    output$recactHelp5 = renderUI({
     tags$span(
       tipify(
         icon("fas fa-info-circle"),
@@ -2471,296 +2622,15 @@ server <- function(input, output, session) {
     )
   })
   
-  output$dropHelp2 <- renderUI({
-    tags$span(
-      tipify(
-        icon("fas fa-info-circle"),
-        title = drop_text
-      )
-    )
-  })
-  
-  output$recdropHelp2 <- renderUI({
-    tags$span(
-      tipify(
-        icon("fas fa-info-circle"),
-        title = recdrop_text
-      )
-    )
-  })
-  
-  output$actHelp2 <- renderUI({
-    tags$span(
-      tipify(
-        icon("fas fa-info-circle"),
-        title = act_text
-      )
-    )
-  })
-  
-  output$recactHelp2 <- renderUI({
-    tags$span(
-      tipify(
-        icon("fas fa-info-circle"),
-        title = recact_text
-      )
-    )
-  })
-  
-  output$dropHelp3 <- renderUI({
-    tags$span(
-      tipify(
-        icon("fas fa-info-circle"),
-        title = drop_text
-      )
-    )
-  })
-  
-  output$recdropHelp3 <- renderUI({
-    tags$span(
-      tipify(
-        icon("fas fa-info-circle"),
-        title = recdrop_text
-      )
-    )
-  })
-  
-  output$actHelp3 <- renderUI({
-    tags$span(
-      tipify(
-        icon("fas fa-info-circle"),
-        title = act_text
-      )
-    )
-  })
-  
-  output$recactHelp3 <- renderUI({
-    tags$span(
-      tipify(
-        icon("fas fa-info-circle"),
-        title = recact_text
-      )
-    )
-  })
-  
-  output$dropHelp4 <- renderUI({
-    tags$span(
-      tipify(
-        icon("fas fa-info-circle"),
-        title = drop_text
-      )
-    )
-  })
-  
-  output$recdropHelp4 <- renderUI({
-    tags$span(
-      tipify(
-        icon("fas fa-info-circle"),
-        title = recdrop_text
-      )
-    )
-  })
-  
-  output$actHelp4 <- renderUI({
-    tags$span(
-      tipify(
-        icon("fas fa-info-circle"),
-        title = act_text
-      )
-    )
-  })
-  
-  output$recactHelp4 <- renderUI({
-    tags$span(
-      tipify(
-        icon("fas fa-info-circle"),
-        title = recact_text
-      )
-    )
-  })
-  
-  output$dropHelp5 <- renderUI({
-    tags$span(
-      tipify(
-        icon("fas fa-info-circle"),
-        title = drop_text
-      )
-    )
-  })
-  
-  output$recdropHelp5 <- renderUI({
-    tags$span(
-      tipify(
-        icon("fas fa-info-circle"),
-        title = recdrop_text
-      )
-    )
-  })
-  
-  output$actHelp5 <- renderUI({
-    tags$span(
-      tipify(
-        icon("fas fa-info-circle"),
-        title = act_text
-      )
-    )
-  })
-  
-  output$recactHelp5 <- renderUI({
-    tags$span(
-      tipify(
-        icon("fas fa-info-circle"),
-        title = recact_text
-      )
-    )
-  })
-  
-  ##### POP #####
-  
-  pop1 <- reactive({
-    if (!is.null(stk1) & !is.null(rv1$tri) & !is.null(rv1$gsa) & !is.null(rv1$min)) {
-      procDfLongQuant(stk1, rv1$gsa, rv1$tri, rv1$min, as.integer(input$baseline1), stock.n, pop)
-    } else if (is.null(stk1) & is.null(rv1$tri) & is.null(rv1$gsa)) {
-      return(NULL)
-    } else {
-      showModal(tags$div(id = "modalWarning", modalDialog("Warning: incomplete data loading!",
-                            footer = NULL,
-                            easyClose = TRUE)))
-      }
-  })
-
-  pop2 <- reactive({
-    if (!is.null(stk2) & !is.null(rv2$tri) & !is.null(rv2$gsa) & !is.null(rv2$min)) {
-      procDfLongQuant(stk2, rv2$gsa, rv2$tri, rv2$min, as.integer(input$baseline2), stock.n, pop)
-    } else if (is.null(rv2$obj) & is.null(rv2$tri) & is.null(rv2$gsa)) {
-      return(NULL)
-    } else {
-      showModal(tags$div(id = "modalWarning", modalDialog("Warning: incomplete data loading!",
-                                                          footer = NULL,
-                                                          easyClose = TRUE)))
-      }
-  })
-
-  pop3 <- reactive({
-    if (!is.null(stk3) & !is.null(rv3$tri) & !is.null(rv3$gsa) & !is.null(rv3$min))  {
-      procDfLongQuant(stk3, rv3$gsa, rv3$tri, rv3$min, as.integer(input$baseline3), stock.n, pop)
-    } else if (is.null(rv3$obj) & is.null(rv3$tri) & is.null(rv3$gsa)) {
-      return(NULL)
-    } else {
-      showModal(tags$div(id = "modalWarning", modalDialog("Warning: incomplete data loading!",
-                                                          footer = NULL,
-                                                          easyClose = TRUE)))
-    }
-  })
-
-  pop4 <- reactive({
-    if (!is.null(stk4) & !is.null(rv4$tri) & !is.null(rv4$gsa) & !is.null(rv4$min))  {
-      procDfLongQuant(stk4, rv4$gsa, rv4$tri, rv4$min, as.integer(input$baseline4), stock.n, pop)
-    } else if (is.null(rv4$obj) & is.null(rv4$tri) & is.null(rv4$gsa)) {
-      return(NULL)
-    } else {
-      showModal(tags$div(id = "modalWarning", modalDialog("Warning: incomplete data loading!",
-                                                          footer = NULL,
-                                                          easyClose = TRUE)))
-    }
-  })
-
-  pop5 <- reactive({
-    if (!is.null(stk5) & !is.null(rv5$tri) & !is.null(rv5$gsa) & !is.null(rv5$min))  {
-      procDfLongQuant(stk5, rv5$gsa, rv5$tri, rv5$min, as.integer(input$baseline5), stock.n, pop)
-    } else if (is.null(rv5$obj) & is.null(rv5$tri) & is.null(rv5$gsa)) {
-      return(NULL)
-    } else {
-      showModal(tags$div(id = "modalWarning", modalDialog("Warning: incomplete data loading!",
-                                                          footer = NULL,
-                                                          easyClose = TRUE)))
-    }
-  })
-
-  pop6 <- reactive({
-    if (!is.null(stk6) & !is.null(rv6$tri) & !is.null(rv6$gsa) & !is.null(rv6$min))  {
-      procDfLongQuant(stk6, rv6$gsa, rv6$tri, rv6$min, as.integer(input$baseline6), stock.n, pop)
-    } else if (is.null(rv6$obj) & is.null(rv6$tri) & is.null(rv6$gsa)) {
-      return(NULL)
-    } else {
-      showModal(tags$div(id = "modalWarning", modalDialog("Warning: incomplete data loading!",
-                                                          footer = NULL,
-                                                          easyClose = TRUE)))
-    }
-  })
-
-  pop7 <- reactive({
-    if (!is.null(stk7) & !is.null(rv7$tri) & !is.null(rv7$gsa) & !is.null(rv7$min))  {
-      procDfLongQuant(stk7, rv7$gsa, rv7$tri, rv7$min, as.integer(input$baseline7), stock.n, pop)
-    } else if (is.null(rv7$obj) & is.null(rv7$tri) & is.null(rv7$gsa)) {
-      return(NULL)
-    } else {
-      showModal(tags$div(id = "modalWarning", modalDialog("Warning: incomplete data loading!",
-                                                          footer = NULL,
-                                                          easyClose = TRUE)))
-    }
-  })
-
-  pop8 <- reactive({
-    if (!is.null(stk8) & !is.null(rv8$tri) & !is.null(rv8$gsa) & !is.null(rv8$min))  {
-      procDfLongQuant(stk8, rv8$gsa, rv8$tri, rv8$min, as.integer(input$baseline8), stock.n, pop)
-    } else if (is.null(rv8$obj) & is.null(rv8$tri) & is.null(rv8$gsa)) {
-      return(NULL)
-    } else {
-      showModal(tags$div(id = "modalWarning", modalDialog("Warning: incomplete data loading!",
-                                                          footer = NULL,
-                                                          easyClose = TRUE)))
-    }
-  })
-
-  pop9 <- reactive({
-    if (!is.null(stk9) & !is.null(rv9$tri) & !is.null(rv9$gsa) & !is.null(rv9$min))  {
-      procDfLongQuant(stk9, rv9$gsa, rv9$tri, rv9$min, as.integer(input$baseline9), stock.n, pop)
-    } else if (is.null(rv9$obj) & is.null(rv9$tri) & is.null(rv9$gsa)) {
-      return(NULL)
-    } else {
-      showModal(tags$div(id = "modalWarning", modalDialog("Warning: incomplete data loading!",
-                                                          footer = NULL,
-                                                          easyClose = TRUE)))
-    }
-  })
-
-  pop10 <- reactive({
-    if (!is.null(stk10) & !is.null(rv10$tri) & !is.null(rv10$gsa) & !is.null(rv10$min))  {
-      procDfLongQuant(stk10, rv10$gsa, rv10$tri, rv10$min, as.integer(input$baseline10), stock.n, pop)
-    } else if (is.null(rv10$obj) & is.null(rv10$tri) & is.null(rv10$gsa)) {
-      return(NULL)
-    } else {
-      showModal(tags$div(id = "modalWarning", modalDialog("Warning: incomplete data loading!",
-                                                          footer = NULL,
-                                                          easyClose = TRUE)))
-    }
-  })
+  ##### DATAFRAME LOADING #####
   
   observeEvent(input$loadButton, {
-    if (is.null(pop1()) &
-        is.null(pop2()) &
-        is.null(pop3()) &
-        is.null(pop4()) &
-        is.null(pop5()) &
-        is.null(pop6()) &
-        is.null(pop7()) &
-        is.null(pop8()) &
-        is.null(pop9()) &
-        is.null(pop10()))
-      return(NULL)
-    if (!is.null(pop1())) {pops[[1]] <- pop1()}
-    if (!is.null(pop2())) {pops[[2]] <- pop2()}
-    if (!is.null(pop3())) {pops[[3]] <- pop3()}
-    if (!is.null(pop4())) {pops[[4]] <- pop4()}
-    if (!is.null(pop5())) {pops[[5]] <- pop5()}
-    if (!is.null(pop6())) {pops[[6]] <- pop6()}
-    if (!is.null(pop7())) {pops[[7]] <- pop7()}
-    if (!is.null(pop8())) {pops[[8]] <- pop8()}
-    if (!is.null(pop9())) {pops[[9]] <- pop9()}
-    if (!is.null(pop10())) {pops[[10]] <- pop10()}
     
-    pops <<- pops
+    # Population
+
+    for (i in 1:length(rv)) {
+      pops[[i]] <<- procDfLongQuant(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$min, rv[[i]]$baseline, stock.n, pop)
+    }
     
     if (length(pops) > 0) {
       pops_l <<- do.call(totDf, pops)
@@ -2771,9 +2641,107 @@ server <- function(input, output, session) {
       output$plotPop <- renderPlotly({
         plotPopObj <- layout(ggplotly(plotPop(pops_l), tooltip = "y"), hovermode = "x unified")
         return(plotPopObj)
-        })
+      })
     }
-    })
+    
+    # Catches
+    
+    for (i in 1:length(rv)) {
+      catches[[i]] <<- procDfLongQuant(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$min, rv[[i]]$baseline, catch.n, catch)
+    }
+    
+    if (length(catches) > 0) {
+      catches_l <<- do.call(totDf, catches)
+      catches_w <<- procDfWide(catches_l, catch, C)
+      output$uiCatch <- renderUI({
+        withSpinner(plotlyOutput("plotCatch"), type = 3, color.background = "transparent")
+      })
+      output$plotCatch <- renderPlotly({
+        plotCatchObj <- layout(ggplotly(plotCatch(catches_l), tooltip = "y"), hovermode = "x unified")
+        return(plotCatchObj)
+      })
+    }
+    
+    # Weight at age
+    
+    for (i in 1:length(rv)) {
+      waa[[i]] <<- procDfLongMult(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$min, rv[[i]]$baseline, catch.wt, weight_at_age)
+    }
+    
+    if (length(waa) > 0) {
+      waa_l <<- do.call(totDf, waa)
+      waa_w <<- procDfWide(waa_l, weight_at_age, W)
+      output$uiWaa <- renderUI({
+        withSpinner(plotlyOutput("plotWaa"), type = 3, color.background = "transparent")
+      })
+      output$plotWaa <- renderPlotly({
+        plotWaaObj <- layout(ggplotly(plotWaa(waa_l, pops_l), tooltip = "y"), hovermode = "x unified")
+        return(plotWaaObj)
+      })
+    }
+    
+    # Fishing mortality
+    
+    for (i in 1:length(rv)) {
+      fmorts[[i]] <<- procDfLongMult(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$min, rv[[i]]$baseline, harvest, fmort)
+    }
+    
+    if (length(fmorts) > 0) {
+      fmort_l <<- do.call(totDf, fmorts)
+      fmort_w <<- procDfWide(fmort_l, fmort, F)
+    }
+    
+    # Fishing mortality of spawners
+    
+    for (i in 1:length(rv)) {
+      fmort_spawns[[i]] <<- procDfLongMult(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$min, rv[[i]]$baseline, harvest.spwn, fmort_spawn)
+    }
+    
+    if (length(fmort_spawns) > 0) {
+      fmort_spawn_l <<- do.call(totDf, fmort_spawns)
+      fmort_spawn_w <<- procDfWide(fmort_spawn_l, fmort_spawn, J)
+    }
+    
+    # Natural mortality
+    
+    for (i in 1:length(rv)) {
+      morts[[i]] <<- procDfLongMult(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$min, rv[[i]]$baseline, m, mort)
+    }
+    
+    if (length(morts) > 0) {
+      mort_l <<- do.call(totDf, morts)
+      mort_w <<- procDfWide(mort_l, mort, M)
+    }
+    
+    # Natural mortality
+    
+    for (i in 1:length(rv)) {
+      mort_spawns[[i]] <<- procDfLongMult(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$min, rv[[i]]$baseline, m.spwn, mort_spawn)
+    }
+    
+    if (length(mort_spawns) > 0) {
+      mort_spawn_l <<- do.call(totDf, mort_spawns)
+      mort_spawn_w <<- procDfWide(mort_spawn_l, mort_spawn, K)
+    }
+    
+    # Mature ratio
+    
+    for (i in 1:length(rv)) {
+      matures[[i]] <<- procDfLongMult(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$min, rv[[i]]$baseline, mat, mature)
+    }
+    
+    if (length(matures) > 0) {
+      mature_l <<- do.call(totDf, matures)
+      mature_w <<- procDfWide(mature_l, mature, L)
+    }
+    
+    # Create input dataframe for neural network
+    
+    if (length(pops_l) > 0) {neuralNetInputs <<- procInputs(pops_w, catches_w)}
+    
+  })
+  
+  # Zoom and download plots
   
   observeEvent(input$zoomPopButton, {
     if (length(pops_l) > 0) {
@@ -2801,96 +2769,6 @@ server <- function(input, output, session) {
     }
   )
   
-  ##### CATCHES #####
-  
-  catch1 <- reactive({
-    if (!is.null(stk1) & !is.null(rv1$tri) & !is.null(rv1$gsa) & !is.null(rv1$min))
-      procDfLongQuant(stk1, rv1$gsa, rv1$tri, rv1$min, as.integer(input$baseline1), catch.n, catch)
-  })
-  
-  catch2 <- reactive({
-    if (!is.null(stk2) & !is.null(rv2$tri) & !is.null(rv2$gsa) & !is.null(rv2$min))
-      procDfLongQuant(stk2, rv2$gsa, rv2$tri, rv2$min, as.integer(input$baseline2), catch.n, catch)
-  })
-  
-  catch3 <- reactive({
-    if (!is.null(stk3) & !is.null(rv3$tri) & !is.null(rv3$gsa) & !is.null(rv3$min))
-      procDfLongQuant(stk3, rv3$gsa, rv3$tri, rv3$min, as.integer(input$baseline3), catch.n, catch)
-  })
-  
-  catch4 <- reactive({
-    if (!is.null(stk4) & !is.null(rv4$tri) & !is.null(rv4$gsa) & !is.null(rv4$min))
-      procDfLongQuant(stk4, rv4$gsa, rv4$tri, rv4$min, as.integer(input$baseline4), catch.n, catch)
-  })
-  
-  catch5 <- reactive({
-    if (!is.null(stk5) & !is.null(rv5$tri) & !is.null(rv5$gsa) & !is.null(rv5$min))
-      procDfLongQuant(stk5, rv5$gsa, rv5$tri, rv5$min, as.integer(input$baseline5), catch.n, catch)
-  })
-  
-  catch6 <- reactive({
-    if (!is.null(stk6) & !is.null(rv6$tri) & !is.null(rv6$gsa) & !is.null(rv6$min))
-      procDfLongQuant(stk6, rv6$gsa, rv6$tri, rv6$min, as.integer(input$baseline6), catch.n, catch)
-  })
-  
-  catch7 <- reactive({
-    if (!is.null(stk7) & !is.null(rv7$tri) & !is.null(rv7$gsa) & !is.null(rv7$min))
-      procDfLongQuant(stk7, rv7$gsa, rv7$tri, rv7$min, as.integer(input$baseline7), catch.n, catch)
-  })
-  
-  catch8 <- reactive({
-    if (!is.null(stk8) & !is.null(rv8$tri) & !is.null(rv8$gsa) & !is.null(rv8$min))
-      procDfLongQuant(stk8, rv8$gsa, rv8$tri, rv8$min, as.integer(input$baseline8), catch.n, catch)
-  })
-  
-  catch9 <- reactive({
-    if (!is.null(stk9) & !is.null(rv9$tri) & !is.null(rv9$gsa) & !is.null(rv9$min))
-      procDfLongQuant(stk9, rv9$gsa, rv9$tri, rv9$min, as.integer(input$baseline9), catch.n, catch)
-  })
-  
-  catch10 <- reactive({
-    if (!is.null(stk10) & !is.null(rv10$tri) & !is.null(rv10$gsa) & !is.null(rv10$min))
-      procDfLongQuant(stk10, rv10$gsa, rv10$tri, rv10$min, as.integer(input$baseline10), catch.n, catch)
-  })
-  
-  observeEvent(input$loadButton, {
-    if (is.null(catch1()) &
-        is.null(catch2()) &
-        is.null(catch3()) &
-        is.null(catch4()) &
-        is.null(catch5()) &
-        is.null(catch6()) &
-        is.null(catch7()) &
-        is.null(catch8()) &
-        is.null(catch9()) &
-        is.null(catch10()))
-      return(NULL)
-    if (!is.null(catch1())) {catches[[1]] <- catch1()}
-    if (!is.null(catch2())) {catches[[2]] <- catch2()}
-    if (!is.null(catch3())) {catches[[3]] <- catch3()}
-    if (!is.null(catch4())) {catches[[4]] <- catch4()}
-    if (!is.null(catch5())) {catches[[5]] <- catch5()}
-    if (!is.null(catch6())) {catches[[6]] <- catch6()}
-    if (!is.null(catch7())) {catches[[7]] <- catch7()}
-    if (!is.null(catch8())) {catches[[8]] <- catch8()}
-    if (!is.null(catch9())) {catches[[9]] <- catch9()}
-    if (!is.null(catch10())) {catches[[10]] <- catch10()}
-    
-    catches <<- catches
-    
-    if (length(catches) > 0) {
-      catches_l <<- do.call(totDf, catches)
-      catches_w <<- procDfWide(catches_l, catch, C)
-      output$uiCatch <- renderUI({
-        withSpinner(plotlyOutput("plotCatch"), type = 3, color.background = "transparent")
-      })
-      output$plotCatch <- renderPlotly({
-        plotCatchObj <- layout(ggplotly(plotCatch(catches_l), tooltip = "y"), hovermode = "x unified")
-        return(plotCatchObj)
-      })
-    }
-  })
-  
   observeEvent(input$zoomCatchButton, {
     if (length(catches_l) > 0) {
       output$zoomCatch <- renderPlot({
@@ -2914,98 +2792,8 @@ server <- function(input, output, session) {
              height = 9,
              units = "in",
              dpi = 300)
-      }
-    )
-  
-  ##### WEIGHT AT AGE #####
-  
-  waa1 <- reactive({
-    if (!is.null(stk1) & !is.null(rv1$tri) & !is.null(rv1$gsa) & !is.null(rv1$min))
-      procDfLongMult(stk1, rv1$gsa, rv1$tri, rv1$min, as.integer(input$baseline1), catch.wt, weight_at_age)
-  })
-  
-  waa2 <- reactive({
-    if (!is.null(stk2) & !is.null(rv2$tri) & !is.null(rv2$gsa) & !is.null(rv2$min))
-      procDfLongMult(stk2, rv2$gsa, rv2$tri, rv2$min, as.integer(input$baseline2), catch.wt, weight_at_age)
-  })
-  
-  waa3 <- reactive({
-    if (!is.null(stk3) & !is.null(rv3$tri) & !is.null(rv3$gsa) & !is.null(rv3$min))
-      procDfLongMult(stk3, rv3$gsa, rv3$tri, rv3$min, as.integer(input$baseline3), catch.wt, weight_at_age)
-  })
-  
-  waa4 <- reactive({
-    if (!is.null(stk4) & !is.null(rv4$tri) & !is.null(rv4$gsa) & !is.null(rv4$min))
-      procDfLongMult(stk4, rv4$gsa, rv4$tri, rv4$min, as.integer(input$baseline4), catch.wt, weight_at_age)
-  })
-  
-  waa5 <- reactive({
-    if (!is.null(stk5) & !is.null(rv5$tri) & !is.null(rv5$gsa) & !is.null(rv5$min))
-      procDfLongMult(stk5, rv5$gsa, rv5$tri, rv5$min, as.integer(input$baseline5), catch.wt, weight_at_age)
-  })
-  
-  waa6 <- reactive({
-    if (!is.null(stk6) & !is.null(rv6$tri) & !is.null(rv6$gsa) & !is.null(rv6$min))
-      procDfLongMult(stk6, rv6$gsa, rv6$tri, rv6$min, as.integer(input$baseline6), catch.wt, weight_at_age)
-  })
-  
-  waa7 <- reactive({
-    if (!is.null(stk7) & !is.null(rv7$tri) & !is.null(rv7$gsa) & !is.null(rv7$min))
-      procDfLongMult(stk7, rv7$gsa, rv7$tri, rv7$min, as.integer(input$baseline7), catch.wt, weight_at_age)
-  })
-  
-  waa8 <- reactive({
-    if (!is.null(stk8) & !is.null(rv8$tri) & !is.null(rv8$gsa) & !is.null(rv8$min))
-      procDfLongMult(stk8, rv8$gsa, rv8$tri, rv8$min, as.integer(input$baseline8), catch.wt, weight_at_age)
-  })
-  
-  waa9 <- reactive({
-    if (!is.null(stk9) & !is.null(rv9$tri) & !is.null(rv9$gsa) & !is.null(rv9$min))
-      procDfLongMult(stk9, rv9$gsa, rv9$tri, rv9$min, as.integer(input$baseline9), catch.wt, weight_at_age)
-  })
-  
-  waa10 <- reactive({
-    if (!is.null(stk10) & !is.null(rv10$tri) & !is.null(rv10$gsa) & !is.null(rv10$min))
-      procDfLongMult(stk10, rv10$gsa, rv10$tri, rv10$min, as.integer(input$baseline10), catch.wt, weight_at_age)
-  })
-  
-  observeEvent(input$loadButton, {
-    if (is.null(waa1()) &
-        is.null(waa2()) &
-        is.null(waa3()) &
-        is.null(waa4()) &
-        is.null(waa5()) &
-        is.null(waa6()) &
-        is.null(waa7()) &
-        is.null(waa8()) &
-        is.null(waa9()) &
-        is.null(waa10()))
-      return(NULL)
-    if (!is.null(waa1())) {waa[[1]] <- waa1()}
-    if (!is.null(waa2())) {waa[[2]] <- waa2()}
-    if (!is.null(waa3())) {waa[[3]] <- waa3()}
-    if (!is.null(waa4())) {waa[[4]] <- waa4()}
-    if (!is.null(waa5())) {waa[[5]] <- waa5()}
-    if (!is.null(waa6())) {waa[[6]] <- waa6()}
-    if (!is.null(waa7())) {waa[[7]] <- waa7()}
-    if (!is.null(waa8())) {waa[[8]] <- waa8()}
-    if (!is.null(waa9())) {waa[[9]] <- waa9()}
-    if (!is.null(waa10())) {waa[[10]] <- waa10()}
-    
-    waa <<- waa
-    
-    if (length(waa) > 0) {
-      waa_l <<- do.call(totDf, waa)
-      waa_w <<- procDfWide(waa_l, weight_at_age, W)
-      output$uiWaa <- renderUI({
-        withSpinner(plotlyOutput("plotWaa"), type = 3, color.background = "transparent")
-      })
-      output$plotWaa <- renderPlotly({
-        plotWaaObj <- layout(ggplotly(plotWaa(waa_l, pops_l), tooltip = "y"), hovermode = "x unified")
-        return(plotWaaObj)
-      })
     }
-  })
+  )
   
   observeEvent(input$zoomWaaButton, {
     if (length(waa_l) > 0) {
@@ -3032,424 +2820,7 @@ server <- function(input, output, session) {
              dpi = 300)
     }
   )
-  
-  ##### FMORT #####
-  
-  fmort1 <- reactive({
-    if (!is.null(stk1) & !is.null(rv1$tri) & !is.null(rv1$gsa) & !is.null(rv1$min))
-      procDfLongMult(stk1, rv1$gsa, rv1$tri, rv1$min, as.integer(input$baseline1), harvest, fmort)
-  })
-  
-  fmort2 <- reactive({
-    if (!is.null(stk2) & !is.null(rv2$tri) & !is.null(rv2$gsa) & !is.null(rv2$min))
-      procDfLongMult(stk2, rv2$gsa, rv2$tri, rv2$min, as.integer(input$baseline2), harvest, fmort)
-  })
-  
-  fmort3 <- reactive({
-    if (!is.null(stk3) & !is.null(rv3$tri) & !is.null(rv3$gsa) & !is.null(rv3$min))
-      procDfLongMult(stk3, rv3$gsa, rv3$tri, rv3$min, as.integer(input$baseline3), harvest, fmort)
-  })
-  
-  fmort4 <- reactive({
-    if (!is.null(stk4) & !is.null(rv4$tri) & !is.null(rv4$gsa) & !is.null(rv4$min))
-      procDfLongMult(stk4, rv4$gsa, rv4$tri, rv4$min, as.integer(input$baseline4), harvest, fmort)
-  })
-  
-  fmort5 <- reactive({
-    if (!is.null(stk5) & !is.null(rv5$tri) & !is.null(rv5$gsa) & !is.null(rv5$min))
-      procDfLongMult(stk5, rv5$gsa, rv5$tri, rv5$min, as.integer(input$baseline5), harvest, fmort)
-  })
-  
-  fmort6 <- reactive({
-    if (!is.null(stk6) & !is.null(rv6$tri) & !is.null(rv6$gsa) & !is.null(rv6$min))
-      procDfLongMult(stk6, rv6$gsa, rv6$tri, rv6$min, as.integer(input$baseline6), harvest, fmort)
-  })
-  
-  fmort7 <- reactive({
-    if (!is.null(stk7) & !is.null(rv7$tri) & !is.null(rv7$gsa) & !is.null(rv7$min))
-      procDfLongMult(stk7, rv7$gsa, rv7$tri, rv7$min, as.integer(input$baseline7), harvest, fmort)
-  })
-  
-  fmort8 <- reactive({
-    if (!is.null(stk8) & !is.null(rv8$tri) & !is.null(rv8$gsa) & !is.null(rv8$min))
-      procDfLongMult(stk8, rv8$gsa, rv8$tri, rv8$min, as.integer(input$baseline8), harvest, fmort)
-  })
-  
-  fmort9 <- reactive({
-    if (!is.null(stk9) & !is.null(rv9$tri) & !is.null(rv9$gsa) & !is.null(rv9$min))
-      procDfLongMult(stk9, rv9$gsa, rv9$tri, rv9$min, as.integer(input$baseline9), harvest, fmort)
-  })
-  
-  fmort10 <- reactive({
-    if (!is.null(stk10) & !is.null(rv10$tri) & !is.null(rv10$gsa) & !is.null(rv10$min))
-      procDfLongMult(stk10, rv10$gsa, rv10$tri, rv10$min, as.integer(input$baseline10), harvest, fmort)
-  })
-  
-  observeEvent(input$loadButton, {
-    if (is.null(fmort1()) &
-        is.null(fmort2()) &
-        is.null(fmort3()) &
-        is.null(fmort4()) &
-        is.null(fmort5()) &
-        is.null(fmort6()) &
-        is.null(fmort7()) &
-        is.null(fmort8()) &
-        is.null(fmort9()) &
-        is.null(fmort10()))
-      return(NULL)
-    if (!is.null(fmort1())) {fmorts[[1]] <- fmort1()}
-    if (!is.null(fmort2())) {fmorts[[2]] <- fmort2()}
-    if (!is.null(fmort3())) {fmorts[[3]] <- fmort3()}
-    if (!is.null(fmort4())) {fmorts[[4]] <- fmort4()}
-    if (!is.null(fmort5())) {fmorts[[5]] <- fmort5()}
-    if (!is.null(fmort6())) {fmorts[[6]] <- fmort6()}
-    if (!is.null(fmort7())) {fmorts[[7]] <- fmort7()}
-    if (!is.null(fmort8())) {fmorts[[8]] <- fmort8()}
-    if (!is.null(fmort9())) {fmorts[[9]] <- fmort9()}
-    if (!is.null(fmort10())) {fmorts[[10]] <- fmort10()}
     
-    fmorts <<- fmorts
-    
-    if (length(fmorts) > 0) {
-      fmort_l <<- do.call(totDf, fmorts)
-      fmort_w <<- procDfWide(fmort_l, fmort, F)
-    }
-  })
-  
-  ##### FMORT SPAWN #####
-  
-  fmort_spawn1 <- reactive({
-    if (!is.null(stk1) & !is.null(rv1$tri) & !is.null(rv1$gsa) & !is.null(rv1$min))
-      procDfLongMult(stk1, rv1$gsa, rv1$tri, rv1$min, as.integer(input$baseline1), harvest.spwn, fmort_spawn)
-  })
-  
-  fmort_spawn2 <- reactive({
-    if (!is.null(stk2) & !is.null(rv2$tri) & !is.null(rv2$gsa) & !is.null(rv2$min))
-      procDfLongMult(stk2, rv2$gsa, rv2$tri, rv2$min, as.integer(input$baseline2), harvest.spwn, fmort_spawn)
-  })
-  
-  fmort_spawn3 <- reactive({
-    if (!is.null(stk3) & !is.null(rv3$tri) & !is.null(rv3$gsa) & !is.null(rv3$min))
-      procDfLongMult(stk3, rv3$gsa, rv3$tri, rv3$min, as.integer(input$baseline3), harvest.spwn, fmort_spawn)
-  })
-  
-  fmort_spawn4 <- reactive({
-    if (!is.null(stk4) & !is.null(rv4$tri) & !is.null(rv4$gsa) & !is.null(rv4$min))
-      procDfLongMult(stk4, rv4$gsa, rv4$tri, rv4$min, as.integer(input$baseline4), harvest.spwn, fmort_spawn)
-  })
-  
-  fmort_spawn5 <- reactive({
-    if (!is.null(stk5) & !is.null(rv5$tri) & !is.null(rv5$gsa) & !is.null(rv5$min))
-      procDfLongMult(stk5, rv5$gsa, rv5$tri, rv5$min, as.integer(input$baseline5), harvest.spwn, fmort_spawn)
-  })
-  
-  fmort_spawn6 <- reactive({
-    if (!is.null(stk6) & !is.null(rv6$tri) & !is.null(rv6$gsa) & !is.null(rv6$min))
-      procDfLongMult(stk6, rv6$gsa, rv6$tri, rv6$min, as.integer(input$baseline6), harvest.spwn, fmort_spawn)
-  })
-  
-  fmort_spawn7 <- reactive({
-    if (!is.null(stk7) & !is.null(rv7$tri) & !is.null(rv7$gsa) & !is.null(rv7$min))
-      procDfLongMult(stk7, rv7$gsa, rv7$tri, rv7$min, as.integer(input$baseline7), harvest.spwn, fmort_spawn)
-  })
-  
-  fmort_spawn8 <- reactive({
-    if (!is.null(stk8) & !is.null(rv8$tri) & !is.null(rv8$gsa) & !is.null(rv8$min))
-      procDfLongMult(stk8, rv8$gsa, rv8$tri, rv8$min, as.integer(input$baseline8), harvest.spwn, fmort_spawn)
-  })
-  
-  fmort_spawn9 <- reactive({
-    if (!is.null(stk9) & !is.null(rv9$tri) & !is.null(rv9$gsa) & !is.null(rv9$min))
-      procDfLongMult(stk9, rv9$gsa, rv9$tri, rv9$min, as.integer(input$baseline9), harvest.spwn, fmort_spawn)
-  })
-  
-  fmort_spawn10 <- reactive({
-    if (!is.null(stk10) & !is.null(rv10$tri) & !is.null(rv10$gsa) & !is.null(rv10$min))
-      procDfLongMult(stk10, rv10$gsa, rv10$tri, rv10$min, as.integer(input$baseline10), harvest.spwn, fmort_spawn)
-  })
-  
-  observeEvent(input$loadButton, {
-    if (is.null(fmort_spawn1()) &
-        is.null(fmort_spawn2()) &
-        is.null(fmort_spawn3()) &
-        is.null(fmort_spawn4()) &
-        is.null(fmort_spawn5()) &
-        is.null(fmort_spawn6()) &
-        is.null(fmort_spawn7()) &
-        is.null(fmort_spawn8()) &
-        is.null(fmort_spawn9()) &
-        is.null(fmort_spawn10()))
-      return(NULL)
-    if (!is.null(fmort_spawn1())) {fmort_spawns[[1]] <- fmort_spawn1()}
-    if (!is.null(fmort_spawn2())) {fmort_spawns[[2]] <- fmort_spawn2()}
-    if (!is.null(fmort_spawn3())) {fmort_spawns[[3]] <- fmort_spawn3()}
-    if (!is.null(fmort_spawn4())) {fmort_spawns[[4]] <- fmort_spawn4()}
-    if (!is.null(fmort_spawn5())) {fmort_spawns[[5]] <- fmort_spawn5()}
-    if (!is.null(fmort_spawn6())) {fmort_spawns[[6]] <- fmort_spawn6()}
-    if (!is.null(fmort_spawn7())) {fmort_spawns[[7]] <- fmort_spawn7()}
-    if (!is.null(fmort_spawn8())) {fmort_spawns[[8]] <- fmort_spawn8()}
-    if (!is.null(fmort_spawn9())) {fmort_spawns[[9]] <- fmort_spawn9()}
-    if (!is.null(fmort_spawn10())) {fmort_spawns[[10]] <- fmort_spawn10()}
-    
-    fmort_spawns <<- fmort_spawns
-    
-    if (length(fmort_spawns) > 0) {
-      fmort_spawn_l <<- do.call(totDf, fmort_spawns)
-      fmort_spawn_w <<- procDfWide(fmort_spawn_l, fmort_spawn, J)
-    }
-  })
-  
-  ##### MORT #####
-  
-  mort1 <- reactive({
-    if (!is.null(stk1) & !is.null(rv1$tri) & !is.null(rv1$gsa) & !is.null(rv1$min))
-      procDfLongMult(stk1, rv1$gsa, rv1$tri, rv1$min, as.integer(input$baseline1), m, mort)
-  })
-  
-  mort2 <- reactive({
-    if (!is.null(stk2) & !is.null(rv2$tri) & !is.null(rv2$gsa) & !is.null(rv2$min))
-      procDfLongMult(stk2, rv2$gsa, rv2$tri, rv2$min, as.integer(input$baseline2), m, mort)
-  })
-  
-  mort3 <- reactive({
-    if (!is.null(stk3) & !is.null(rv3$tri) & !is.null(rv3$gsa) & !is.null(rv3$min))
-      procDfLongMult(stk3, rv3$gsa, rv3$tri, rv3$min, as.integer(input$baseline3), m, mort)
-  })
-  
-  mort4 <- reactive({
-    if (!is.null(stk4) & !is.null(rv4$tri) & !is.null(rv4$gsa) & !is.null(rv4$min))
-      procDfLongMult(stk4, rv4$gsa, rv4$tri, rv4$min, as.integer(input$baseline4), m, mort)
-  })
-  
-  mort5 <- reactive({
-    if (!is.null(stk5) & !is.null(rv5$tri) & !is.null(rv5$gsa) & !is.null(rv5$min))
-      procDfLongMult(stk5, rv5$gsa, rv5$tri, rv5$min, as.integer(input$baseline5), m, mort)
-  })
-  
-  mort6 <- reactive({
-    if (!is.null(stk6) & !is.null(rv6$tri) & !is.null(rv6$gsa) & !is.null(rv6$min))
-      procDfLongMult(stk6, rv6$gsa, rv6$tri, rv6$min, as.integer(input$baseline6), m, mort)
-  })
-  
-  mort7 <- reactive({
-    if (!is.null(stk7) & !is.null(rv7$tri) & !is.null(rv7$gsa) & !is.null(rv7$min))
-      procDfLongMult(stk7, rv7$gsa, rv7$tri, rv7$min, as.integer(input$baseline7), m, mort)
-  })
-  
-  mort8 <- reactive({
-    if (!is.null(stk8) & !is.null(rv8$tri) & !is.null(rv8$gsa) & !is.null(rv8$min))
-      procDfLongMult(stk8, rv8$gsa, rv8$tri, rv8$min, as.integer(input$baseline8), m, mort)
-  })
-  
-  mort9 <- reactive({
-    if (!is.null(stk9) & !is.null(rv9$tri) & !is.null(rv9$gsa) & !is.null(rv9$min))
-      procDfLongMult(stk9, rv9$gsa, rv9$tri, rv9$min, as.integer(input$baseline9), m, mort)
-  })
-  
-  mort10 <- reactive({
-    if (!is.null(stk10) & !is.null(rv10$tri) & !is.null(rv10$gsa) & !is.null(rv10$min))
-      procDfLongMult(stk10, rv10$gsa, rv10$tri, rv10$min, as.integer(input$baseline10), m, mort)
-  })
-  
-  observeEvent(input$loadButton, {
-    if (is.null(mort1()) &
-        is.null(mort2()) &
-        is.null(mort3()) &
-        is.null(mort4()) &
-        is.null(mort5()) &
-        is.null(mort6()) &
-        is.null(mort7()) &
-        is.null(mort8()) &
-        is.null(mort9()) &
-        is.null(mort10()))
-      return(NULL)
-    if (!is.null(mort1())) {morts[[1]] <- mort1()}
-    if (!is.null(mort2())) {morts[[2]] <- mort2()}
-    if (!is.null(mort3())) {morts[[3]] <- mort3()}
-    if (!is.null(mort4())) {morts[[4]] <- mort4()}
-    if (!is.null(mort5())) {morts[[5]] <- mort5()}
-    if (!is.null(mort6())) {morts[[6]] <- mort6()}
-    if (!is.null(mort7())) {morts[[7]] <- mort7()}
-    if (!is.null(mort8())) {morts[[8]] <- mort8()}
-    if (!is.null(mort9())) {morts[[9]] <- mort9()}
-    if (!is.null(mort10())) {morts[[10]] <- mort10()}
-    
-    morts <<- morts
-    
-    if (length(morts) > 0) {
-      mort_l <<- do.call(totDf, morts)
-      mort_w <<- procDfWide(mort_l, mort, M)
-    }
-  })
-  
-  ##### MORT SPAWN #####
-  
-  mort_spawn1 <- reactive({
-    if (!is.null(stk1) & !is.null(rv1$tri) & !is.null(rv1$gsa) & !is.null(rv1$min))
-      procDfLongMult(stk1, rv1$gsa, rv1$tri, rv1$min, as.integer(input$baseline1), m.spwn, mort_spawn)
-  })
-  
-  mort_spawn2 <- reactive({
-    if (!is.null(stk2) & !is.null(rv2$tri) & !is.null(rv2$gsa) & !is.null(rv2$min))
-      procDfLongMult(stk2, rv2$gsa, rv2$tri, rv2$min, as.integer(input$baseline2), m.spwn, mort_spawn)
-  })
-  
-  mort_spawn3 <- reactive({
-    if (!is.null(stk3) & !is.null(rv3$tri) & !is.null(rv3$gsa) & !is.null(rv3$min))
-      procDfLongMult(stk3, rv3$gsa, rv3$tri, rv3$min, as.integer(input$baseline3), m.spwn, mort_spawn)
-  })
-  
-  mort_spawn4 <- reactive({
-    if (!is.null(stk4) & !is.null(rv4$tri) & !is.null(rv4$gsa) & !is.null(rv4$min))
-      procDfLongMult(stk4, rv4$gsa, rv4$tri, rv4$min, as.integer(input$baseline4), m.spwn, mort_spawn)
-  })
-  
-  mort_spawn5 <- reactive({
-    if (!is.null(stk5) & !is.null(rv5$tri) & !is.null(rv5$gsa) & !is.null(rv5$min))
-      procDfLongMult(stk5, rv5$gsa, rv5$tri, rv5$min, as.integer(input$baseline5), m.spwn, mort_spawn)
-  })
-  
-  mort_spawn6 <- reactive({
-    if (!is.null(stk6) & !is.null(rv6$tri) & !is.null(rv6$gsa) & !is.null(rv6$min))
-      procDfLongMult(stk6, rv6$gsa, rv6$tri, rv6$min, as.integer(input$baseline6), m.spwn, mort_spawn)
-  })
-  
-  mort_spawn7 <- reactive({
-    if (!is.null(stk7) & !is.null(rv7$tri) & !is.null(rv7$gsa) & !is.null(rv7$min))
-      procDfLongMult(stk7, rv7$gsa, rv7$tri, rv7$min, as.integer(input$baseline7), m.spwn, mort_spawn)
-  })
-  
-  mort_spawn8 <- reactive({
-    if (!is.null(stk8) & !is.null(rv8$tri) & !is.null(rv8$gsa) & !is.null(rv8$min))
-      procDfLongMult(stk8, rv8$gsa, rv8$tri, rv8$min, as.integer(input$baseline8), m.spwn, mort_spawn)
-  })
-  
-  mort_spawn9 <- reactive({
-    if (!is.null(stk9) & !is.null(rv9$tri) & !is.null(rv9$gsa) & !is.null(rv9$min))
-      procDfLongMult(stk9, rv9$gsa, rv9$tri, rv9$min, as.integer(input$baseline9), m.spwn, mort_spawn)
-  })
-  
-  mort_spawn10 <- reactive({
-    if (!is.null(stk10) & !is.null(rv10$tri) & !is.null(rv10$gsa) & !is.null(rv10$min))
-      procDfLongMult(stk10, rv10$gsa, rv10$tri, rv10$min, as.integer(input$baseline10), m.spwn, mort_spawn)
-  })
-  
-  observeEvent(input$loadButton, {
-    if (is.null(mort_spawn1()) &
-        is.null(mort_spawn2()) &
-        is.null(mort_spawn3()) &
-        is.null(mort_spawn4()) &
-        is.null(mort_spawn5()) &
-        is.null(mort_spawn6()) &
-        is.null(mort_spawn7()) &
-        is.null(mort_spawn8()) &
-        is.null(mort_spawn9()) &
-        is.null(mort_spawn10()))
-      return(NULL)
-    if (!is.null(mort_spawn1())) {mort_spawns[[1]] <- mort_spawn1()}
-    if (!is.null(mort_spawn2())) {mort_spawns[[2]] <- mort_spawn2()}
-    if (!is.null(mort_spawn3())) {mort_spawns[[3]] <- mort_spawn3()}
-    if (!is.null(mort_spawn4())) {mort_spawns[[4]] <- mort_spawn4()}
-    if (!is.null(mort_spawn5())) {mort_spawns[[5]] <- mort_spawn5()}
-    if (!is.null(mort_spawn6())) {mort_spawns[[6]] <- mort_spawn6()}
-    if (!is.null(mort_spawn7())) {mort_spawns[[7]] <- mort_spawn7()}
-    if (!is.null(mort_spawn8())) {mort_spawns[[8]] <- mort_spawn8()}
-    if (!is.null(mort_spawn9())) {mort_spawns[[9]] <- mort_spawn9()}
-    if (!is.null(mort_spawn10())) {mort_spawns[[10]] <- mort_spawn10()}
-    
-    mort_spawns <<- mort_spawns
-    
-    if (length(mort_spawns) > 0) {
-      mort_spawn_l <<- do.call(totDf, mort_spawns)
-      mort_spawn_w <<- procDfWide(mort_spawn_l, mort_spawn, K)
-    }
-  })
-  
-  ##### MATURE RATIO #####
-  
-  mature1 <- reactive({
-    if (!is.null(stk1) & !is.null(rv1$tri) & !is.null(rv1$gsa) & !is.null(rv1$min))
-      procDfLongMult(stk1, rv1$gsa, rv1$tri, rv1$min, as.integer(input$baseline1), mat, mature)
-  })
-  
-  mature2 <- reactive({
-    if (!is.null(stk2) & !is.null(rv2$tri) & !is.null(rv2$gsa) & !is.null(rv2$min))
-      procDfLongMult(stk2, rv2$gsa, rv2$tri, rv2$min, as.integer(input$baseline2), mat, mature)
-  })
-  
-  mature3 <- reactive({
-    if (!is.null(stk3) & !is.null(rv3$tri) & !is.null(rv3$gsa) & !is.null(rv3$min))
-      procDfLongMult(stk3, rv3$gsa, rv3$tri, rv3$min, as.integer(input$baseline3), mat, mature)
-  })
-  
-  mature4 <- reactive({
-    if (!is.null(stk4) & !is.null(rv4$tri) & !is.null(rv4$gsa) & !is.null(rv4$min))
-      procDfLongMult(stk4, rv4$gsa, rv4$tri, rv4$min, as.integer(input$baseline4), mat, mature)
-  })
-  
-  mature5 <- reactive({
-    if (!is.null(stk5) & !is.null(rv5$tri) & !is.null(rv5$gsa) & !is.null(rv5$min))
-      procDfLongMult(stk5, rv5$gsa, rv5$tri, rv5$min, as.integer(input$baseline5), mat, mature)
-  })
-  
-  mature6 <- reactive({
-    if (!is.null(stk6) & !is.null(rv6$tri) & !is.null(rv6$gsa) & !is.null(rv6$min))
-      procDfLongMult(stk6, rv6$gsa, rv6$tri, rv6$min, as.integer(input$baseline6), mat, mature)
-  })
-  
-  mature7 <- reactive({
-    if (!is.null(stk7) & !is.null(rv7$tri) & !is.null(rv7$gsa) & !is.null(rv7$min))
-      procDfLongMult(stk7, rv7$gsa, rv7$tri, rv7$min, as.integer(input$baseline7), mat, mature)
-  })
-  
-  mature8 <- reactive({
-    if (!is.null(stk8) & !is.null(rv8$tri) & !is.null(rv8$gsa) & !is.null(rv8$min))
-      procDfLongMult(stk8, rv8$gsa, rv8$tri, rv8$min, as.integer(input$baseline8), mat, mature)
-  })
-  
-  mature9 <- reactive({
-    if (!is.null(stk9) & !is.null(rv9$tri) & !is.null(rv9$gsa) & !is.null(rv9$min))
-      procDfLongMult(stk9, rv9$gsa, rv9$tri, rv9$min, as.integer(input$baseline9), mat, mature)
-  })
-  
-  mature10 <- reactive({
-    if (!is.null(stk10) & !is.null(rv10$tri) & !is.null(rv10$gsa) & !is.null(rv10$min))
-      procDfLongMult(stk10, rv10$gsa, rv10$tri, rv10$min, as.integer(input$baseline10), mat, mature)
-  })
-  
-  observeEvent(input$loadButton, {
-    if (is.null(mature1()) &
-        is.null(mature2()) &
-        is.null(mature3()) &
-        is.null(mature4()) &
-        is.null(mature5()) &
-        is.null(mature6()) &
-        is.null(mature7()) &
-        is.null(mature8()) &
-        is.null(mature9()) &
-        is.null(mature10()))
-      return(NULL)
-    if (!is.null(mature1())) {matures[[1]] <- mature1()}
-    if (!is.null(mature2())) {matures[[2]] <- mature2()}
-    if (!is.null(mature3())) {matures[[3]] <- mature3()}
-    if (!is.null(mature4())) {matures[[4]] <- mature4()}
-    if (!is.null(mature5())) {matures[[5]] <- mature5()}
-    if (!is.null(mature6())) {matures[[6]] <- mature6()}
-    if (!is.null(mature7())) {matures[[7]] <- mature7()}
-    if (!is.null(mature8())) {matures[[8]] <- mature8()}
-    if (!is.null(mature9())) {matures[[9]] <- mature9()}
-    if (!is.null(mature10())) {matures[[10]] <- mature10()}
-    
-    matures <<- matures
-    
-    if (length(matures) > 0) {
-      mature_l <<- do.call(totDf, matures)
-      mature_w <<- procDfWide(mature_l, mature, L)
-    }
-    
-    if (length(pops_l) > 0) {neuralNetInputs <<- procInputs(pops_w, catches_w)}
-  })
-  
   ##### FISHING MORTALITY #####
   
   observeEvent(input$loadButton, {
