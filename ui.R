@@ -219,7 +219,18 @@ ui <- fluidPage(
                             )
                           ),
                           fluidRow(
-                            h3("Input Stock Objects"),
+                            column(6,
+                                   h4("Input Stock Objects"), align = "left"
+                                   ),
+                            column(2,
+                                   h4("Stock Info"), align = "left"
+                                   ),
+                            column(2,
+                                   h4("Max Cohort"), align = "left"
+                                   ),
+                            column(2,
+                                   h4("Reset Stock"), align = "left"
+                                   ),
                             align = "center"
                           ),
                           ##### STOCK OBJECT 1 #####
@@ -525,7 +536,7 @@ ui <- fluidPage(
                             ),
                             column(4,
                                    actionButton("loadButton", "Load", width = "75%"),
-                                   align = "left"
+                                   align = "center"
                             ),
                             column(4,
                             )
@@ -592,46 +603,87 @@ ui <- fluidPage(
                         sidebarPanel(
                           id = "sidebar",
                           fluidRow(
-                            column(3,
+                            column(4,
                                    h4("Show Help:"),
                                    align = "left"
                             ),
-                            column(3,
+                            column(4,
                                    h4("N° of Layers:"),
-                                   align = "center"
+                                   align = "left"
                             ),
-                            column(3,
+                            column(4,
                                    h4("N° of Epochs:"),
-                                   align = "center"
-                            ),
-                            column(3,
-                                   h4("Learning Rate:"),
-                                   align = "right"
+                                   align = "left"
                             )
                           ),
                           fluidRow(
-                            column(3,
-                                   actionButton("netHelp", "Instructions", width = "100%")
+                            column(4,
+                                   actionButton("netHelp", "Instructions", width = "75%"),
+                                   align = "left"
                             ),
-                            column(3,
+                            column(4,
                                    pickerInput(
                                      inputId = "nLayers",
                                      choices = c(2:5),
                                      selected = 3,
                                      options = list(style = "picker-input", title = "Layers", width = "75%")
                                    ),
-                                   align = "center"
+                                   align = "left"
                             ),
-                            column(3,
+                            column(4,
                                    pickerInput(
                                      inputId = "nEpochs",
                                      choices = c(25, 50, 100, 200, 300),
                                      selected = 50,
                                      options = list(style = "picker-input", title = "Epochs", width = "75%")
                                    ),
-                                   align = "center"
+                                   align = "left"
+                            )
+                          ),
+                          fluidRow(
+                            column(4,
+                                   h4("Activation Function:"),
+                                   align = "left"
+                            ),
+                            column(4,
+                                   h4("Recurrent Layers Activation Function:"),
+                                   align = "left"
+                            ),
+                            column(4,
+                                   h4("Learning Rate:"),
+                                   align = "left"
+                            )
+                          ),
+                          fluidRow(
+                            column(3,
+                                   pickerInput(
+                                     inputId = "activation",
+                                     choices = c("relu", "sigmoid", "softmax", "tanh"),
+                                     selected = "tanh",
+                                     multiple = FALSE,
+                                     options = list(style = "picker-input", title = "Activation")
+                                   ),
+                                   align = "left"
+                            ),
+                            column(1,
+                                   htmlOutput("actHelp"),
+                                   align = "left"
                             ),
                             column(3,
+                                   pickerInput(
+                                     inputId = "recactivation",
+                                     choices = c("relu", "sigmoid", "softmax", "tanh"),
+                                     selected = "tanh",
+                                     multiple = FALSE,
+                                     options = list(style = "picker-input", title = "Recurrent Activation")
+                                     ),
+                                   align = "left"
+                                   ),
+                            column(1,
+                                   htmlOutput("recactHelp"),
+                                   align = "left"
+                                   ),
+                            column(4,
                                    sliderInput("learnParam",
                                                label = NULL,
                                                min = 0.005,
@@ -641,14 +693,14 @@ ui <- fluidPage(
                                                round = -3,
                                                ticks = TRUE),
                                    align = "right"
-                            )
-                          ),
+                                   )
+                            ),
                           ##### LAYER 1 #####
                           fluidRow(
                             column(12, 
                                    h4("Layer 1")
-                            )
-                          ),
+                                   )
+                            ),
                           fluidRow(
                             column(4,
                                    h5("Layer Type")
@@ -742,58 +794,6 @@ ui <- fluidPage(
                                      htmlOutput("recdropHelp1")
                                      )
                               )
-                            ),
-                          fluidRow(
-                            column(4,
-                                   h5("Activation")
-                            ),
-                            column(2,
-                                   h5("Help")
-                            ),
-                            column(4,
-                                   conditionalPanel(
-                                     condition = "input.layerType1 == 'LSTM' || input.layerType1 == 'SimpleRNN'",
-                                     h5("Recurr. Activation")
-                                     )
-                                   ),
-                            column(2,
-                                   conditionalPanel(
-                                     condition = "input.layerType1 == 'LSTM' || input.layerType1 == 'SimpleRNN'",
-                                     h5("Help")
-                                     )
-                                   )
-                          ),
-                          fluidRow(
-                            column(4,
-                                   pickerInput(
-                                     inputId = "activation1",
-                                     choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
-                                     selected = "tanh",
-                                     multiple = FALSE,
-                                     options = list(style = "picker-input", title = "Activation")
-                                     )
-                                   ),
-                            column(2,
-                                   htmlOutput("actHelp1")
-                                   ),
-                            column(4,
-                                   conditionalPanel(
-                                     condition = "input.layerType1 == 'LSTM' || input.layerType1 == 'SimpleRNN'",
-                                     pickerInput(
-                                       inputId = "recactivation1",
-                                       choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
-                                       selected = "NULL",
-                                       multiple = FALSE,
-                                       options = list(style = "picker-input", title = "Recurrent Activation")
-                                     )
-                                   )
-                            ),
-                            column(2,
-                                   conditionalPanel(
-                                     condition = "input.layerType1 == 'LSTM' || input.layerType1 == 'SimpleRNN'",
-                                     htmlOutput("recactHelp1")
-                                     )
-                                   )
                             ),
                           ##### LAYER 2 #####
                           conditionalPanel(
@@ -900,70 +900,8 @@ ui <- fluidPage(
                                        htmlOutput("recdropHelp2")
                                        )
                                 )
-                              ),
-                            fluidRow(
-                              column(4,
-                                     conditionalPanel(
-                                       condition = "input.layerType2 == 'Dense' || input.layerType2 == 'LSTM' || input.layerType2 == 'SimpleRNN'",
-                                       h5("Activation")
-                                       )
-                                     ),
-                              column(2,
-                                     conditionalPanel(
-                                       condition = "input.layerType2 == 'Dense' || input.layerType2 == 'LSTM' || input.layerType2 == 'SimpleRNN'",
-                                       h5("Help")
-                                       )
-                                     ),
-                              column(4,
-                                     conditionalPanel(
-                                       condition = "input.layerType2 == 'LSTM' || input.layerType2 == 'SimpleRNN'",
-                                       h5("Recurr. Activation")
-                                       )
-                                     ),
-                              column(2,
-                                     conditionalPanel(
-                                       condition = "input.layerType2 == 'LSTM' || input.layerType2 == 'SimpleRNN'",
-                                       h5("Help")
-                                       )
-                                     )
-                              ),
-                            fluidRow(
-                              column(4,
-                                     conditionalPanel(
-                                       condition = "input.layerType2 == 'Dense' || input.layerType2 == 'LSTM' || input.layerType2 == 'SimpleRNN'",
-                                       pickerInput(
-                                         inputId = "activation2",
-                                         choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
-                                         multiple = FALSE,
-                                         options = list(style = "picker-input", title = "Activation")
-                                         )
-                                       )
-                                     ),
-                              column(2,
-                                     conditionalPanel(
-                                       condition = "input.layerType2 == 'Dense' || input.layerType2 == 'LSTM' || input.layerType2 == 'SimpleRNN'",
-                                       htmlOutput("actHelp2")
-                                       )
-                                     ),
-                              column(4,
-                                     conditionalPanel(
-                                       condition = "input.layerType2 == 'LSTM' || input.layerType2 == 'SimpleRNN'",
-                                       pickerInput(
-                                         inputId = "recactivation2",
-                                         choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
-                                         multiple = FALSE,
-                                         options = list(style = "picker-input", title = "Recurrent Activation")
-                                         )
-                                       )
-                                     ),
-                              column(2,
-                                     conditionalPanel(
-                                       condition = "input.layerType2 == 'LSTM' || input.layerType2 == 'SimpleRNN'",
-                                       htmlOutput("recactHelp2")
-                                       )
-                                     )
                               )
-                            ),
+                          ),
                           ##### LAYER 3 #####
                           conditionalPanel(
                             condition = "input.nLayers >= 3",
@@ -1069,70 +1007,6 @@ ui <- fluidPage(
                                 column(2,
                                        htmlOutput("recdropHelp3")
                                 )
-                              )
-                            ),
-                            fluidRow(
-                              column(4,
-                                     conditionalPanel(
-                                       condition = "input.layerType3 == 'Dense' || input.layerType3 == 'LSTM' || input.layerType3 == 'SimpleRNN'",
-                                       h5("Activation")
-                                     )
-                              ),
-                              column(2,
-                                     conditionalPanel(
-                                       condition = "input.layerType3 == 'Dense' || input.layerType3 == 'LSTM' || input.layerType3 == 'SimpleRNN'",
-                                       h5("Help")
-                                     )
-                              ),
-                              column(4,
-                                     conditionalPanel(
-                                       condition = "input.layerType3 == 'LSTM' || input.layerType3 == 'SimpleRNN'",
-                                       h5("Recurr. Activation")
-                                     )
-                              ),
-                              column(2,
-                                     conditionalPanel(
-                                       condition = "input.layerType3 == 'LSTM' || input.layerType3 == 'SimpleRNN'",
-                                       h5("Help")
-                                     )
-                              )
-                            ),
-                            fluidRow(
-                              column(4,
-                                     conditionalPanel(
-                                       condition = "input.layerType3 == 'Dense' || input.layerType3 == 'LSTM' || input.layerType3 == 'SimpleRNN'",
-                                       pickerInput(
-                                         inputId = "activation3",
-                                         choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
-                                         selected = "tanh",
-                                         multiple = FALSE,
-                                         options = list(style = "picker-input", title = "Activation")
-                                       )
-                                     )
-                              ),
-                              column(2,
-                                     conditionalPanel(
-                                       condition = "input.layerType3 == 'Dense' || input.layerType3 == 'LSTM' || input.layerType3 == 'SimpleRNN'",
-                                       htmlOutput("actHelp3")
-                                     )
-                              ),
-                              column(4,
-                                     conditionalPanel(
-                                       condition = "input.layerType3 == 'LSTM' || input.layerType3 == 'SimpleRNN'",
-                                       pickerInput(
-                                         inputId = "recactivation3",
-                                         choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
-                                         selected = "NULL",
-                                         multiple = FALSE,
-                                         options = list(style = "picker-input", title = "Recurrent Activation")
-                                       )
-                                     )
-                              ),
-                              column(2,
-                                     conditionalPanel(
-                                       condition = "input.layerType3 == 'LSTM' || input.layerType3 == 'SimpleRNN'",
-                                       htmlOutput("recactHelp3")
-                                     )
                               )
                             )
                           ),
@@ -1242,70 +1116,6 @@ ui <- fluidPage(
                                        htmlOutput("recdropHelp4")
                                 )
                               )
-                            ),
-                            fluidRow(
-                              column(4,
-                                     conditionalPanel(
-                                       condition = "input.layerType4 == 'Dense' || input.layerType4 == 'LSTM' || input.layerType4 == 'SimpleRNN'",
-                                       h5("Activation")
-                                     )
-                              ),
-                              column(2,
-                                     conditionalPanel(
-                                       condition = "input.layerType4 == 'Dense' || input.layerType4 == 'LSTM' || input.layerType4 == 'SimpleRNN'",
-                                       h5("Help")
-                                     )
-                              ),
-                              column(4,
-                                     conditionalPanel(
-                                       condition = "input.layerType4 == 'LSTM' || input.layerType4 == 'SimpleRNN'",
-                                       h5("Recurr. Activation")
-                                     )
-                              ),
-                              column(2,
-                                     conditionalPanel(
-                                       condition = "input.layerType4 == 'LSTM' || input.layerType4 == 'SimpleRNN'",
-                                       h5("Help")
-                                     )
-                              )
-                            ),
-                            fluidRow(
-                              column(4,
-                                     conditionalPanel(
-                                       condition = "input.layerType4 == 'Dense' || input.layerType4 == 'LSTM' || input.layerType4 == 'SimpleRNN'",
-                                       pickerInput(
-                                         inputId = "activation4",
-                                         choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
-                                         selected = "tanh",
-                                         multiple = FALSE,
-                                         options = list(style = "picker-input", title = "Activation")
-                                       )
-                                     )
-                              ),
-                              column(2,
-                                     conditionalPanel(
-                                       condition = "input.layerType4 == 'Dense' || input.layerType4 == 'LSTM' || input.layerType4 == 'SimpleRNN'",
-                                       htmlOutput("actHelp4")
-                                     )
-                              ),
-                              column(4,
-                                     conditionalPanel(
-                                       condition = "input.layerType4 == 'LSTM' || input.layerType4 == 'SimpleRNN'",
-                                       pickerInput(
-                                         inputId = "recactivation4",
-                                         choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
-                                         selected = "NULL",
-                                         multiple = FALSE,
-                                         options = list(style = "picker-input", title = "Recurrent Activation")
-                                       )
-                                     )
-                              ),
-                              column(2,
-                                     conditionalPanel(
-                                       condition = "input.layerType4 == 'LSTM' || input.layerType4 == 'SimpleRNN'",
-                                       htmlOutput("recactHelp4")
-                                     )
-                              )
                             )
                           ),
                           ##### LAYER 5 #####
@@ -1413,68 +1223,6 @@ ui <- fluidPage(
                                        htmlOutput("recdropHelp5")
                                 )
                               )
-                            ),
-                            fluidRow(
-                              column(4,
-                                     conditionalPanel(
-                                       condition = "input.layerType5 == 'Dense' || input.layerType5 == 'LSTM' || input.layerType5 == 'SimpleRNN'",
-                                       h5("Activation")
-                                     )
-                              ),
-                              column(2,
-                                     conditionalPanel(
-                                       condition = "input.layerType5 == 'Dense' || input.layerType5 == 'LSTM' || input.layerType5 == 'SimpleRNN'",
-                                       h5("Help")
-                                     )
-                              ),
-                              column(4,
-                                     conditionalPanel(
-                                       condition = "input.layerType5 == 'LSTM' || input.layerType5 == 'SimpleRNN'",
-                                       h5("Recurr. Activation")
-                                     )
-                              ),
-                              column(2,
-                                     conditionalPanel(
-                                       condition = "input.layerType5 == 'LSTM' || input.layerType5 == 'SimpleRNN'",
-                                       h5("Help")
-                                     )
-                              )
-                            ),
-                            fluidRow(
-                              column(4,
-                                     conditionalPanel(
-                                       condition = "input.layerType5 == 'Dense' || input.layerType5 == 'LSTM' || input.layerType5 == 'SimpleRNN'",
-                                       pickerInput(
-                                         inputId = "activation5",
-                                         choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
-                                         multiple = FALSE,
-                                         options = list(style = "picker-input", title = "Activation")
-                                       )
-                                     )
-                              ),
-                              column(2,
-                                     conditionalPanel(
-                                       condition = "input.layerType5 == 'Dense' || input.layerType5 == 'LSTM' || input.layerType5 == 'SimpleRNN'",
-                                       htmlOutput("actHelp5")
-                                     )
-                              ),
-                              column(4,
-                                     conditionalPanel(
-                                       condition = "input.layerType5 == 'LSTM' || input.layerType5 == 'SimpleRNN'",
-                                       pickerInput(
-                                         inputId = "recactivation5",
-                                         choices = c("NULL", "relu", "sigmoid", "softmax", "tanh"),
-                                         multiple = FALSE,
-                                         options = list(style = "picker-input", title = "Recurrent Activation")
-                                       )
-                                     )
-                              ),
-                              column(2,
-                                     conditionalPanel(
-                                       condition = "input.layerType5 == 'LSTM' || input.layerType5 == 'SimpleRNN'",
-                                       htmlOutput("recactHelp5")
-                                     )
-                              )
                             )
                           ),
                           ##### NET BUILDING (cont.) #####
@@ -1578,6 +1326,9 @@ ui <- fluidPage(
                             tabPanel("Train/Test Plot",
                                      plotlyOutput("plotTrainTest"),
                                      checkboxInput("plotLogTrainTest", "log10", value = F)
+                            ),
+                            tabPanel("Recruitment",
+                                     plotOutput("plotRecruitmentTraintest")
                             ),
                             tabPanel("Taylor Diagram",
                                      plotOutput("taylorDiagram"))
@@ -1750,8 +1501,8 @@ ui <- fluidPage(
                                      plotlyOutput("plotPred"),
                                      checkboxInput("plotLogPred", "log10", value = F)
                             ),
-                            tabPanel("Ratio",
-                                     plotOutput("plotRatio")
+                            tabPanel("Recruitment",
+                                     plotOutput("plotRecruitmentForecast")
                             ),
                             tabPanel("Sensitivity",
                                      plotOutput("plotSens")
