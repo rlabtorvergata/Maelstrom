@@ -23,6 +23,7 @@
   library(shinycssloaders)
   library(shinyFiles)
   library(shinyWidgets)
+  library(stringr)
   library(tensorflow)
   library(tidyr)
   library(tinytex)
@@ -78,18 +79,21 @@ range_outputs <- data.frame() #range for outputs denormalization
 depth_test <- NULL #number of years to forecast
 plotTestCount <- 0 #traintest species counter
 testfit_results <- data.frame() #testfit results
+traintest_output_raw <- list() # Partial results of prediction
 traintest_iter_results <- data.frame() #traintest results per iteration
 traintest_results <- data.frame() #traintest results
 traintest_plots <- list() #traintest plots
+traintest_recr_plots <- list() #recruitment distribution plots
 taylor_diagram <- list() #Taylor diagrams
 
 depth_pred <- NULL #number of years to forecast
 plotPredCount <- 0 #forecast species counter
+pred_output_raw <- vector("list", length = 3) # Partial results of prediction
 model_pred <- list() #list of models in prediction
 pred_iter_partial <- data.frame() #forecast results
 pred_results <- list() #forecast results
 pred_plots <- list() #forecast plots
-ratio_plots <- list() #biomass/recruitment ratio plots
+pred_recr_plots <- list() #recruitment distribution plots
 
 sens_results <- data.frame() #sensitivity analysis results
 sens_plots <- list() #sensitivity analysis plot
@@ -163,6 +167,8 @@ server <- function(input, output, session) {
       text <- HTML("<b>Scientific Name</b>: <i>Micromesistius poutassou</i><br><b>Depth Range</b>: 150-3000m")
     } else if (triAlphaCode == "WHG") {
       text <- HTML("<b>Scientific Name</b>: <i>Merlangius merlangus</i><br><b>Depth Range</b>: 10-200m")
+    } else {
+      text <- HTML("Not a Mediterranean species")
     }
     return(text)
   }
@@ -259,6 +265,9 @@ server <- function(input, output, session) {
       }
     if ("30" %in% gsa) {
       gsa_list[(length(gsa_list) + 1)] <- "<b>GSA 30</b>: Azov Sea"
+    }
+    if (length(gsa_list) == 0) {
+      gsa_list[(length(gsa_list) + 1)] <- "Not a Mediterranean area"
     }
     text <- HTML(paste(gsa_list, collapse = "<br/>"))
     return(text)
@@ -515,7 +524,6 @@ server <- function(input, output, session) {
   
   procInputs <- function(popwide, catchwide) {
     tot_df <- cbind(popwide, catchwide[,2:ncol(catchwide)])
-    # tot_df[,2:ncol(tot_df)] <- log10(tot_df[,2:ncol(tot_df)])
     return(tot_df)
   }
   
@@ -533,12 +541,6 @@ server <- function(input, output, session) {
   }
   
   plotNet <- function(nLayers, layerTypeTot, neuronsTot, dropoutTot, inputNames) {
-    
-    # inputNames <- c("DPS_0_N", "DPS_1_N", "DPS_2_N", "DPS_3_N", "DPS_0_C", "DPS_1_C", "DPS_2_C", "DPS_3_C")
-    # layerTypeTot <- c("LSTM", "LSTM", "Dropout", "Dense")
-    # neuronsTot <- c(8, 8, 0, 4)
-    # dropoutTot <- c(0.5, 0.5, 0.5, 0)
-    # nLayers <- 4
     
     df <- data.frame(label = NULL, x = NULL, y = NULL, type = NULL, dropout = NULL, nLayer = NULL)
     df_iter <- data.frame(label = NULL, x = NULL, y = NULL, type = NULL, dropout = NULL, nLayer = NULL)
@@ -677,15 +679,15 @@ server <- function(input, output, session) {
     outputs_df <- train_df
     
     if (as.integer(input$nLayers) >= 1) {outputs <- buildNet(outputs, 1, input$layerType1, input$neurons1, input$returnSeq1,
-                                                             input$dropout1, input$activation1, input$recdropout1, input$recactivation1)}
+                                                             input$dropout1, input$activation, input$recdropout1, input$recactivation)}
     if (as.integer(input$nLayers) >= 2) {outputs <- buildNet(outputs, 2, input$layerType2, input$neurons2, input$returnSeq2,
-                                                             input$dropout2, input$activation2, input$recdropout2, input$recactivation2)}
+                                                             input$dropout2, input$activation, input$recdropout2, input$recactivation)}
     if (as.integer(input$nLayers) >= 3) {outputs <- buildNet(outputs, 3, input$layerType3, input$neurons3, input$returnSeq3,
-                                                             input$dropout3, input$activation3, input$recdropout3, input$recactivation3)}
+                                                             input$dropout3, input$activation, input$recdropout3, input$recactivation)}
     if (as.integer(input$nLayers) >= 4) {outputs <- buildNet(outputs, 4, input$layerType4, input$neurons4, input$returnSeq4,
-                                                             input$dropout4, input$activation4, input$recdropout4, input$recactivation4)}
+                                                             input$dropout4, input$activation, input$recdropout4, input$recactivation)}
     if (as.integer(input$nLayers) >= 5) {outputs <- buildNet(outputs, 5, input$layerType5, input$neurons5, input$returnSeq5,
-                                                             input$dropout5, input$activation5, input$recdropout5, input$recactivation5)}
+                                                             input$dropout5, input$activation, input$recdropout5, input$recactivation)}
     
     dummy <- timeseries_dataset_from_array(
       inputs_df, outputs_df,
@@ -715,7 +717,6 @@ server <- function(input, output, session) {
     
     history <- model %>% fit(
       dummy, dummy,
-      # validation_data = dummy_val,
       verbose = 1,
       epochs = as.integer(input$nEpochs),
       callbacks = callbacks
@@ -746,9 +747,6 @@ server <- function(input, output, session) {
   }
   
   trainTestFitNet <- function(netInputs, depthTest) {
-    
-    norm_inputs = netInputs
-    norm_inputs[,2:ncol(norm_inputs)] = normalizeInputs(norm_inputs[,2:ncol(norm_inputs)], range_inputs)
     
     species = substr(colnames(netInputs)[grep("_N", names(netInputs))], 1, 3)
     age = substr(colnames(netInputs)[grep("_N", names(netInputs))], 5, 5)
@@ -787,9 +785,11 @@ server <- function(input, output, session) {
         
         norm_inputs = netInputs
         norm_inputs[,2:ncol(norm_inputs)] = normalizeInputs(norm_inputs[,2:ncol(norm_inputs)], range_inputs)
-        train_df <- as.matrix(norm_inputs[, 2:ncol(norm_inputs)])
+        if (input$activation == "tanh") {
+          norm_inputs[,2:ncol(norm_inputs)] <- norm_inputs[,2:ncol(norm_inputs)] - 0.5
+        }
         val_df <- as.matrix(norm_inputs[, 2:ncol(norm_inputs)])
-        iter_df <- norm_inputs[1:(nrow(train_df) - depthTest),]
+        iter_df <- norm_inputs[1:(nrow(val_df) - depthTest),]
     
         for (i in 1:depthTest) {
           
@@ -799,15 +799,15 @@ server <- function(input, output, session) {
           outputs_df <- as.matrix(iter_df[, 2:ncol(iter_df)])
           
           if (as.integer(input$nLayers) >= 1) {outputs <- buildNet(outputs, 1, input$layerType1, input$neurons1, input$returnSeq1,
-                                                                   input$dropout1, input$activation1, input$recdropout1, input$recactivation1)}
+                                                                   input$dropout1, input$activation, input$recdropout1, input$recactivation)}
           if (as.integer(input$nLayers) >= 2) {outputs <- buildNet(outputs, 2, input$layerType2, input$neurons2, input$returnSeq2,
-                                                                   input$dropout2, input$activation2, input$recdropout2, input$recactivation2)}
+                                                                   input$dropout2, input$activation, input$recdropout2, input$recactivation)}
           if (as.integer(input$nLayers) >= 3) {outputs <- buildNet(outputs, 3, input$layerType3, input$neurons3, input$returnSeq3,
-                                                                   input$dropout3, input$activation3, input$recdropout3, input$recactivation3)}
+                                                                   input$dropout3, input$activation, input$recdropout3, input$recactivation)}
           if (as.integer(input$nLayers) >= 4) {outputs <- buildNet(outputs, 4, input$layerType4, input$neurons4, input$returnSeq4,
-                                                                   input$dropout4, input$activation4, input$recdropout4, input$recactivation4)}
+                                                                   input$dropout4, input$activation, input$recdropout4, input$recactivation)}
           if (as.integer(input$nLayers) >= 5) {outputs <- buildNet(outputs, 5, input$layerType5, input$neurons5, input$returnSeq5,
-                                                                   input$dropout5, input$activation5, input$recdropout5, input$recactivation5)}
+                                                                   input$dropout5, input$activation, input$recdropout5, input$recactivation)}
           
           dummy <- timeseries_dataset_from_array(
             inputs_df, outputs_df,
@@ -843,11 +843,17 @@ server <- function(input, output, session) {
             callbacks = callbacks
           )
           
+          if (input$activation == "tanh") {
+            iter_df[,2:ncol(iter_df)] <- iter_df[,2:ncol(iter_df)] + 0.5
+          }
           iter_df[,2:ncol(iter_df)] <- denormalizeInputs(iter_df[,2:ncol(iter_df)], range_inputs)
           
           pred_vec <- model %>% predict(dummy)
           pred_vec <- t(as.matrix(pred_vec[1:as.integer(length(pred_vec)/2)]))
           colnames(pred_vec) = colnames(iter_df)[2:(ncol(iter_df)/2 + 1)]
+          if (input$activation == "tanh") {
+            pred_vec <- pred_vec + 0.5
+          }
           pred_vec <- denormalizeInputs(pred_vec, range_inputs[1:length(pred_vec)])
           pred_catch <- netInputs[(nrow(iter_df) + 1), grep("_C", colnames(netInputs))]
           pred_vec <- cbind(pred_vec, pred_catch)
@@ -864,6 +870,9 @@ server <- function(input, output, session) {
           
           if (i != depthTest) {
             iter_df[,2:ncol(iter_df)] <- normalizeInputs(iter_df[,2:ncol(iter_df)], range_inputs)
+            if (input$activation == "tanh") {
+              iter_df[,2:ncol(iter_df)] <- iter_df[,2:ncol(iter_df)] - 0.5
+            }
           }
           
           incProgress(amount = 1/(depthTest * niter), detail = paste0(as.character(round((i + (iter - 1) * depthTest)/(depthTest * niter) * 100, 2)), "%"))
@@ -891,6 +900,13 @@ server <- function(input, output, session) {
       )
       
       def_df <- rbind(obs_df, iter_df)
+      
+      if (iter == 1) {
+        traintest_df_raw <- def_df
+        traintest_df_raw[which(traintest_df_raw$type == "Observed"), "iter"] = 0
+      } else {
+        traintest_df_raw <- rbind(traintest_df_raw, def_df[which(def_df$type == "Predicted"),])
+      }
       
       # Create recruitment dataframe
       
@@ -943,6 +959,7 @@ server <- function(input, output, session) {
       }
     })
     
+    traintest_output_raw <<- traintest_df_raw
     traintest_iter_results <<- ssb_df_tot
     
     proj_biomass_spec <- list()
@@ -968,7 +985,7 @@ server <- function(input, output, session) {
         sp_biomass_wide[i, "recr_max"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "recruitment"])[8]
       }
       
-      results_incasting <- sp_biomass_wide[(nrow(sp_biomass_wide) - 4):nrow(sp_biomass_wide), c("ssb_obs", "ssb_min", "ssb_mean", "ssb_max")]
+      results_incasting <- sp_biomass_wide[(nrow(sp_biomass_wide) - (depthTest - 1)):nrow(sp_biomass_wide), c("ssb_obs", "ssb_min", "ssb_mean", "ssb_max")]
       sp_biomass_wide$rmse_min <- round(rmse(results_incasting$ssb_obs, results_incasting$ssb_min), 2)
       sp_biomass_wide$rmse_mean <- round(rmse(results_incasting$ssb_obs, results_incasting$ssb_mean), 2)
       sp_biomass_wide$rmse_max <- round(rmse(results_incasting$ssb_obs, results_incasting$ssb_max), 2)
@@ -1001,7 +1018,7 @@ server <- function(input, output, session) {
           sp_biomass_wide[i, "recr_max"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "recruitment"])[8]
         }
         
-        results_incasting <- sp_biomass_wide[(nrow(sp_biomass_wide) - 4):nrow(sp_biomass_wide), c("ssb_obs", "ssb_min", "ssb_mean", "ssb_max")]
+        results_incasting <- sp_biomass_wide[(nrow(sp_biomass_wide) - (depthTest - 1)):nrow(sp_biomass_wide), c("ssb_obs", "ssb_min", "ssb_mean", "ssb_max")]
         sp_biomass_wide$rmse_min <- round(rmse(results_incasting$ssb_obs, results_incasting$ssb_min), 2)
         sp_biomass_wide$rmse_mean <- round(rmse(results_incasting$ssb_obs, results_incasting$ssb_mean), 2)
         sp_biomass_wide$rmse_max <- round(rmse(results_incasting$ssb_obs, results_incasting$ssb_max), 2)
@@ -1041,19 +1058,11 @@ server <- function(input, output, session) {
     
     g = ggplot(data = proj_biomass, aes(x = year)) +
       geom_ribbon(data = line_pred_min, aes(x = x, ymin = y, ymax = line_pred_max$y,
-                                            # text = paste0("SSB min: ", y, "\nSSB max: ", spline_max$y)
                                             ),
                   fill = "firebrick", alpha = 0.5) +
       geom_line(data = line_pred_mean, aes(x = x, y = y), color = "red", linewidth = 2) +
       geom_line(data = line_obs, aes(x = x, y = y), color = "black", linewidth = 2) +
-      # geom_ribbon(aes(ymin = ssb_min, ymax = ssb_max,
-      #                                       # text = paste0("SSB min: ", y, "\nSSB max: ", spline_max$y)
-      #                                       ),
-      #             fill = "firebrick", alpha = 0.5) +
-      # geom_line(aes(y = ssb_mean), color = "red", linewidth = 2) +
-      # geom_line(aes(y = ssb_obs), color = "black", linewidth = 2) +
       scale_x_continuous(breaks = sort(unique(proj_biomass$year))) +
-      # scale_y_continuous(trans = "log10") +
       ggtitle(paste0(unique(proj_biomass$species), " - ", unique(proj_biomass$gsa))) +
       xlab("Year") +
       ylab("SSB (tonnes)") +
@@ -1063,6 +1072,39 @@ server <- function(input, output, session) {
             legend.position = "bottom")
     
     return(g)
+  }
+  
+  plotRecruitment <- function(proj_biomass, plotPredCount, depth) {
+    
+    df_recruitment <- proj_biomass[, c(1:3, 8:10)]
+    df_recruitment_l <- df_recruitment[(1:(nrow(df_recruitment) - depth)), 1:4]
+    colnames(df_recruitment_l) <- c("year", "species", "gsa", "recruitment")
+    df_recruitment_l$variable <- "recr_ref"
+    
+    df_recruitment_pred <- df_recruitment[-(1:(nrow(df_recruitment) - depth)),]
+    df_recruitment_pred <- melt(df_recruitment_pred, id.vars = c("year", "species", "gsa"), value.name = "recruitment") %>% relocate(recruitment, .after = gsa)
+    
+    df_plot <- rbind(df_recruitment_l, df_recruitment_pred) %>%
+      mutate(variable = gsub("recr_ref", "Reference", variable)) %>%
+      mutate(variable = gsub("recr_min", "Min Recruitment", variable)) %>%
+      mutate(variable = gsub("recr_mean", "Mean Recruitment", variable)) %>%
+      mutate(variable = gsub("recr_max", "Max Recruitment", variable))
+    
+    colnames(df_plot) <- c("Year", "Species", "GSA", "Recruitment", "Type")
+    
+    recr_plot <- ggplot(df_plot, aes(x = Recruitment/1000000, y = Recruitment/1000000, fill = Type, shape = Type)) +
+      geom_jitter(size = 4, alpha = 0.75, width = 0.8, height = 0.8) +
+      scale_shape_manual(values = c(23, 23, 23, 21)) +
+      scale_fill_manual(values = c("firebrick1", "firebrick3", "firebrick4", "blue")) +
+      ggtitle(paste0(unique(df_plot$Species), " - ", unique(df_plot$GSA))) +
+      xlab("Recruitment (millions)") +
+      ylab("Recruitment (millions)") +
+      theme_test() +
+      theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
+            plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+            legend.position = "bottom")
+    
+    return(recr_plot)
   }
   
   plotTaylorDiagram <- function(proj_biomass, plotTrainTestFitCount) {
@@ -1079,10 +1121,18 @@ server <- function(input, output, session) {
   predNet <- function(netInputs, f_adj, depth) {
     
     norm_inputs = netInputs
-    norm_inputs[,2:ncol(norm_inputs)] = normalizeInputs(norm_inputs[,2:ncol(norm_inputs)], range_inputs)
+    norm_inputs[,2:ncol(norm_inputs)] = normalizeInputs(norm_inputs[, 2:ncol(norm_inputs)], range_inputs)
+    if (input$activation == "tanh") {
+      norm_inputs[,2:ncol(norm_inputs)] <- norm_inputs[,2:ncol(norm_inputs)] - 0.5
+    }
     
     species = substr(colnames(netInputs)[grep("_N", names(netInputs))], 1, 3)
     age = substr(colnames(netInputs)[grep("_N", names(netInputs))], 5, 5)
+    
+    if (min(age) == 1) {
+      age = as.character(as.integer(age) - 1)
+    }
+    
     s_a = data.frame(species, age)
     s_a_min = s_a %>% group_by(species) %>% slice_min(age)
     s_a = paste(s_a$species, s_a$age)
@@ -1095,7 +1145,7 @@ server <- function(input, output, session) {
     
     min_age_vec = vector()
     for (i in 1:length(unique(species))) {
-      min_age_vec[i] = min(substr(colnames(netInputs[which(substr(colnames(netInputs), 1, 3) == unique(species)[i])]), 5, 5))
+      min_age_vec[i] = min(as.integer(age))
     }
     
     env_var <- length(grep("PrP_", names(netInputs)))
@@ -1130,17 +1180,6 @@ server <- function(input, output, session) {
   
           n_layers <- as.integer(input$nLayers)
   
-          # if (as.integer(input$nLayers) >= 1) {outputs <- buildNet(outputs, 1, input$layerType1, input$neurons1, input$returnSeq1,
-          #                                                          input$dropout1, input$activation1, input$recdropout1, input$recactivation1)}
-          # if (as.integer(input$nLayers) >= 2) {outputs <- buildNet(outputs, 2, input$layerType2, input$neurons2, input$returnSeq2,
-          #                                                          input$dropout2, input$activation2, input$recdropout2, input$recactivation2)}
-          # if (as.integer(input$nLayers) >= 3) {outputs <- buildNet(outputs, 3, input$layerType3, input$neurons3, input$returnSeq3,
-          #                                                          input$dropout3, input$activation3, input$recdropout3, input$recactivation3)}
-          # if (as.integer(input$nLayers) >= 4) {outputs <- buildNet(outputs, 4, input$layerType4, input$neurons4, input$returnSeq4,
-          #                                                          input$dropout4, input$activation4, input$recdropout4, input$recactivation4)}
-          # if (as.integer(input$nLayers) >= 5) {outputs <- buildNet(outputs, 5, input$layerType5, input$neurons5, input$returnSeq5,
-          #                                                          input$dropout5, input$activation5, input$recdropout5, input$recactivation5)}
-  
           dummy <- timeseries_dataset_from_array(
             inputs_df, outputs_df,
             sequence_length = 6 + i,
@@ -1153,20 +1192,18 @@ server <- function(input, output, session) {
             batch_size = 2
           )
   
-          # model <- keras_model(inputs, outputs)
-          
           model <- keras_model_sequential()
           
           if (as.integer(input$nLayers) >= 1) {model <- buildNet(model, 1, input$layerType1, input$neurons1, input$returnSeq1,
-                                                                   input$dropout1, input$activation1, input$recdropout1, input$recactivation1)}
+                                                                   input$dropout1, input$activation, input$recdropout1, input$recactivation)}
           if (as.integer(input$nLayers) >= 2) {model <- buildNet(model, 2, input$layerType2, input$neurons2, input$returnSeq2,
-                                                                   input$dropout2, input$activation2, input$recdropout2, input$recactivation2)}
+                                                                   input$dropout2, input$activation, input$recdropout2, input$recactivation)}
           if (as.integer(input$nLayers) >= 3) {model <- buildNet(model, 3, input$layerType3, input$neurons3, input$returnSeq3,
-                                                                   input$dropout3, input$activation3, input$recdropout3, input$recactivation3)}
+                                                                   input$dropout3, input$activation, input$recdropout3, input$recactivation)}
           if (as.integer(input$nLayers) >= 4) {model <- buildNet(model, 4, input$layerType4, input$neurons4, input$returnSeq4,
-                                                                   input$dropout4, input$activation4, input$recdropout4, input$recactivation4)}
+                                                                   input$dropout4, input$activation, input$recdropout4, input$recactivation)}
           if (as.integer(input$nLayers) >= 5) {model <- buildNet(model, 5, input$layerType5, input$neurons5, input$returnSeq5,
-                                                                   input$dropout5, input$activation5, input$recdropout5, input$recactivation5)}
+                                                                   input$dropout5, input$activation, input$recdropout5, input$recactivation)}
     
           callbacks <- list(
             callback_early_stopping(
@@ -1190,11 +1227,17 @@ server <- function(input, output, session) {
           
           history_df <- as.data.frame(history)
           
+          if (input$activation == "tanh") {
+            proj[,2:ncol(proj)] <- proj[,2:ncol(proj)] + 0.5
+          }
           proj[,2:ncol(proj)] <- denormalizeInputs(proj[,2:ncol(proj)], range_inputs)
           
           pred_vec <- model %>% predict(dummy)
           pred_vec <- t(as.matrix(pred_vec[1:as.integer(length(pred_vec)/2)]))
           colnames(pred_vec) = colnames(proj)[2:(ncol(proj)/2 + 1)]
+          if (input$activation == "tanh") {
+            pred_vec <- pred_vec + 0.5
+          }
           pred_vec <- denormalizeInputs(pred_vec, range_inputs[1:length(pred_vec)])
           pred_catch <- catchBaranov(f_adj, mort_w[nrow(mort_w), 2:ncol(mort_w)], pred_vec)
           pred_vec <- cbind(pred_vec, pred_catch)
@@ -1209,6 +1252,9 @@ server <- function(input, output, session) {
           
           proj[(nrow(proj) + 1),] <- cbind(as.integer(proj$year[nrow(proj)] + 1), pred_vec)
           proj[,2:ncol(proj)] <- normalizeInputs(proj[,2:ncol(proj)], range_inputs)
+          if (input$activation == "tanh") {
+            proj[,2:ncol(proj)] <- proj[,2:ncol(proj)] - 0.5
+          }
           
           incProgress(amount = 1/(3 * as.integer(input$depthPred)),
                       detail = paste0(as.character(round(((as.integer(input$depthPred) * (iter - 1) + i)/(3 * as.integer(input$depthPred))) * 100, 2)), "%"))
@@ -1216,7 +1262,11 @@ server <- function(input, output, session) {
         }
         
         # Denormalize outputs
+        if (input$activation == "tanh") {
+          proj[,2:ncol(proj)] <- proj[,2:ncol(proj)] + 0.5
+        }
         proj[,2:ncol(proj)] <- denormalizeInputs(proj[,2:ncol(proj)], range_inputs)
+        pred_output_raw[[iter]] <<- proj
         
         # Wide to long
         proj_df <- data.frame(year = rep(seq(min(netInputs$year),
@@ -1253,7 +1303,8 @@ server <- function(input, output, session) {
         
         # Create total biomass dataframe
         proj_df_convert <- data.frame()
-        ssb_iter <- proj_df[which(proj_df$age > 0),]
+        ssb_iter <- proj_df[which(proj_df$age > min_age_vec[i]),]
+        
         ssb_species <- unique(ssb_iter$species)
         
         for (sp in 1:length(ssb_species)) {
@@ -1284,25 +1335,26 @@ server <- function(input, output, session) {
           } else {
             ssb_df_convert <- rbind(ssb_df_convert, ssb_iter_sub)
           }
+          }
+        
+          colnames(ssb_df_convert)[2] <- "ssb"
+          
+          ssb_df = aggregate(data = ssb_df_convert, ssb ~ year + species + gsa + type + iter, FUN = "sum")
+          ssb_df = ssb_df[order(ssb_df$species),]
+          
+          ssb_df$recruitment <- NA
+          ssb_df$recruitment <- recr_iter$N
+          
+          if (iter == 1) {
+            ssb_df_tot <- ssb_df
+          } else {
+            ssb_df_tot <- rbind(ssb_df_tot, ssb_df)
+          }
+          
+          model_pred[[iter]] <<- model
+        
         }
-        colnames(ssb_df_convert)[2] <- "ssb"
-        
-        ssb_df = aggregate(data = ssb_df_convert, ssb ~ year + species + gsa + type + iter, FUN = "sum")
-        ssb_df = ssb_df[order(ssb_df$species),]
-        
-        ssb_df$recruitment <- NA
-        ssb_df$recruitment <- recr_iter$N
-        
-        if (iter == 1) {
-          ssb_df_tot <- ssb_df
-        } else {
-          ssb_df_tot <- rbind(ssb_df_tot, ssb_df)
-        }
-        
-        model_pred[[iter]] <<- model
-      
-      }
-    })
+      })
     
     pred_iter_partial <<- ssb_df_tot
     
@@ -1383,11 +1435,9 @@ server <- function(input, output, session) {
     
     g <- ggplot(data = proj_biomass_def) +
       geom_ribbon(data = spline_min, aes(x = x, ymin = y, ymax = spline_max$y,
-                                         # text = paste0("SSB min: ", y, "\nSSB max: ", spline_max$y)
                                          ),
                   fill = "firebrick", alpha = 0.5) +
       geom_line(data = spline_mean, aes(x = x, y = y, color = type,
-                                        # text = paste0("SSB mean: ", y)
                                         ),
                 linewidth = 2) +
       scale_x_continuous(breaks = sort(unique(proj_biomass_def$year))) +
@@ -1397,46 +1447,6 @@ server <- function(input, output, session) {
       ylab("SSB (tonnes)") +
       theme_test() +
       theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
-            plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
-            legend.position = "bottom")
-    
-    return(g)
-  }
-  
-  SRRicker <- function(Theta, biomass) {
-    log.alpha = Theta$log.alpha
-    beta = Theta$beta
-    logValue = log.alpha + log(biomass) - beta * biomass
-    value = exp(logValue)
-    return(value)
-  }
-  
-  plotRatio <- function(proj_biomass, plotPredCount) {
-    
-    proj_biomass$ssb_mean = proj_biomass$ssb_mean
-    proj_biomass$recr_mean = proj_biomass$recr_mean
-    biomass_vec = seq(0, ceiling(max(proj_biomass$ssb_mean)), by = 1)
-    z = proj_biomass[,c("recr_mean", "ssb_mean")]
-    y = log(z$recr_mean) - log(z$ssb_mean)
-    fit = lm(y ~ proj_biomass$ssb_mean)
-    log.alpha = as.numeric(coefficients(fit)[1])
-    beta = as.numeric(coefficients(fit)[2])
-    
-    Theta_fit = list(log.alpha = log.alpha, beta = beta)
-    pred_R_fit = SRRicker(Theta_fit, biomass_vec)
-    
-    df_plot = data.frame(ssb = biomass_vec, R = pred_R_fit)
-    
-    g = ggplot(data = df_plot, aes(x = ssb, y = R)) + 
-      geom_point(size = 0.5) + 
-      geom_point(data = proj_biomass, aes(x = ssb_mean, y = recr_mean, fill = type), pch = 21, size = 6) + 
-      scale_fill_manual(name = "Ratio", values = c("deepskyblue", "darkblue")) +
-      ggtitle(paste0(unique(proj_biomass$species), " - ", unique(proj_biomass$gsa))) +
-      xlab("SSB") +
-      ylab("Recruitment") +
-      theme_test() +
-      theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust = 1),
-            axis.text.y = element_text(size = 12),
             plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
             legend.position = "bottom")
     
@@ -1579,8 +1589,13 @@ server <- function(input, output, session) {
     depth_test <<- l[["depth_test"]]
     plotTestCount <<- 1
     testfit_results <<- l[["testfit_results"]]
+    traintest_output_raw <<- l[["traintest_output_raw"]]
     traintest_results <<- l[["traintest_results"]]
     traintest_plots <<- l[["traintest_plots"]]
+    traintest_recr_plots <<-l[["traintest_recr_plots"]]
+    output$plotRecruitmentTraintest <- renderPlot({
+      traintest_recr_plots[[1]]
+    })
     taylor_diagram <<- l[["taylor_diagram"]]
     depth_pred <<- l[["depth_pred"]]
     plotPredCount <<- 1
@@ -1588,12 +1603,12 @@ server <- function(input, output, session) {
     pred_iter_partial <<- l[["pred_iter_partial"]]
     pred_results <<- l[["pred_results"]]
     pred_plots <<- l[["pred_plots"]]
-    ratio_plots <<- l[["ratio_plots"]]
+    pred_recr_plots <<- l[["pred_recr_plots"]]
     output$plotPred <- renderPlot({
       pred_plots[[1]]
       })
-    output$plotRatio <- renderPlot({
-      ratio_plots[[1]]
+    output$plotRecruitmentForecast <- renderPlot({
+      pred_recr_plots[[1]]
       })
     sens_results <<- l[["sens_results"]]
     sens_plots <<- l[["sens_plots"]]
@@ -1621,7 +1636,6 @@ server <- function(input, output, session) {
                              - Select the maximum cohort to consider for each species<br>
                              (cohorts over the selected one will be aggregated to it)<br>
                              - Press 'Load' Button to process data<br>
-                             - Press 'Adjust' if you find any outlying value<br><br>
                              NET BUILDING PHASE:<br>
                              - Set number of layers and other hyperparameters<br>
                              - Set layer type and other parameters for each layer<br>
@@ -1691,7 +1705,7 @@ server <- function(input, output, session) {
   
   recdrop_text <- "Use it if the model overfits. Preferrable than regular dropout."
   
-  act_text <- "The standard function is Tanh (-1 to 1). Others can flatten the results."
+  act_text <- HTML("ReLU: linear, 0 to infinite<br>Sigmoid: 0 to 1, centered in 0.5<br>Softmax: 0 to 1, skewed towards 1<br>Tanh: -1 to 1, suggested")
   
   recact_text <- "The standard function is Sigmoid."
   
@@ -1714,8 +1728,7 @@ server <- function(input, output, session) {
                             - The user can download the adjusted Fishing Mortality vector<br>
                             in .rdata format in the last row by clicking the left button,<br>
                             while the button on the right can be used to load a previously<br>
-                            exported Fishing Mortality vector.
-                             "),
+                            exported Fishing Mortality vector."),
                             footer = NULL,
                             easyClose = TRUE))
   
@@ -2570,11 +2583,7 @@ server <- function(input, output, session) {
   
   # Neural network help icons
   
-  output$dropHelp1 =
-    output$dropHelp2 =
-    output$dropHelp3 =
-    output$dropHelp4 =
-    output$dropHelp5 = renderUI({
+  output$dropHelp = renderUI({
     tags$span(
       tipify(
         icon("fas fa-info-circle"),
@@ -2583,11 +2592,7 @@ server <- function(input, output, session) {
     )
   })
   
-  output$recdropHelp1 =
-    output$recdropHelp2 =
-    output$recdropHelp3 =
-    output$recdropHelp4 =
-    output$recdropHelp5 = renderUI({
+  output$recdropHelp = renderUI({
     tags$span(
       tipify(
         icon("fas fa-info-circle"),
@@ -2596,11 +2601,7 @@ server <- function(input, output, session) {
     )
   })
   
-  output$actHelp1 =
-    output$actHelp2 =
-    output$actHelp3 =
-    output$actHelp4 =
-    output$actHelp5 = renderUI({
+  output$actHelp = renderUI({
     tags$span(
       tipify(
         icon("fas fa-info-circle"),
@@ -2609,11 +2610,7 @@ server <- function(input, output, session) {
     )
   })
   
-  output$recactHelp1 =
-    output$recactHelp2 =
-    output$recactHelp3 =
-    output$recactHelp4 =
-    output$recactHelp5 = renderUI({
+  output$recactHelp = renderUI({
     tags$span(
       tipify(
         icon("fas fa-info-circle"),
@@ -3048,17 +3045,19 @@ server <- function(input, output, session) {
       
       for (i in 1:length(traintest_results)) {
         traintest_plots[[i]] <<- plotTrainTestFitNet(traintest_results[[i]], i, as.integer(input$depthTest))
+        traintest_recr_plots[[i]] <<- plotRecruitment(traintest_results[[i]], i, as.integer(input$depthTest))
         taylor_diagram[[i]] <<- plotTaylorDiagram(traintest_results[[i]], i)
       }
       
       output$showSpeciesTest <- renderText({
         species[[plotTestCount]]
       })
-      
       output$plotTrainTest <- renderPlotly({
         ggplotly(traintest_plots[[plotTestCount]])
       })
-      
+      output$plotRecruitmentTraintest <- renderPlot({
+        traintest_recr_plots[[plotTestCount]]
+      })
       output$taylorDiagram <- renderPlot({
         plotTaylorDiagram(traintest_results[[plotTestCount]], plotTestCount)
       })
@@ -3095,6 +3094,9 @@ server <- function(input, output, session) {
         output$plotTrainTest <- renderPlotly({
           ggplotly(traintest_plots[[plotTestCount]])
         })
+        output$plotRecruitmentTraintest <- renderPlot({
+          traintest_recr_plots[[plotTestCount]]
+        })
         output$taylorDiagram <- renderPlot({
           plotTaylorDiagram(traintest_results[[plotTestCount]], plotTestCount)
         })
@@ -3105,6 +3107,9 @@ server <- function(input, output, session) {
         plotTestCount <<- plotTestCount - 1
         output$plotTrainTest <- renderPlotly({
           ggplotly(traintest_plots[[plotTestCount]])
+        })
+        output$plotRecruitmentTraintest <- renderPlot({
+          traintest_recr_plots[[plotTestCount]]
         })
         output$taylorDiagram <- renderPlot({
           plotTaylorDiagram(traintest_results[[plotTestCount]], plotTestCount)
@@ -3130,6 +3135,9 @@ server <- function(input, output, session) {
         output$plotTrainTest <- renderPlotly({
           ggplotly(traintest_plots[[plotTestCount]])
         })
+        output$plotRecruitmentTraintest <- renderPlot({
+          traintest_recr_plots[[plotTestCount]]
+        })
         output$taylorDiagram <- renderPlot({
           plotTaylorDiagram(traintest_results[[plotTestCount]], plotTestCount)
         })
@@ -3140,6 +3148,9 @@ server <- function(input, output, session) {
         plotTestCount <<- plotTestCount + 1
         output$plotTrainTest <- renderPlotly({
           ggplotly(traintest_plots[[plotTestCount]])
+        })
+        output$plotRecruitmentTraintest <- renderPlot({
+          traintest_recr_plots[[plotTestCount]]
         })
         output$taylorDiagram <- renderPlot({
           plotTaylorDiagram(traintest_results[[plotTestCount]], plotTestCount)
@@ -3205,17 +3216,16 @@ server <- function(input, output, session) {
       
       for (i in 1:length(pred_results)) {
         pred_plots[[i]] <<- plotPred(pred_results[[i]], neuralNetInputs, i)
-        ratio_plots[[i]] <<- plotRatio(pred_results[[i]], i)
+        pred_recr_plots[[i]] <<- plotRecruitment(pred_results[[i]], i, as.integer(depth_pred))
       }
       
       output$plotPred <- renderPlotly({
-        ggplotly(pred_plots[[plotPredCount]]
-                 )
+        ggplotly(pred_plots[[plotPredCount]])
       })
       
-      output$plotRatio <- renderPlot({
-        ratio_plots[[plotPredCount]]
-      }, height = 700)
+      output$plotRecruitmentForecast <- renderPlot({
+        pred_recr_plots[[plotPredCount]]
+      })
       
       output$showSpeciesPred <- renderText({
         species[[plotPredCount]]
@@ -3252,9 +3262,9 @@ server <- function(input, output, session) {
           output$plotPred <- renderPlotly({
             ggplotly(pred_plots[[plotPredCount]])
           })
-          output$plotRatio <- renderPlot({
-            ratio_plots[[plotPredCount]]
-          }, height = 700)
+          output$plotRecruitmentForecast <- renderPlot({
+            pred_recr_plots[[plotPredCount]]
+          })
           output$showSpeciesPred <- renderText({
             species[[plotPredCount]]
           })
@@ -3263,9 +3273,9 @@ server <- function(input, output, session) {
           output$plotPred <- renderPlotly({
             ggplotly(pred_plots[[plotPredCount]])
           })
-          output$plotRatio <- renderPlot({
-            ratio_plots[[plotPredCount]]
-          }, height = 700)
+          output$plotRecruitmentForecast <- renderPlot({
+            pred_recr_plots[[plotPredCount]]
+          })
           output$showSpeciesPred <- renderText({
             species[[plotPredCount]]
           })
@@ -3287,9 +3297,9 @@ server <- function(input, output, session) {
           output$plotPred <- renderPlotly({
             ggplotly(pred_plots[[plotPredCount]])
           })
-          output$plotRatio <- renderPlot({
-            ratio_plots[[plotPredCount]]
-          }, height = 700)
+          output$plotRecruitmentForecast <- renderPlot({
+            pred_recr_plots[[plotPredCount]]
+          })
           output$showSpeciesPred <- renderText({
             species[[plotPredCount]]
           })
@@ -3298,9 +3308,9 @@ server <- function(input, output, session) {
           output$plotPred <- renderPlotly({
             ggplotly(pred_plots[[plotPredCount]])
           })
-          output$plotRatio <- renderPlot({
-            ratio_plots[[plotPredCount]]
-          }, height = 700)
+          output$plotRecruitmentForecast <- renderPlot({
+            pred_recr_plots[[plotPredCount]]
+          })
           output$showSpeciesPred <- renderText({
             species[[plotPredCount]]
             })
@@ -3451,16 +3461,19 @@ server <- function(input, output, session) {
           f_adj_display = f_adj_display,
           depth_test = depth_test,
           testfit_results = testfit_results,
+          traintest_output_raw = traintest_output_raw,
           traintest_iter_results = traintest_iter_results,
           traintest_results = traintest_results,
           traintest_plots = traintest_plots,
+          traintest_recr_plots = traintest_recr_plots,
           taylor_diagram = taylor_diagram,
           depth_pred = depth_pred,
           model_pred = model_pred,
+          pred_output_raw = pred_output_raw,
           pred_iter_partial = pred_iter_partial,
           pred_results = pred_results,
           pred_plots = pred_plots,
-          ratio_plots = ratio_plots,
+          pred_recr_plots = pred_recr_plots,
           sens_results = sens_results,
           sens_plots = sens_plots
           )
