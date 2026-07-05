@@ -6,34 +6,27 @@
   library(dplyr)
   library(FLCore)
   library(ggplot2)
-  library(ggrepel)
-  library(gridExtra)
-  library(keras)
+  library(keras3)
   library(Metrics)
+  library(patchwork)
   library(plotly)
   library(plotrix)
-  library(progress)
-  library(RColorBrewer)
   library(reshape2)
   library(rmarkdown)
-  library(RSNNS)
-  library(rsq)
   library(shiny)
   library(shinyBS)
   library(shinycssloaders)
   library(shinyFiles)
   library(shinyWidgets)
-  library(stringr)
   library(tensorflow)
   library(tidyr)
   library(tinytex)
-  library(tools)
-  library(TSdist)
   }
 
 ##### VARIABLES #####
 
 options(max.print = 99999)
+set_random_seed(123)
 
 species <- list() #species loaded
 gsa <- list() #list of gsa per stock loaded
@@ -79,8 +72,11 @@ range_outputs <- data.frame() #range for outputs denormalization
 depth_test <- NULL #number of years to forecast
 plotTestCount <- 0 #traintest species counter
 testfit_results <- data.frame() #testfit results
-traintest_output_raw <- list() # Partial results of prediction
-traintest_iter_results <- data.frame() #traintest results per iteration
+traintest_output_raw <- list() #partial results of prediction
+traintest_iter_results <- list() #traintest results per iteration
+traintest_metrics <- data.frame() #traintest metrics per species
+traintest_metrics_plot <- NULL #traintest metrics plot
+traintest_nparams <- 0 #traintest number of parameters
 traintest_results <- data.frame() #traintest results
 traintest_plots <- list() #traintest plots
 traintest_recr_plots <- list() #recruitment distribution plots
@@ -320,14 +316,15 @@ server <- function(input, output, session) {
     return(gsa1)
   }
   
-  procDfLongQuant <- function(stock, gsa, tri, minAge, baseline, fun, var) {
-    if (minAge == 0) {baseline = baseline + 1}
+  procDfLongQuant <- function(stock, gsa, tri, minAge, baselineAge, baselineYear, fun, var) {
+    if (minAge == 0) {baselineAge = baselineAge + 1}
     stk_temp = fun(stock)
-    if (nrow(fun(stock)) > baseline) {
-      stk_temp = stk_temp[1:baseline,]
-      stk_temp[baseline,] = colSums(fun(stock)[baseline:nrow(fun(stock)), ])
+    if (nrow(fun(stock)) > baselineAge) {
+      stk_temp = stk_temp[1:baselineAge,]
+      stk_temp[baselineAge,] = colSums(fun(stock)[baselineAge:nrow(fun(stock)), ])
     }
     df_temp = as.data.frame(stk_temp)[, c("year", "age", "data")]
+    df_temp = df_temp[which(df_temp$year >= baselineYear),]
     df = df_temp[, 1:2]
     df[, 3] = df_temp[, 3] * 1000
     df[, 4] = procGSA(paste0(gsa, collapse = "-"))
@@ -337,14 +334,15 @@ server <- function(input, output, session) {
     return(df)
   }
   
-  procDfLongMult <- function(stock, gsa, tri, minAge, baseline, fun, var) {
-    if (minAge == 0) {baseline = baseline + 1}
+  procDfLongMult <- function(stock, gsa, tri, minAge, baselineAge, baselineYear, fun, var) {
+    if (minAge == 0) {baselineAge = baselineAge + 1}
     stk_temp = fun(stock)
-    if (nrow(fun(stock)) > baseline) {
-      stk_temp = stk_temp[1:baseline,]
-      stk_temp[baseline,] = colMeans(fun(stock)[baseline:nrow(fun(stock)), ])
+    if (nrow(fun(stock)) > baselineAge) {
+      stk_temp = stk_temp[1:baselineAge,]
+      stk_temp[baselineAge,] = colMeans(fun(stock)[baselineAge:nrow(fun(stock)), ])
     }
     df_temp = as.data.frame(stk_temp)[, c("year", "age", "data")] #Thousands
+    df_temp = df_temp[which(df_temp$year >= baselineYear),]
     df = df_temp[, 1:2]
     df[, 3] = df_temp[, 3]
     df[, 4] = procGSA(paste0(gsa, collapse = "-"))
@@ -716,7 +714,7 @@ server <- function(input, output, session) {
     )
     
     history <- model %>% fit(
-      dummy, dummy,
+      dummy,
       verbose = 1,
       epochs = as.integer(input$nEpochs),
       callbacks = callbacks
@@ -725,25 +723,76 @@ server <- function(input, output, session) {
     history_df <- na.omit(as.data.frame(history))
     levels(history_df$metric)[match("loss", levels(history_df$metric))] <- "MSE"
     levels(history_df$metric)[match("mae", levels(history_df$metric))] <- "MAE"
+    history_df$iter <- 1
     
     return(history_df)
     
   }
   
-  plotFitNet <- function(testfit_results) {
-    g = ggplot(data = testfit_results, aes(x = epoch)) +
-      geom_line(aes(y = value, color = metric)) +
-      ggtitle(paste0("Mean Squared/Absolute Error")) +
-      scale_color_manual(name = "Metrics", values = c("darkblue", "darkcyan")) +
-      xlab("Epoch") +
-      ylab("Value") +
-      theme_test() +
-      theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
-            plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
-            legend.position = "bottom") +
-      facet_wrap(~ metric, scales = "free")
+  plotFitNet <- function(history_df) {
     
-    return(g)
+    n_runs <- 10
+    n_last <- 10
+    use_ci <- TRUE # TRUE = 95% CI; FALSE = SD
+    
+    traj <- history_df %>%
+      group_by(epoch, data) %>%
+      summarise(
+        mean_mse = mean(value, na.rm = TRUE),
+        sd_mse = sd(value, na.rm = TRUE),
+        se_mse = sd_mse / sqrt(n_distinct(iter)),
+        n_run = n_distinct(iter),
+        .groups = "drop") %>%
+      mutate(
+        ribbon = ifelse(use_ci, se_mse, sd_mse),
+        ymin = pmax(0, mean_mse - ribbon),
+        ymax = mean_mse + ribbon)
+    
+    pA <- ggplot(traj, aes(x = epoch, y = mean_mse, colour = data, fill = data)) +
+      geom_ribbon(aes(ymin = ymin, ymax = ymax), alpha = 0.18, colour = NA) +
+      geom_line(linewidth = 0.8) +
+      labs(x = "Epoch", y = "Training and Validation", colour = "Metric", fill = "Metric",
+           title = "A. Training and Validation across ten independent random initializations") +
+      theme_bw() +
+      theme(
+        legend.position = "bottom",
+        strip.background = element_rect(fill = "grey95"),
+        panel.grid.minor = element_blank()
+      )
+    
+    plateau_run <- history_df %>%
+      group_by(iter, data) %>%
+      mutate(max_epoch = max(epoch, na.rm = TRUE)) %>%
+      filter(epoch > max_epoch - n_last) %>%
+      summarise(plateau_mse = mean(value, na.rm = TRUE), .groups = "drop")
+    
+    plateau_summary <- plateau_run %>%
+      group_by(data) %>% 
+      summarise(
+        mean_plateau_mse = mean(plateau_mse, na.rm = TRUE),
+        sd_plateau_mse = sd(plateau_mse, na.rm = TRUE),
+        cv_percent = 100 * sd_plateau_mse / mean_plateau_mse,
+        n_runs = 10,
+        label = paste0(round(cv_percent, 2), "%"),
+        y_label = max(plateau_mse, na.rm = TRUE) + 0.08 * diff(range(plateau_mse, na.rm = TRUE)),
+        .groups = "drop"
+      )
+    
+    pB <- ggplot(plateau_run, aes(x = data, y = plateau_mse, fill = data)) +
+      geom_boxplot(alpha = 0.65, outlier.shape = NA, width = 0.62) +
+      geom_jitter(width = 0.08, size = 1.8, alpha = 0.75) +
+      labs(y = paste0("Plateau training and validation\n(mean last ", n_last, " epochs)"),
+           title = "B. Run-to-run variability of the validation-loss plateau") +
+      theme_bw() +
+      theme(
+        legend.position = "none",
+        strip.background = element_rect(fill = "grey95"),
+        panel.grid.minor = element_blank()
+      )
+    
+    fig_stability <- wrap_plots(A = pA, B = pB, design = "AABB")
+    
+    return(fig_stability)
   }
   
   trainTestFitNet <- function(netInputs, depthTest) {
@@ -827,21 +876,37 @@ server <- function(input, output, session) {
             callback_early_stopping(
               monitor = "loss", patience = 15),
             callback_model_checkpoint(
-              "prova.keras", save_best_only = TRUE))
+              "callback.keras", save_best_only = TRUE))
           
           model %>% compile(
-            loss = "mse",
-            metrics = "mae",
+            loss = loss_mean_squared_error(),
+            metrics = loss_mean_absolute_error(),
             optimizer_rmsprop(learning_rate = as.numeric(input$learnParam))
           )
           
           history <- model %>% fit(
-            dummy, dummy,
+            dummy,
             validation_data = dummy_val,
             verbose = 0,
             epochs = as.integer(input$nEpochs),
             callbacks = callbacks
           )
+          
+          if (i == 1) {
+            history_df <- na.omit(as.data.frame(history))
+            levels(history_df$metric)[match("loss", levels(history_df$metric))] <- "MSE"
+            levels(history_df$metric)[levels(history_df$metric) == "mean_absolute_error"] <- "MAE"
+            history_df$iter <- iter
+            if (iter == 1) {
+              history_df_tot <- history_df
+              save_model(model, "my_model.keras")
+            } else {
+              history_df_tot <- rbind(history_df_tot, history_df)
+            }
+          }
+          
+          traintest_metrics <<- history_df_tot
+          traintest_nparams <<- model$count_params()
           
           if (input$activation == "tanh") {
             iter_df[,2:ncol(iter_df)] <- iter_df[,2:ncol(iter_df)] + 0.5
@@ -960,7 +1025,10 @@ server <- function(input, output, session) {
     })
     
     traintest_output_raw <<- traintest_df_raw
-    traintest_iter_results <<- ssb_df_tot
+    traintest_iter_results <<- vector(mode = "list", length = length(unique(species)))
+    for (sp in 1:length(unique(species))) {
+      traintest_iter_results[[sp]] <<- ssb_df_tot[which(ssb_df_tot$species == unique(species)[sp]),]
+    }
     
     proj_biomass_spec <- list()
     
@@ -1107,13 +1175,180 @@ server <- function(input, output, session) {
     return(recr_plot)
   }
   
-  plotTaylorDiagram <- function(proj_biomass, plotTrainTestFitCount) {
+  plotTaylorDiagram <- function(proj_biomass) {
     
-    year = as.integer(max(unique(proj_biomass$year))) - 6
+    prepData <- function(df, ssb_col = "ssb", type_col = "type", iter_col = "iter",
+                         year_col = "year", observed_label = "Observed",
+                         predicted_label = "Predicted", sd.method = "sample",
+                         grad.corr.lines = c(0.2, 0.4, 0.6, 0.8, 0.9)) {
+      
+      SD <- function(x, subn) {
+        x <- as.numeric(x)
+        meanx <- mean(x, na.rm = TRUE)
+        devx <- x - meanx
+        sqrt(sum(devx * devx, na.rm = TRUE) / (sum(!is.na(x)) - subn))
+      }
+      
+      subn <- sd.method != "sample"
+      
+      df_wide <- df %>%
+        dplyr::filter(.data[[type_col]] %in% c(observed_label, predicted_label)) %>%
+        dplyr::select(iter = dplyr::all_of(iter_col), year = dplyr::all_of(year_col),
+                      type = dplyr::all_of(type_col), ssb  = dplyr::all_of(ssb_col)) %>%
+        dplyr::mutate(ssb = as.numeric(ssb)) %>%
+        dplyr::group_by(iter, year, type) %>%
+        dplyr::summarise(ssb = mean(ssb, na.rm = TRUE), .groups = "drop") %>%
+        tidyr::pivot_wider(names_from = type, values_from = ssb)
+      
+      obs <- df_wide %>%
+        dplyr::group_by(year) %>%
+        dplyr::summarise(obs = dplyr::first(stats::na.omit(.data[[observed_label]])), .groups = "drop") %>%
+        dplyr::arrange(year) %>%
+        dplyr::pull(obs)
+      
+      sd.ref <- SD(obs, subn)
+      
+      stats_iter <- df_wide %>%
+        dplyr::group_by(iter) %>%
+        dplyr::arrange(year, .by_group = TRUE) %>%
+        dplyr::summarise(sd_pred = SD(.data[[predicted_label]], subn), 
+                         corr = abs(cor(.data[[observed_label]], .data[[predicted_label]], use = "pairwise.complete.obs")), .groups = "drop") %>%
+        dplyr::slice_head(n = 10) %>%
+        dplyr::mutate(x = sd_pred * corr, y = sd_pred * sin(acos(corr)), group = "model")
+      
+      model_points <- stats_iter %>%
+        dplyr::transmute(id = iter, x = x, y = y, group = group)
+      
+      pred_mean <- df_wide %>%
+        dplyr::group_by(year) %>%
+        dplyr::summarise(obs = dplyr::first(stats::na.omit(.data[[observed_label]])),
+                         pred_avg = mean(.data[[predicted_label]], na.rm = TRUE), .groups = "drop") %>%
+        dplyr::arrange(year)
+      
+      sd.media <- SD(pred_mean$pred_avg, subn)
+      
+      corr.media <- abs(cor(pred_mean$obs, pred_mean$pred_avg, use = "pairwise.complete.obs"))
+      
+      mean_point <- data.frame(id = NA, x = sd.media * corr.media, y = sd.media * sin(acos(corr.media)), group = "mean prediction")
+      
+      ref_point <- data.frame(x = sd.ref, y = 0)
+      
+      maxsd <- 1.5 * max(stats_iter$sd_pred, sd.ref, sd.media, na.rm = TRUE)
+      
+      axis <- data.frame(x = c(0, 0), y = c(0, 0), xend = c(0, maxsd), yend = c(maxsd, 0))
+      
+      axis.ticks <- pretty(c(0, maxsd))
+      axis.ticks <- axis.ticks[axis.ticks <= maxsd]
+      
+      corr_lines <- do.call(rbind, lapply(grad.corr.lines, function(gcl) {
+        data.frame(group = gcl, x = c(0, maxsd * gcl),  y = c(0, maxsd * sqrt(1 - gcl^2)))
+      }))
+      
+      arc_angle <- seq(0, pi/2, by = 0.01)
+      
+      ext_arc <- data.frame(x = cos(arc_angle) * maxsd, y = sin(arc_angle) * maxsd)
+      
+      bigtickangles <- acos(seq(0.1, 0.9, by = 0.1))
+      medtickangles <- acos(seq(0.05, 0.95, by = 0.1))
+      smltickangles <- acos(seq(0.91, 0.99, by = 0.01))
+      
+      big_ticks <- data.frame(x = cos(bigtickangles) * maxsd, y = sin(bigtickangles) * maxsd,
+                              xend = cos(bigtickangles) * 0.97 * maxsd, yend = sin(bigtickangles) * 0.97 * maxsd)
+      
+      medticks <- data.frame(x = cos(medtickangles) * maxsd, y = sin(medtickangles) * maxsd,
+                             xend = cos(medtickangles) * 0.98 * maxsd, yend = sin(medtickangles) * 0.98 * maxsd)
+      
+      smlticks <- data.frame(x = cos(smltickangles) * maxsd, y = sin(smltickangles) * maxsd,
+                             xend = cos(smltickangles) * 0.99 * maxsd, yend = sin(smltickangles) * 0.99 * maxsd)
+      
+      ang_labels <- c(bigtickangles, acos(c(0.95, 0.99)))
+      val_labels <- c(seq(0.1, 0.9, by = 0.1), 0.95, 0.99)
+      
+      corr_labels <- data.frame(x = cos(ang_labels) * 1.05 * maxsd, y = sin(ang_labels) * 1.05 * maxsd, label = val_labels)
+      
+      list(
+        model_points = model_points,
+        mean_point = mean_point,
+        ref_point = ref_point,
+        axis = axis,
+        axis.ticks = axis.ticks,
+        corr_lines = corr_lines,
+        ext_arc = ext_arc,
+        big_ticks = big_ticks,
+        medticks = medticks,
+        smlticks = smlticks,
+        corr_labels = corr_labels,
+        maxsd = maxsd,
+        sd.ref = sd.ref
+      )
+    }
     
-    g = taylor.diagram(ref = proj_biomass[which(proj_biomass$year > year), "ssb_obs"],
-                       model = proj_biomass[which(proj_biomass$year > year), "ssb_mean"],
-                       col = "red", pcex = 2.5)
+    taylorDiagram <- function(dati, col = "red", pch = 19,
+                              xlab = "Standard deviation", ylab = "",
+                              main = "",
+                              show.gamma = TRUE, gamma.col = 8,
+                              pcex = 2, cex.axis = 1,
+                              lwd.axes = 2, lwd.curve = 2) {
+      
+      if (nchar(ylab) == 0) ylab <- "Standard deviation"
+      
+      maxsd <- dati$maxsd
+      lim <- maxsd * 1.1
+      
+      p <- ggplot() +
+        # Correlation radial lines
+        geom_line(data = dati$corr_lines, aes(x = x, y = y, group = group), linetype = "dotted", linewidth = lwd.axes / 2.5) +
+        # Cartesian axes
+        geom_segment(data = dati$axis, aes(x = x, y = y, xend = xend, yend = yend), linewidth = lwd.axes / 2.5)
+      
+      # Centered RMS
+      if (show.gamma[1] && !is.null(dati$curve_gamma)) {
+        p <- p +
+          geom_path(data = dati$curve_gamma, aes(x = x, y = y, group = group), colour = "grey50", linewidth = lwd.curve / 2.5) +
+          geom_label(data = dati$etichette_gamma, aes(x = x, y = y, label = label), size = 3 * cex.axis,
+                     label.size = 0, fill = "white", label.padding = unit(0.08, "lines"))
+      }
+      
+      # SD arcs
+      if (!is.null(dati$archi_sd)) {
+        p <- p + geom_path(data = dati$archi_sd, aes(x = x, y = y, group = group), colour = "blue", linetype = "dotted", linewidth = lwd.curve / 2.5)
+      }
+      
+      p <- p +
+        # External arc
+        geom_path(data = dati$ext_arc, aes(x = x, y = y), linewidth = lwd.axes / 2.5) +
+        # Correlation ticks (arc)
+        geom_segment(data = dati$big_ticks, aes(x = x, y = y, xend = xend, yend = yend), linewidth = lwd.axes / 2.5) +
+        geom_segment(data = dati$medticks, aes(x = x, y = y, xend = xend, yend = yend), linewidth = lwd.axes / 5) +
+        geom_segment(data = dati$smlticks, aes(x = x, y = y, xend = xend, yend = yend), linewidth = lwd.axes / 5) +
+        # Correlation labels
+        geom_text(data = dati$corr_labels, aes(x = x, y = y, label = label), size = 3.2 * cex.axis) +
+        annotate("text", x = maxsd * 0.8, y = maxsd * 0.8, label = "Correlation", angle = -40, size = 3.5 * cex.axis) +
+        # Reference point
+        geom_point(data = dati$ref_point, aes(x = x, y = y),
+                   shape = 1, size = pcex * 2, stroke = 1.2) +
+        # Model points
+        geom_point(data = dati$model_points, aes(x = x, y = y, colour = "Iterations"), shape = pch, size = pcex * 2) +
+        # Mean point
+        geom_point(data = dati$mean_point, aes(x = x, y = y, colour = "Mean"), fill = "darkblue", shape = 24, size = pcex * 2) +
+        scale_colour_manual(values = c("red", "black"), labels = c("Iterations", "Mean")) +
+        scale_x_continuous(name = NULL, limits = c(0, lim), expand = c(0, 0), breaks = dati$axis.ticks) +
+        scale_y_continuous(name = ylab, limits = c(0, lim), expand = c(0, 0), breaks = dati$axis.ticks) +
+        coord_fixed(ratio = 1, clip = "off") +
+        labs(title = main, x = xlab) +
+        theme_bw(base_size = 11 * cex.axis) +
+        theme(
+          panel.grid = element_blank(),
+          panel.border = element_blank(),
+          axis.line = element_blank(),
+          axis.title.x = element_text(margin = margin(t = 8)),
+          plot.title = element_text(hjust = 0.5)
+        )
+      p
+    }
+    
+    taylor_data <- prepData(proj_biomass)
+    g <- taylorDiagram(taylor_data, main = "Taylor diagram - SSB observed vs predicted")
     
     return(g)
   }
@@ -1218,7 +1453,7 @@ server <- function(input, output, session) {
           )
           
           history <- model %>% fit(
-            dummy, dummy,
+            dummy,
             validation_data = dummy_val,
             verbose = 0,
             epochs = as.integer(input$nEpochs),
@@ -1590,6 +1825,8 @@ server <- function(input, output, session) {
     plotTestCount <<- 1
     testfit_results <<- l[["testfit_results"]]
     traintest_output_raw <<- l[["traintest_output_raw"]]
+    traintest_metrics <<- l[["traintest_metrics"]]
+    traintest_metrics_plot <<- l[["traintest_metrics_plot"]]
     traintest_results <<- l[["traintest_results"]]
     traintest_plots <<- l[["traintest_plots"]]
     traintest_recr_plots <<-l[["traintest_recr_plots"]]
@@ -1635,6 +1872,8 @@ server <- function(input, output, session) {
                              - Select and load any number of stock objects<br>
                              - Select the maximum cohort to consider for each species<br>
                              (cohorts over the selected one will be aggregated to it)<br>
+                             and the first year of the time series from which to begin<br>
+                             the analysis<br>
                              - Press 'Load' Button to process data<br>
                              NET BUILDING PHASE:<br>
                              - Set number of layers and other hyperparameters<br>
@@ -1741,14 +1980,10 @@ server <- function(input, output, session) {
   # Stock 1
   
   rv1 <- reactiveValues(
-    stk = NULL,
-    tri = NULL,
-    gsa = NULL,
-    min = 0,
-    max = 0,
-    baseline = 0,
-    spinfo = "No Species Selected",
-    gsainfo = "No GSA Selected"
+    stk = NULL, tri = NULL, gsa = NULL,
+    minYear = 0, maxYear = 0, minAge = 0, maxAge = 0,
+    baselineYear = 0, baselineAge = 0,
+    spinfo = "No Species Selected", gsainfo = "No GSA Selected"
   )
   
   output$triHelp1 <- renderUI({
@@ -1786,13 +2021,21 @@ server <- function(input, output, session) {
         loadRData(as.character(input$sobj1[4]))
       }
     rv1$stk <- stk1
-    rv1$min <- as.integer(stk1@range[1])
-    rv1$max <- as.integer(stk1@range[2])
+    rv1$minYear <- as.integer(stk1@range[4])
+    rv1$maxYear <- as.integer(stk1@range[5])
+    rv1$minAge <- as.integer(stk1@range[1])
+    rv1$maxAge <- as.integer(stk1@range[2])
     updatePickerInput(
       session,
-      "baseline1",
-      choices = rv1$min:rv1$max,
-      selected = rv1$max
+      "baselineYear1",
+      choices = rv1$minYear:rv1$maxYear,
+      selected = rv1$minYear
+    )
+    updatePickerInput(
+      session,
+      "baselineAge1",
+      choices = rv1$minAge:rv1$maxAge,
+      selected = rv1$maxAge
     )
     rv1$tri <- sub("_.*", "", input$sobj1[1])
     rv1$spinfo <- speciesInfo(rv1$tri)
@@ -1800,8 +2043,12 @@ server <- function(input, output, session) {
     rv1$gsainfo <- gsaInfo(rv1$gsa)
   })
   
-  observeEvent(input$baseline1, {
-    rv1$baseline <- as.integer(input$baseline1)
+  observeEvent(input$baselineYear1, {
+    rv1$baselineYear <- as.integer(input$baselineYear1)
+  })
+  
+  observeEvent(input$baselineAge1, {
+    rv1$baselineAge <- as.integer(input$baselineAge1)
   })
   
   observeEvent(input$reset1, {
@@ -1809,23 +2056,22 @@ server <- function(input, output, session) {
     rv1$obj <- NULL
     rv1$tri <- NULL
     rv1$gsa <- NULL
-    rv1$min <- 0
-    rv1$max <- 0
-    rv1$baseline <- 0
+    rv1$minYear <- 0
+    rv1$maxYear <- 0
+    rv1$minAge <- 0
+    rv1$maxAge <- 0
+    rv1$baselineYear <- 0
+    rv1$baselineAge <- 0
     info = "No Species Selected"
   })
   
   # Stock 2
   
   rv2 <- reactiveValues(
-    stk = NULL,
-    tri = NULL,
-    gsa = NULL,
-    min = 0,
-    max = 0,
-    baseline = 0,
-    spinfo = "No Species Selected",
-    gsainfo = "No GSA Selected"
+    stk = NULL, tri = NULL, gsa = NULL,
+    minYear = 0, maxYear = 0, minAge = 0, maxAge = 0,
+    baselineYear = 0, baselineAge = 0,
+    spinfo = "No Species Selected", gsainfo = "No GSA Selected"
   )
   
   output$triHelp2 <- renderUI({
@@ -1866,13 +2112,21 @@ server <- function(input, output, session) {
       loadRData(as.character(input$sobj2[4]))
     }
     rv2$stk <- stk2
-    rv2$min <- as.integer(stk2@range[1])
-    rv2$max <- as.integer(stk2@range[2])
+    rv2$minYear <- as.integer(stk2@range[4])
+    rv2$maxYear <- as.integer(stk2@range[5])
+    rv2$minAge <- as.integer(stk2@range[1])
+    rv2$maxAge <- as.integer(stk2@range[2])
     updatePickerInput(
       session,
-      "baseline2",
-      choices = rv2$min:rv2$max,
-      selected = rv2$max
+      "baselineYear2",
+      choices = rv2$minYear:rv2$maxYear,
+      selected = rv2$minYear
+    )
+    updatePickerInput(
+      session,
+      "baselineAge2",
+      choices = rv2$minAge:rv2$maxAge,
+      selected = rv2$maxAge
     )
     rv2$tri <- sub("_.*", "", input$sobj2[1])
     rv2$spinfo <- speciesInfo(rv2$tri)
@@ -1880,8 +2134,12 @@ server <- function(input, output, session) {
     rv2$gsainfo <- gsaInfo(rv2$gsa)
   })
   
-  observeEvent(input$baseline2, {
-    rv2$baseline <- as.integer(input$baseline2)
+  observeEvent(input$baselineYear2, {
+    rv2$baselineYear <- as.integer(input$baselineYear2)
+  })
+  
+  observeEvent(input$baselineAge2, {
+    rv2$baselineAge <- as.integer(input$baselineAge2)
   })
   
   observeEvent(input$reset2, {
@@ -1889,23 +2147,22 @@ server <- function(input, output, session) {
     rv2$obj <- NULL
     rv2$tri <- NULL
     rv2$gsa <- NULL
-    rv2$min <- 0
-    rv2$max <- 0
-    rv2$baseline <- 0
+    rv2$minYear <- 0
+    rv2$maxYear <- 0
+    rv2$minAge <- 0
+    rv2$maxAge <- 0
+    rv2$baselineYear <- 0
+    rv2$baselineAge <- 0
     info = "No Species Selected"
   })
   
   # Stock 3
   
   rv3 <- reactiveValues(
-    stk = NULL,
-    tri = NULL,
-    gsa = NULL,
-    min = 0,
-    max = 0,
-    baseline = 0,
-    spinfo = "No Species Selected",
-    gsainfo = "No GSA Selected"
+    stk = NULL, tri = NULL, gsa = NULL,
+    minYear = 0, maxYear = 0, minAge = 0, maxAge = 0,
+    baselineYear = 0, baselineAge = 0,
+    spinfo = "No Species Selected", gsainfo = "No GSA Selected"
   )
   
   output$triHelp3 <- renderUI({
@@ -1946,13 +2203,21 @@ server <- function(input, output, session) {
       loadRData(as.character(input$sobj3[4]))
     }
     rv3$stk <- stk3
-    rv3$min <- as.integer(stk3@range[1])
-    rv3$max <- as.integer(stk3@range[2])
+    rv3$minYear <- as.integer(stk3@range[4])
+    rv3$maxYear <- as.integer(stk3@range[5])
+    rv3$minAge <- as.integer(stk3@range[1])
+    rv3$maxAge <- as.integer(stk3@range[2])
     updatePickerInput(
       session,
-      "baseline3",
-      choices = rv3$min:rv3$max,
-      selected = rv3$max
+      "baselineYear3",
+      choices = rv3$minYear:rv3$maxYear,
+      selected = rv3$minYear
+    )
+    updatePickerInput(
+      session,
+      "baselineAge3",
+      choices = rv3$minAge:rv3$maxAge,
+      selected = rv3$maxAge
     )
     rv3$tri <- sub("_.*", "", input$sobj3[1])
     rv3$spinfo <- speciesInfo(rv3$tri)
@@ -1960,8 +2225,12 @@ server <- function(input, output, session) {
     rv3$gsainfo <- gsaInfo(rv3$gsa)
   })
   
-  observeEvent(input$baseline3, {
-    rv3$baseline <- as.integer(input$baseline3)
+  observeEvent(input$baselineYear3, {
+    rv3$baselineYear <- as.integer(input$baselineYear3)
+  })
+  
+  observeEvent(input$baselineAge3, {
+    rv3$baselineAge <- as.integer(input$baselineAge3)
   })
   
   observeEvent(input$reset3, {
@@ -1969,23 +2238,22 @@ server <- function(input, output, session) {
     rv3$obj <- NULL
     rv3$tri <- NULL
     rv3$gsa <- NULL
-    rv3$min <- 0
-    rv3$max <- 0
-    rv3$baseline <- 0
+    rv3$minYear <- 0
+    rv3$maxYear <- 0
+    rv3$minAge <- 0
+    rv3$maxAge <- 0
+    rv3$baselineYear <- 0
+    rv3$baselineAge <- 0
     info = "No Species Selected"
   })
   
   # Stock 4
   
   rv4 <- reactiveValues(
-    stk = NULL,
-    tri = NULL,
-    gsa = NULL,
-    min = 0,
-    max = 0,
-    baseline = 0,
-    spinfo = "No Species Selected",
-    gsainfo = "No GSA Selected"
+    stk = NULL, tri = NULL, gsa = NULL,
+    minYear = 0, maxYear = 0, minAge = 0, maxAge = 0,
+    baselineYear = 0, baselineAge = 0,
+    spinfo = "No Species Selected", gsainfo = "No GSA Selected"
   )
   
   output$triHelp4 <- renderUI({
@@ -2026,13 +2294,21 @@ server <- function(input, output, session) {
       loadRData(as.character(input$sobj4[4]))
     }
     rv4$stk <- stk4
-    rv4$min <- as.integer(stk4@range[1])
-    rv4$max <- as.integer(stk4@range[2])
+    rv4$minYear <- as.integer(stk4@range[4])
+    rv4$maxYear <- as.integer(stk4@range[5])
+    rv4$minAge <- as.integer(stk4@range[1])
+    rv4$maxAge <- as.integer(stk4@range[2])
     updatePickerInput(
       session,
-      "baseline4",
-      choices = rv4$min:rv4$max,
-      selected = rv4$max
+      "baselineYear4",
+      choices = rv4$minYear:rv4$maxYear,
+      selected = rv4$minYear
+    )
+    updatePickerInput(
+      session,
+      "baselineAge4",
+      choices = rv4$minAge:rv4$maxAge,
+      selected = rv4$maxAge
     )
     rv4$tri <- sub("_.*", "", input$sobj4[1])
     rv4$spinfo <- speciesInfo(rv4$tri)
@@ -2040,8 +2316,12 @@ server <- function(input, output, session) {
     rv4$gsainfo <- gsaInfo(rv4$gsa)
   })
   
-  observeEvent(input$baseline4, {
-    rv4$baseline <- as.integer(input$baseline4)
+  observeEvent(input$baselineYear4, {
+    rv4$baselineYear <- as.integer(input$baselineYear4)
+  })
+  
+  observeEvent(input$baselineAge4, {
+    rv4$baselineAge <- as.integer(input$baselineAge4)
   })
   
   observeEvent(input$reset4, {
@@ -2049,23 +2329,22 @@ server <- function(input, output, session) {
     rv4$obj <- NULL
     rv4$tri <- NULL
     rv4$gsa <- NULL
-    rv4$min <- 0
-    rv4$max <- 0
-    rv4$baseline <- 0
+    rv4$minYear <- 0
+    rv4$maxYear <- 0
+    rv4$minAge <- 0
+    rv4$maxAge <- 0
+    rv4$baselineYear <- 0
+    rv4$baselineAge <- 0
     info = "No Species Selected"
   })
   
   # Stock 5
   
   rv5 <- reactiveValues(
-    stk = NULL,
-    tri = NULL,
-    gsa = NULL,
-    min = 0,
-    max = 0,
-    baseline = 0,
-    spinfo = "No Species Selected",
-    gsainfo = "No GSA Selected"
+    stk = NULL, tri = NULL, gsa = NULL,
+    minYear = 0, maxYear = 0, minAge = 0, maxAge = 0,
+    baselineYear = 0, baselineAge = 0,
+    spinfo = "No Species Selected", gsainfo = "No GSA Selected"
   )
   
   output$triHelp5 <- renderUI({
@@ -2106,13 +2385,21 @@ server <- function(input, output, session) {
       loadRData(as.character(input$sobj5[4]))
     }
     rv5$stk <- stk5
-    rv5$min <- as.integer(stk5@range[1])
-    rv5$max <- as.integer(stk5@range[2])
+    rv5$minYear <- as.integer(stk5@range[4])
+    rv5$maxYear <- as.integer(stk5@range[5])
+    rv5$minAge <- as.integer(stk5@range[1])
+    rv5$maxAge <- as.integer(stk5@range[2])
     updatePickerInput(
       session,
-      "baseline5",
-      choices = rv5$min:rv5$max,
-      selected = rv5$max
+      "baselineYear5",
+      choices = rv5$minYear:rv5$maxYear,
+      selected = rv5$minYear
+    )
+    updatePickerInput(
+      session,
+      "baselineAge5",
+      choices = rv5$minAge:rv5$maxAge,
+      selected = rv5$maxAge
     )
     rv5$tri <- sub("_.*", "", input$sobj5[1])
     rv5$spinfo <- speciesInfo(rv5$tri)
@@ -2120,8 +2407,12 @@ server <- function(input, output, session) {
     rv5$gsainfo <- gsaInfo(rv5$gsa)
   })
   
-  observeEvent(input$baseline5, {
-    rv5$baseline <- as.integer(input$baseline5)
+  observeEvent(input$baselineYear5, {
+    rv5$baselineYear <- as.integer(input$baselineYear5)
+  })
+  
+  observeEvent(input$baselineAge5, {
+    rv5$baselineAge <- as.integer(input$baselineAge5)
   })
   
   observeEvent(input$reset5, {
@@ -2129,23 +2420,22 @@ server <- function(input, output, session) {
     rv5$obj <- NULL
     rv5$tri <- NULL
     rv5$gsa <- NULL
-    rv5$min <- 0
-    rv5$max <- 0
-    rv5$baseline <- 0
+    rv5$minYear <- 0
+    rv5$maxYear <- 0
+    rv5$minAge <- 0
+    rv5$maxAge <- 0
+    rv5$baselineYear <- 0
+    rv5$baselineAge <- 0
     info = "No Species Selected"
   })
   
   # Stock 6
   
   rv6 <- reactiveValues(
-    stk = NULL,
-    tri = NULL,
-    gsa = NULL,
-    min = 0,
-    max = 0,
-    baseline = 0,
-    spinfo = "No Species Selected",
-    gsainfo = "No GSA Selected"
+    stk = NULL, tri = NULL, gsa = NULL,
+    minYear = 0, maxYear = 0, minAge = 0, maxAge = 0,
+    baselineYear = 0, baselineAge = 0,
+    spinfo = "No Species Selected", gsainfo = "No GSA Selected"
   )
   
   output$triHelp6 <- renderUI({
@@ -2186,13 +2476,21 @@ server <- function(input, output, session) {
       loadRData(as.character(input$sobj6[4]))
     }
     rv6$stk <- stk6
-    rv6$min <- as.integer(stk6@range[1])
-    rv6$max <- as.integer(stk6@range[2])
+    rv6$minYear <- as.integer(stk6@range[4])
+    rv6$maxYear <- as.integer(stk6@range[5])
+    rv6$minAge <- as.integer(stk6@range[1])
+    rv6$maxAge <- as.integer(stk6@range[2])
     updatePickerInput(
       session,
-      "baseline6",
-      choices = rv6$min:rv6$max,
-      selected = rv6$max
+      "baselineYear6",
+      choices = rv6$minYear:rv6$maxYear,
+      selected = rv6$minYear
+    )
+    updatePickerInput(
+      session,
+      "baselineAge6",
+      choices = rv6$minAge:rv6$maxAge,
+      selected = rv6$maxAge
     )
     rv6$tri <- sub("_.*", "", input$sobj6[1])
     rv6$spinfo <- speciesInfo(rv6$tri)
@@ -2200,8 +2498,12 @@ server <- function(input, output, session) {
     rv6$gsainfo <- gsaInfo(rv6$gsa)
   })
   
-  observeEvent(input$baseline6, {
-    rv6$baseline <- as.integer(input$baseline6)
+  observeEvent(input$baselineYear6, {
+    rv6$baselineYear <- as.integer(input$baselineYear6)
+  })
+  
+  observeEvent(input$baselineAge6, {
+    rv6$baselineAge <- as.integer(input$baselineAge6)
   })
   
   observeEvent(input$reset6, {
@@ -2209,23 +2511,22 @@ server <- function(input, output, session) {
     rv6$obj <- NULL
     rv6$tri <- NULL
     rv6$gsa <- NULL
-    rv6$min <- 0
-    rv6$max <- 0
-    rv6$baseline <- 0
+    rv6$minYear <- 0
+    rv6$maxYear <- 0
+    rv6$minAge <- 0
+    rv6$maxAge <- 0
+    rv6$baselineYear <- 0
+    rv6$baselineAge <- 0
     info = "No Species Selected"
   })
   
   # Stock 7
   
   rv7 <- reactiveValues(
-    stk = NULL,
-    tri = NULL,
-    gsa = NULL,
-    min = 0,
-    max = 0,
-    baseline = 0,
-    spinfo = "No Species Selected",
-    gsainfo = "No GSA Selected"
+    stk = NULL, tri = NULL, gsa = NULL,
+    minYear = 0, maxYear = 0, minAge = 0, maxAge = 0,
+    baselineYear = 0, baselineAge = 0,
+    spinfo = "No Species Selected", gsainfo = "No GSA Selected"
   )
   
   output$triHelp7 <- renderUI({
@@ -2266,13 +2567,21 @@ server <- function(input, output, session) {
       loadRData(as.character(input$sobj7[4]))
     }
     rv7$stk <- stk7
-    rv7$min <- as.integer(stk7@range[1])
-    rv7$max <- as.integer(stk7@range[2])
+    rv7$minYear <- as.integer(stk7@range[4])
+    rv7$maxYear <- as.integer(stk7@range[5])
+    rv7$minAge <- as.integer(stk7@range[1])
+    rv7$maxAge <- as.integer(stk7@range[2])
     updatePickerInput(
       session,
-      "baseline7",
-      choices = rv7$min:rv7$max,
-      selected = rv7$max
+      "baselineYear7",
+      choices = rv7$minYear:rv7$maxYear,
+      selected = rv7$minYear
+    )
+    updatePickerInput(
+      session,
+      "baselineAge7",
+      choices = rv7$minAge:rv7$maxAge,
+      selected = rv7$maxAge
     )
     rv7$tri <- sub("_.*", "", input$sobj7[1])
     rv7$spinfo <- speciesInfo(rv7$tri)
@@ -2280,8 +2589,12 @@ server <- function(input, output, session) {
     rv7$gsainfo <- gsaInfo(rv7$gsa)
   })
   
-  observeEvent(input$baseline7, {
-    rv7$baseline <- as.integer(input$baseline7)
+  observeEvent(input$baselineYear7, {
+    rv7$baselineYear <- as.integer(input$baselineYear7)
+  })
+  
+  observeEvent(input$baselineAge7, {
+    rv7$baselineAge <- as.integer(input$baselineAge7)
   })
   
   observeEvent(input$reset7, {
@@ -2289,23 +2602,22 @@ server <- function(input, output, session) {
     rv7$obj <- NULL
     rv7$tri <- NULL
     rv7$gsa <- NULL
-    rv7$min <- 0
-    rv7$max <- 0
-    rv7$baseline <- 0
+    rv7$minYear <- 0
+    rv7$maxYear <- 0
+    rv7$minAge <- 0
+    rv7$maxAge <- 0
+    rv7$baselineYear <- 0
+    rv7$baselineAge <- 0
     info = "No Species Selected"
   })
   
   # Stock 8
   
   rv8 <- reactiveValues(
-    stk = NULL,
-    tri = NULL,
-    gsa = NULL,
-    min = 0,
-    max = 0,
-    baseline = 0,
-    spinfo = "No Species Selected",
-    gsainfo = "No GSA Selected"
+    stk = NULL, tri = NULL, gsa = NULL,
+    minYear = 0, maxYear = 0, minAge = 0, maxAge = 0,
+    baselineYear = 0, baselineAge = 0,
+    spinfo = "No Species Selected", gsainfo = "No GSA Selected"
   )
   
   output$triHelp8 <- renderUI({
@@ -2346,13 +2658,21 @@ server <- function(input, output, session) {
       loadRData(as.character(input$sobj8[4]))
     }
     rv8$stk <- stk8
-    rv8$min <- as.integer(stk8@range[1])
-    rv8$max <- as.integer(stk8@range[2])
+    rv8$minYear <- as.integer(stk8@range[4])
+    rv8$maxYear <- as.integer(stk8@range[5])
+    rv8$minAge <- as.integer(stk8@range[1])
+    rv8$maxAge <- as.integer(stk8@range[2])
     updatePickerInput(
       session,
-      "baseline8",
-      choices = rv8$min:rv8$max,
-      selected = rv8$max
+      "baselineYear8",
+      choices = rv8$minYear:rv8$maxYear,
+      selected = rv8$minYear
+    )
+    updatePickerInput(
+      session,
+      "baselineAge8",
+      choices = rv8$minAge:rv8$maxAge,
+      selected = rv8$maxAge
     )
     rv8$tri <- sub("_.*", "", input$sobj8[1])
     rv8$spinfo <- speciesInfo(rv8$tri)
@@ -2360,8 +2680,12 @@ server <- function(input, output, session) {
     rv8$gsainfo <- gsaInfo(rv8$gsa)
   })
   
-  observeEvent(input$baseline8, {
-    rv8$baseline <- as.integer(input$baseline8)
+  observeEvent(input$baselineYear8, {
+    rv8$baselineYear <- as.integer(input$baselineYear8)
+  })
+  
+  observeEvent(input$baselineAge8, {
+    rv8$baselineAge <- as.integer(input$baselineAge8)
   })
   
   observeEvent(input$reset8, {
@@ -2369,23 +2693,22 @@ server <- function(input, output, session) {
     rv8$obj <- NULL
     rv8$tri <- NULL
     rv8$gsa <- NULL
-    rv8$min <- 0
-    rv8$max <- 0
-    rv8$baseline <- 0
+    rv8$minYear <- 0
+    rv8$maxYear <- 0
+    rv8$minAge <- 0
+    rv8$maxAge <- 0
+    rv8$baselineYear <- 0
+    rv8$baselineAge <- 0
     info = "No Species Selected"
   })
   
   # Stock 9
   
   rv9 <- reactiveValues(
-    stk = NULL,
-    tri = NULL,
-    gsa = NULL,
-    min = 0,
-    max = 0,
-    baseline = 0,
-    spinfo = "No Species Selected",
-    gsainfo = "No GSA Selected"
+    stk = NULL, tri = NULL, gsa = NULL,
+    minYear = 0, maxYear = 0, minAge = 0, maxAge = 0,
+    baselineYear = 0, baselineAge = 0,
+    spinfo = "No Species Selected", gsainfo = "No GSA Selected"
   )
   
   output$triHelp9 <- renderUI({
@@ -2426,13 +2749,21 @@ server <- function(input, output, session) {
       loadRData(as.character(input$sobj9[4]))
     }
     rv9$stk <- stk9
-    rv9$min <- as.integer(stk9@range[1])
-    rv9$max <- as.integer(stk9@range[2])
+    rv9$minYear <- as.integer(stk9@range[4])
+    rv9$maxYear <- as.integer(stk9@range[5])
+    rv9$minAge <- as.integer(stk9@range[1])
+    rv9$maxAge <- as.integer(stk9@range[2])
     updatePickerInput(
       session,
-      "baseline9",
-      choices = rv9$min:rv9$max,
-      selected = rv9$max
+      "baselineYear9",
+      choices = rv9$minYear:rv9$maxYear,
+      selected = rv9$minYear
+    )
+    updatePickerInput(
+      session,
+      "baselineAge9",
+      choices = rv9$minAge:rv9$maxAge,
+      selected = rv9$maxAge
     )
     rv9$tri <- sub("_.*", "", input$sobj9[1])
     rv9$spinfo <- speciesInfo(rv9$tri)
@@ -2440,8 +2771,12 @@ server <- function(input, output, session) {
     rv9$gsainfo <- gsaInfo(rv9$gsa)
   })
   
-  observeEvent(input$baseline9, {
-    rv9$baseline <- as.integer(input$baseline9)
+  observeEvent(input$baselineYear9, {
+    rv9$baselineYear <- as.integer(input$baselineYear9)
+  })
+  
+  observeEvent(input$baselineAge9, {
+    rv9$baselineAge <- as.integer(input$baselineAge9)
   })
   
   observeEvent(input$reset9, {
@@ -2449,23 +2784,22 @@ server <- function(input, output, session) {
     rv9$obj <- NULL
     rv9$tri <- NULL
     rv9$gsa <- NULL
-    rv9$min <- 0
-    rv9$max <- 0
-    rv9$baseline <- 0
+    rv9$minYear <- 0
+    rv9$maxYear <- 0
+    rv9$minAge <- 0
+    rv9$maxAge <- 0
+    rv9$baselineYear <- 0
+    rv9$baselineAge <- 0
     info = "No Species Selected"
   })
   
   # Stock 10
   
   rv10 <- reactiveValues(
-    stk = NULL,
-    tri = NULL,
-    gsa = NULL,
-    min = 0,
-    max = 0,
-    baseline = 0,
-    spinfo = "No Species Selected",
-    gsainfo = "No GSA Selected"
+    stk = NULL, tri = NULL, gsa = NULL,
+    minYear = 0, maxYear = 0, minAge = 0, maxAge = 0,
+    baselineYear = 0, baselineAge = 0,
+    spinfo = "No Species Selected", gsainfo = "No GSA Selected"
   )
   
   output$triHelp10 <- renderUI({
@@ -2506,13 +2840,21 @@ server <- function(input, output, session) {
       loadRData(as.character(input$sobj10[4]))
     }
     rv10$stk <- stk10
-    rv10$min <- as.integer(stk10@range[1])
-    rv10$max <- as.integer(stk10@range[2])
+    rv10$minYear <- as.integer(stk10@range[4])
+    rv10$maxYear <- as.integer(stk10@range[5])
+    rv10$minAge <- as.integer(stk10@range[1])
+    rv10$maxAge <- as.integer(stk10@range[2])
     updatePickerInput(
       session,
-      "baseline10",
-      choices = rv10$min:rv10$max,
-      selected = rv10$max
+      "baselineYear10",
+      choices = rv10$minYear:rv10$maxYear,
+      selected = rv10$minYear
+    )
+    updatePickerInput(
+      session,
+      "baselineAge10",
+      choices = rv10$minAge:rv10$maxAge,
+      selected = rv10$maxAge
     )
     rv10$tri <- sub("_.*", "", input$sobj10[1])
     rv10$spinfo <- speciesInfo(rv10$tri)
@@ -2520,8 +2862,12 @@ server <- function(input, output, session) {
     rv10$gsainfo <- gsaInfo(rv10$gsa)
   })
   
-  observeEvent(input$baseline10, {
-    rv10$baseline <- as.integer(input$baseline10)
+  observeEvent(input$baselineYear10, {
+    rv10$baselineYear <- as.integer(input$baselineYear10)
+  })
+  
+  observeEvent(input$baselineAge10, {
+    rv10$baselineAge <- as.integer(input$baselineAge10)
   })
   
   observeEvent(input$reset10, {
@@ -2529,9 +2875,12 @@ server <- function(input, output, session) {
     rv10$obj <- NULL
     rv10$tri <- NULL
     rv10$gsa <- NULL
-    rv10$min <- 0
-    rv10$max <- 0
-    rv10$baseline <- 0
+    rv10$minYear <- 0
+    rv10$maxYear <- 0
+    rv10$minAge <- 0
+    rv10$maxAge <- 0
+    rv10$baselineYear <- 0
+    rv10$baselineAge <- 0
     info = "No Species Selected"
   })
   
@@ -2626,7 +2975,7 @@ server <- function(input, output, session) {
     # Population
 
     for (i in 1:length(rv)) {
-      pops[[i]] <<- procDfLongQuant(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$min, rv[[i]]$baseline, stock.n, pop)
+      pops[[i]] <<- procDfLongQuant(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$minAge, rv[[i]]$baselineAge, rv[[i]]$baselineYear, stock.n, pop)
     }
     
     if (length(pops) > 0) {
@@ -2644,7 +2993,7 @@ server <- function(input, output, session) {
     # Catches
     
     for (i in 1:length(rv)) {
-      catches[[i]] <<- procDfLongQuant(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$min, rv[[i]]$baseline, catch.n, catch)
+      catches[[i]] <<- procDfLongQuant(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$minAge, rv[[i]]$baselineAge, rv[[i]]$baselineYear, catch.n, catch)
     }
     
     if (length(catches) > 0) {
@@ -2662,7 +3011,7 @@ server <- function(input, output, session) {
     # Weight at age
     
     for (i in 1:length(rv)) {
-      waa[[i]] <<- procDfLongMult(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$min, rv[[i]]$baseline, catch.wt, weight_at_age)
+      waa[[i]] <<- procDfLongMult(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$minAge, rv[[i]]$baselineAge, rv[[i]]$baselineYear, catch.wt, weight_at_age)
     }
     
     if (length(waa) > 0) {
@@ -2680,7 +3029,7 @@ server <- function(input, output, session) {
     # Fishing mortality
     
     for (i in 1:length(rv)) {
-      fmorts[[i]] <<- procDfLongMult(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$min, rv[[i]]$baseline, harvest, fmort)
+      fmorts[[i]] <<- procDfLongMult(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$minAge, rv[[i]]$baselineAge, rv[[i]]$baselineYear, harvest, fmort)
     }
     
     if (length(fmorts) > 0) {
@@ -2691,7 +3040,7 @@ server <- function(input, output, session) {
     # Fishing mortality of spawners
     
     for (i in 1:length(rv)) {
-      fmort_spawns[[i]] <<- procDfLongMult(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$min, rv[[i]]$baseline, harvest.spwn, fmort_spawn)
+      fmort_spawns[[i]] <<- procDfLongMult(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$minAge, rv[[i]]$baselineAge, rv[[i]]$baselineYear, harvest.spwn, fmort_spawn)
     }
     
     if (length(fmort_spawns) > 0) {
@@ -2702,7 +3051,7 @@ server <- function(input, output, session) {
     # Natural mortality
     
     for (i in 1:length(rv)) {
-      morts[[i]] <<- procDfLongMult(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$min, rv[[i]]$baseline, m, mort)
+      morts[[i]] <<- procDfLongMult(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$minAge, rv[[i]]$baselineAge, rv[[i]]$baselineYear, m, mort)
     }
     
     if (length(morts) > 0) {
@@ -2710,10 +3059,10 @@ server <- function(input, output, session) {
       mort_w <<- procDfWide(mort_l, mort, M)
     }
     
-    # Natural mortality
+    # Natural mortality of spawners
     
     for (i in 1:length(rv)) {
-      mort_spawns[[i]] <<- procDfLongMult(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$min, rv[[i]]$baseline, m.spwn, mort_spawn)
+      mort_spawns[[i]] <<- procDfLongMult(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$minAge, rv[[i]]$baselineAge, rv[[i]]$baselineYear, m.spwn, mort_spawn)
     }
     
     if (length(mort_spawns) > 0) {
@@ -2724,7 +3073,7 @@ server <- function(input, output, session) {
     # Mature ratio
     
     for (i in 1:length(rv)) {
-      matures[[i]] <<- procDfLongMult(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$min, rv[[i]]$baseline, mat, mature)
+      matures[[i]] <<- procDfLongMult(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$minAge, rv[[i]]$baselineAge, rv[[i]]$baselineYear, mat, mature)
     }
     
     if (length(matures) > 0) {
@@ -2936,22 +3285,22 @@ server <- function(input, output, session) {
     updatePickerInput(session = session,
                       inputId = "neurons1",
                       choices = c(n, 2 * n, 4 * n),
-                      selected = 2 * n)
+                      selected = n)
     
     updatePickerInput(session = session,
                       inputId = "neurons2",
                       choices = c(0, n, 2 * n, 4 * n),
-                      selected = 0)
+                      selected = n)
     
     updatePickerInput(session = session,
                       inputId = "neurons3",
                       choices = c(0, n, 2 * n, 4 * n),
-                      selected = n)
+                      selected = 0)
     
     updatePickerInput(session = session,
                       inputId = "neurons4",
                       choices = c(0, n, 2 * n, 4 * n),
-                      selected = 0)
+                      selected = n)
     
     updatePickerInput(session = session,
                       inputId = "neurons5",
@@ -3006,8 +3355,8 @@ server <- function(input, output, session) {
     if (length(testfit_results) > 0) {
       testfit_plots <- plotFitNet(testfit_results)
       
-      output$plotFit <- renderPlotly({
-        ggplotly(testfit_plots)
+      output$plotFit <- renderPlot({
+        testfit_plots
         })
     } else {
       showModal(tags$div(id = "modalWarning",
@@ -3046,20 +3395,26 @@ server <- function(input, output, session) {
       for (i in 1:length(traintest_results)) {
         traintest_plots[[i]] <<- plotTrainTestFitNet(traintest_results[[i]], i, as.integer(input$depthTest))
         traintest_recr_plots[[i]] <<- plotRecruitment(traintest_results[[i]], i, as.integer(input$depthTest))
-        taylor_diagram[[i]] <<- plotTaylorDiagram(traintest_results[[i]], i)
+        taylor_diagram[[i]] <<- plotTaylorDiagram(traintest_iter_results[[i]])
       }
-      
+      traintest_metrics_plot <<- plotFitNet(traintest_metrics)
       output$showSpeciesTest <- renderText({
         species[[plotTestCount]]
       })
       output$plotTrainTest <- renderPlotly({
         ggplotly(traintest_plots[[plotTestCount]])
       })
+      output$plotMetricsTest <- renderPlot({
+        traintest_metrics_plot
+      })
+      output$nParamsTest <- renderText({
+        paste0("Number of parameters: ", traintest_nparams)
+      })
       output$plotRecruitmentTraintest <- renderPlot({
         traintest_recr_plots[[plotTestCount]]
       })
       output$taylorDiagram <- renderPlot({
-        plotTaylorDiagram(traintest_results[[plotTestCount]], plotTestCount)
+        taylor_diagram[[plotTestCount]]
       })
       
     } else {
@@ -3098,7 +3453,7 @@ server <- function(input, output, session) {
           traintest_recr_plots[[plotTestCount]]
         })
         output$taylorDiagram <- renderPlot({
-          plotTaylorDiagram(traintest_results[[plotTestCount]], plotTestCount)
+          taylor_diagram[[plotTestCount]]
         })
         output$showSpeciesTest <- renderText({
           species[[plotTestCount]]
@@ -3112,7 +3467,7 @@ server <- function(input, output, session) {
           traintest_recr_plots[[plotTestCount]]
         })
         output$taylorDiagram <- renderPlot({
-          plotTaylorDiagram(traintest_results[[plotTestCount]], plotTestCount)
+          taylor_diagram[[plotTestCount]]
         })
         output$showSpeciesTest <- renderText({
           species[[plotTestCount]]
@@ -3139,7 +3494,7 @@ server <- function(input, output, session) {
           traintest_recr_plots[[plotTestCount]]
         })
         output$taylorDiagram <- renderPlot({
-          plotTaylorDiagram(traintest_results[[plotTestCount]], plotTestCount)
+          taylor_diagram[[plotTestCount]]
         })
         output$showSpeciesTest <- renderText({
           species[[plotTestCount]]
@@ -3153,7 +3508,7 @@ server <- function(input, output, session) {
           traintest_recr_plots[[plotTestCount]]
         })
         output$taylorDiagram <- renderPlot({
-          plotTaylorDiagram(traintest_results[[plotTestCount]], plotTestCount)
+          taylor_diagram[[plotTestCount]]
         })
         output$showSpeciesTest <- renderText({
           species[[plotTestCount]]
@@ -3463,6 +3818,8 @@ server <- function(input, output, session) {
           testfit_results = testfit_results,
           traintest_output_raw = traintest_output_raw,
           traintest_iter_results = traintest_iter_results,
+          traintest_metrics = traintest_metrics,
+          traintest_metrics_plot = traintest_metrics_plot,
           traintest_results = traintest_results,
           traintest_plots = traintest_plots,
           traintest_recr_plots = traintest_recr_plots,
