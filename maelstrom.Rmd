@@ -14,19 +14,19 @@ cat("## Neural Network", "\n\n")
 cat("Neural network formed by", input$nLayers, "layers:", "\n\n")
 if (input$layerType1 != "")
 {if (input$layerType1 == "Dropout") {cat("Layer n° 1 is a", input$layerType1, "layer, with a", input$dropout1, "dropout value.", "\n\n")} else
-  {cat("Layer n° 1 is a", input$layerType1, "layer, with", input$neurons1, "neurons and a", input$activation1, "activation funcion.", "\n\n")}}
+  {cat("Layer n° 1 is a", input$layerType1, "layer, with", input$neurons1, "neurons and a", input$activation, "activation funcion.", "\n\n")}}
 if (input$layerType2 != "")
 {if (input$layerType2 == "Dropout") {cat("Layer n° 2 is a", input$layerType2, "layer, with a", input$dropout2, "dropout value.", "\n\n")} else
-  {cat("Layer n° 2 is a", input$layerType2, "layer, with", input$neurons2, "neurons and a", input$activation2, "activation funcion.", "\n\n")}}
+  {cat("Layer n° 2 is a", input$layerType2, "layer, with", input$neurons2, "neurons and a", input$activation, "activation funcion.", "\n\n")}}
 if (input$layerType3 != "")
 {if (input$layerType3 == "Dropout") {cat("Layer n° 3 is a", input$layerType3, "layer, with a", input$dropout3, "dropout value.", "\n\n")} else
-  {cat("Layer n° 3 is a", input$layerType3, "layer, with", input$neurons3, "neurons and a", input$activation3, "activation funcion.", "\n\n")}}
+  {cat("Layer n° 3 is a", input$layerType3, "layer, with", input$neurons3, "neurons and a", input$activation, "activation funcion.", "\n\n")}}
 if (input$layerType4 != "")
 {if (input$layerType4 == "Dropout") {cat("Layer n° 4 is a", input$layerType4, "layer, with a", input$dropout4, "dropout value.", "\n\n")} else
-  {cat("Layer n° 4 is a", input$layerType4, "layer, with", input$neurons4, "neurons and a", input$activation4, "activation funcion.", "\n\n")}}
+  {cat("Layer n° 4 is a", input$layerType4, "layer, with", input$neurons4, "neurons and a", input$activation, "activation funcion.", "\n\n")}}
 if (input$layerType5 != "")
 {if (input$layerType5 == "Dropout") {cat("Layer n° 5 is a", input$layerType5, "layer, with a", input$dropout5, "dropout value.", "\n\n")} else
-  {cat("Layer n° 5 is a", input$layerType5, "layer, with", input$neurons5, "neurons and a", input$activation5, "activation funcion.", "\n\n")}}
+  {cat("Layer n° 5 is a", input$layerType5, "layer, with", input$neurons5, "neurons and a", input$activation, "activation funcion.", "\n\n")}}
 
 cat("The network learning parameter has been set at a value of", input$learnParam, "meanwhile the maximum number of epochs for each run has been set at a value of", input$nEpochs, "epochs.", "\n\n")
 
@@ -43,8 +43,10 @@ if (length(traintest_results) > 0) {
     sp <- species[[i]]
     cat("Results for", sp)
     print(traintest_plots[[i]])
+    print(taylor_diagram[[i]])
     cat("\n\n")
   }
+    print(traintest_metrics_plot)
 }
 
 cat("\\newpage")
@@ -78,7 +80,7 @@ if (length(f_tot) > 0) {
       print(plotPred(subpred, neuralNetInputs, i))
     
       cat("Stock/Recruitment Ratio for", subpred$species[i], "\n\n")
-      print(plotRatio(subpred, i))
+      print(plotRecruitment(subpred, i, as.integer(depth_pred)))
       cat("\n\n\\newpage\n")
       }
     }
