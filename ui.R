@@ -5,10 +5,12 @@ ui <- fluidPage(
   setBackgroundImage(src = "https://miro.medium.com/max/1400/1*JEDiI4tGpVZYM2Y5kzW5XA.png"),
   ##### CSS #####
   tags$head(
-    tags$style("*{font-family: Georgia;}"),
     tags$style(
       HTML(
         "
+        * {
+        font-family: Georgia;
+        }
         h3 {
         color: white; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5)
         }
@@ -219,11 +221,14 @@ ui <- fluidPage(
                             )
                           ),
                           fluidRow(
-                            column(6,
+                            column(4,
                                    h4("Input Stock Objects"), align = "left"
                                    ),
                             column(2,
                                    h4("Stock Info"), align = "left"
+                                   ),
+                            column(2,
+                                   h4("Min Year"), align = "left"
                                    ),
                             column(2,
                                    h4("Max Cohort"), align = "left"
@@ -235,7 +240,7 @@ ui <- fluidPage(
                           ),
                           ##### STOCK OBJECT 1 #####
                           fluidRow(
-                            column(6,
+                            column(4,
                                    uiOutput("sobj1")
                             ),
                             column(1,
@@ -246,7 +251,15 @@ ui <- fluidPage(
                             ),
                             column(2,
                                    pickerInput(
-                                     inputId = "baseline1",
+                                     inputId = "baselineYear1",
+                                     choices = 0,
+                                     multiple = FALSE,
+                                     options = list(style = "picker-input", title = "Year")
+                                   )
+                            ),
+                            column(2,
+                                   pickerInput(
+                                     inputId = "baselineAge1",
                                      choices = 0,
                                      multiple = FALSE,
                                      options = list(style = "picker-input", title = "Age")
@@ -262,7 +275,7 @@ ui <- fluidPage(
                                    conditionalPanel(
                                      condition = "input.nstocks >= 2",
                                      fluidRow(
-                                       column(6,
+                                       column(4,
                                               uiOutput("sobj2")
                                        ),
                                        column(1,
@@ -273,7 +286,15 @@ ui <- fluidPage(
                                        ),
                                        column(2,
                                               pickerInput(
-                                                inputId = "baseline2",
+                                                inputId = "baselineYear2",
+                                                choices = 0,
+                                                multiple = FALSE,
+                                                options = list(style = "picker-input", title = "Year")
+                                              )
+                                       ),
+                                       column(2,
+                                              pickerInput(
+                                                inputId = "baselineAge2",
                                                 choices = 0,
                                                 multiple = FALSE,
                                                 options = list(style = "picker-input", title = "Age")
@@ -292,7 +313,7 @@ ui <- fluidPage(
                                    conditionalPanel(
                                      condition = "input.nstocks >= 3",
                                      fluidRow(
-                                       column(6,
+                                       column(4,
                                               uiOutput("sobj3")
                                        ),
                                        column(1,
@@ -303,7 +324,15 @@ ui <- fluidPage(
                                        ),
                                        column(2,
                                               pickerInput(
-                                                inputId = "baseline3",
+                                                inputId = "baselineYear3",
+                                                choices = 0,
+                                                multiple = FALSE,
+                                                options = list(style = "picker-input", title = "Year")
+                                              )
+                                       ),
+                                       column(2,
+                                              pickerInput(
+                                                inputId = "baselineAge3",
                                                 choices = 0,
                                                 multiple = FALSE,
                                                 options = list(style = "picker-input", title = "Age")
@@ -322,7 +351,7 @@ ui <- fluidPage(
                                    conditionalPanel(
                                      condition = "input.nstocks >= 4",
                                      fluidRow(
-                                       column(6,
+                                       column(4,
                                               uiOutput("sobj4")
                                        ),
                                        column(1,
@@ -333,7 +362,15 @@ ui <- fluidPage(
                                        ),
                                        column(2,
                                               pickerInput(
-                                                inputId = "baseline4",
+                                                inputId = "baselineYear4",
+                                                choices = 0,
+                                                multiple = FALSE,
+                                                options = list(style = "picker-input", title = "Year")
+                                              )
+                                       ),
+                                       column(2,
+                                              pickerInput(
+                                                inputId = "baselineAge4",
                                                 choices = 0,
                                                 multiple = FALSE,
                                                 options = list(style = "picker-input", title = "Age")
@@ -352,7 +389,7 @@ ui <- fluidPage(
                                    conditionalPanel(
                                      condition = "input.nstocks >= 5",
                                      fluidRow(
-                                       column(6,
+                                       column(4,
                                               uiOutput("sobj5")
                                        ),
                                        column(1,
@@ -363,7 +400,15 @@ ui <- fluidPage(
                                        ),
                                        column(2,
                                               pickerInput(
-                                                inputId = "baseline5",
+                                                inputId = "baselineYear5",
+                                                choices = 0,
+                                                multiple = FALSE,
+                                                options = list(style = "picker-input", title = "Year")
+                                              )
+                                       ),
+                                       column(2,
+                                              pickerInput(
+                                                inputId = "baselineAge5",
                                                 choices = 0,
                                                 multiple = FALSE,
                                                 options = list(style = "picker-input", title = "Age")
@@ -382,7 +427,7 @@ ui <- fluidPage(
                                    conditionalPanel(
                                      condition = "input.nstocks >= 6",
                                      fluidRow(
-                                       column(6,
+                                       column(4,
                                               uiOutput("sobj6")
                                        ),
                                        column(1,
@@ -393,7 +438,15 @@ ui <- fluidPage(
                                        ),
                                        column(2,
                                               pickerInput(
-                                                inputId = "baseline6",
+                                                inputId = "baselineYear6",
+                                                choices = 0,
+                                                multiple = FALSE,
+                                                options = list(style = "picker-input", title = "Year")
+                                              )
+                                       ),
+                                       column(2,
+                                              pickerInput(
+                                                inputId = "baselineAge6",
                                                 choices = 0,
                                                 multiple = FALSE,
                                                 options = list(style = "picker-input", title = "Age")
@@ -412,7 +465,7 @@ ui <- fluidPage(
                                    conditionalPanel(
                                      condition = "input.nstocks >= 7",
                                      fluidRow(
-                                       column(6,
+                                       column(4,
                                               uiOutput("sobj7")
                                        ),
                                        column(1,
@@ -423,7 +476,15 @@ ui <- fluidPage(
                                        ),
                                        column(2,
                                               pickerInput(
-                                                inputId = "baseline7",
+                                                inputId = "baselineYear7",
+                                                choices = 0,
+                                                multiple = FALSE,
+                                                options = list(style = "picker-input", title = "Year")
+                                              )
+                                       ),
+                                       column(2,
+                                              pickerInput(
+                                                inputId = "baselineAge7",
                                                 choices = 0,
                                                 multiple = FALSE,
                                                 options = list(style = "picker-input", title = "Age")
@@ -442,7 +503,7 @@ ui <- fluidPage(
                                    conditionalPanel(
                                      condition = "input.nstocks >= 8",
                                      fluidRow(
-                                       column(6,
+                                       column(4,
                                               uiOutput("sobj8")
                                        ),
                                        column(1,
@@ -453,7 +514,15 @@ ui <- fluidPage(
                                        ),
                                        column(2,
                                               pickerInput(
-                                                inputId = "baseline8",
+                                                inputId = "baselineYear8",
+                                                choices = 0,
+                                                multiple = FALSE,
+                                                options = list(style = "picker-input", title = "Year")
+                                              )
+                                       ),
+                                       column(2,
+                                              pickerInput(
+                                                inputId = "baselineAge8",
                                                 choices = 0,
                                                 multiple = FALSE,
                                                 options = list(style = "picker-input", title = "Age")
@@ -472,7 +541,7 @@ ui <- fluidPage(
                                    conditionalPanel(
                                      condition = "input.nstocks >= 9",
                                      fluidRow(
-                                       column(6,
+                                       column(4,
                                               uiOutput("sobj9")
                                        ),
                                        column(1,
@@ -483,7 +552,15 @@ ui <- fluidPage(
                                        ),
                                        column(2,
                                               pickerInput(
-                                                inputId = "baseline9",
+                                                inputId = "baselineYear9",
+                                                choices = 0,
+                                                multiple = FALSE,
+                                                options = list(style = "picker-input", title = "Year")
+                                              )
+                                       ),
+                                       column(2,
+                                              pickerInput(
+                                                inputId = "baselineAge9",
                                                 choices = 0,
                                                 multiple = FALSE,
                                                 options = list(style = "picker-input", title = "Age")
@@ -502,7 +579,7 @@ ui <- fluidPage(
                                    conditionalPanel(
                                      condition = "input.nstocks >= 10",
                                      fluidRow(
-                                       column(6,
+                                       column(4,
                                               uiOutput("sobj10")
                                        ),
                                        column(1,
@@ -513,7 +590,15 @@ ui <- fluidPage(
                                        ),
                                        column(2,
                                               pickerInput(
-                                                inputId = "baseline10",
+                                                inputId = "baselineYear10",
+                                                choices = 0,
+                                                multiple = FALSE,
+                                                options = list(style = "picker-input", title = "Year")
+                                              )
+                                       ),
+                                       column(2,
+                                              pickerInput(
+                                                inputId = "baselineAge10",
                                                 choices = 0,
                                                 multiple = FALSE,
                                                 options = list(style = "picker-input", title = "Age")
@@ -625,7 +710,7 @@ ui <- fluidPage(
                                    pickerInput(
                                      inputId = "nLayers",
                                      choices = c(2:5),
-                                     selected = 3,
+                                     selected = 4,
                                      options = list(style = "picker-input", title = "Layers", width = "75%")
                                    ),
                                    align = "left"
@@ -634,7 +719,7 @@ ui <- fluidPage(
                                    pickerInput(
                                      inputId = "nEpochs",
                                      choices = c(25, 50, 100, 200, 300),
-                                     selected = 50,
+                                     selected = 100,
                                      options = list(style = "picker-input", title = "Epochs", width = "75%")
                                    ),
                                    align = "left"
@@ -720,7 +805,7 @@ ui <- fluidPage(
                                    pickerInput(
                                      inputId = "layerType1",
                                      choices = c("Dense", "LSTM", "SimpleRNN"),
-                                     selected = "SimpleRNN",
+                                     selected = "LSTM",
                                      multiple = FALSE,
                                      options = list(style = "picker-input", title = "Type")
                                    )
@@ -740,7 +825,7 @@ ui <- fluidPage(
                                      pickerInput(
                                        inputId = "returnSeq1",
                                        choices = c(TRUE, FALSE),
-                                       selected = FALSE,
+                                       selected = TRUE,
                                        multiple = FALSE,
                                        options = list(style = "picker-input", title = "Return Seq.")
                                      )
@@ -773,7 +858,7 @@ ui <- fluidPage(
                                                  min = 0,
                                                  max = 1,
                                                  step = 0.05,
-                                                 value = 0.2,
+                                                 value = 0.1,
                                                  round = -2,
                                                  ticks = TRUE)
                                      ),
@@ -786,7 +871,7 @@ ui <- fluidPage(
                                                  min = 0,
                                                  max = 1,
                                                  step = 0.05,
-                                                 value = 0.2,
+                                                 value = 0.1,
                                                  round = -2,
                                                  ticks = TRUE)
                                      ),
@@ -825,7 +910,7 @@ ui <- fluidPage(
                                      pickerInput(
                                        inputId = "layerType2",
                                        choices = c("Dense", "Dropout", "LSTM", "SimpleRNN"),
-                                       selected = "Dropout",
+                                       selected = "SimpleRNN",
                                        multiple = FALSE,
                                        options = list(style = "picker-input", title = "Type")
                                        )
@@ -836,6 +921,7 @@ ui <- fluidPage(
                                        pickerInput(
                                          inputId = "neurons2",
                                          choices = NA,
+                                         selected = NA,
                                          multiple = FALSE,
                                          options = list(style = "picker-input", title = "Neurons")
                                          )
@@ -847,6 +933,7 @@ ui <- fluidPage(
                                        pickerInput(
                                          inputId = "returnSeq2",
                                          choices = c(TRUE, FALSE),
+                                         selected = FALSE,
                                          multiple = FALSE,
                                          options = list(style = "picker-input", title = "Return Seq.")
                                          )
@@ -879,7 +966,7 @@ ui <- fluidPage(
                                                    min = 0,
                                                    max = 1,
                                                    step = 0.05,
-                                                   value = 0.2,
+                                                   value = 0,
                                                    round = -2,
                                                    ticks = TRUE)
                                        ),
@@ -892,7 +979,7 @@ ui <- fluidPage(
                                                    min = 0,
                                                    max = 1,
                                                    step = 0.05,
-                                                   value = 0.2,
+                                                   value = 0,
                                                    round = -2,
                                                    ticks = TRUE)
                                        ),
@@ -932,7 +1019,7 @@ ui <- fluidPage(
                                      pickerInput(
                                        inputId = "layerType3",
                                        choices = c("Dense", "Dropout", "LSTM", "SimpleRNN"),
-                                       selected = "Dense",
+                                       selected = "Dropout",
                                        multiple = FALSE,
                                        options = list(style = "picker-input", title = "Type")
                                      )
@@ -943,7 +1030,6 @@ ui <- fluidPage(
                                        pickerInput(
                                          inputId = "neurons3",
                                          choices = NA,
-                                         selected = NA,
                                          multiple = FALSE,
                                          options = list(style = "picker-input", title = "Neurons")
                                        )
@@ -1014,7 +1100,7 @@ ui <- fluidPage(
                           conditionalPanel(
                             condition = "input.nLayers >= 4",
                             fluidRow(
-                              column(12, 
+                              column(12,
                                      h4("Layer 4")
                               )
                             ),
@@ -1040,7 +1126,7 @@ ui <- fluidPage(
                                      pickerInput(
                                        inputId = "layerType4",
                                        choices = c("Dense", "Dropout", "LSTM", "SimpleRNN"),
-                                       selected = "SimpleRNN",
+                                       selected = "Dense",
                                        multiple = FALSE,
                                        options = list(style = "picker-input", title = "Type")
                                      )
@@ -1148,7 +1234,6 @@ ui <- fluidPage(
                                      pickerInput(
                                        inputId = "layerType5",
                                        choices = c("Dense", "Dropout", "LSTM", "SimpleRNN"),
-                                       selected = "SimpleRNN",
                                        multiple = FALSE,
                                        options = list(style = "picker-input", title = "Type")
                                      )
@@ -1321,11 +1406,14 @@ ui <- fluidPage(
                         mainPanel(
                           tabsetPanel(
                             tabPanel("Fit Results",
-                                     plotlyOutput("plotFit")
+                                     plotOutput("plotFit")
                             ),
                             tabPanel("Train/Test Plot",
                                      plotlyOutput("plotTrainTest"),
-                                     checkboxInput("plotLogTrainTest", "log10", value = F)
+                                     checkboxInput("plotLogTrainTest", "log10", value = F),
+                                     plotOutput("plotMetricsTest"),
+                                     verbatimTextOutput("nParamsTest"),
+                                     style = "position: fixed; height: 90vh; width: 50vw; overflow-y: auto;"
                             ),
                             tabPanel("Recruitment",
                                      plotOutput("plotRecruitmentTraintest")
