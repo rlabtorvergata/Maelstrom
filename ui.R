@@ -2,7 +2,7 @@ gsa = 1:30
 
 ui <- fluidPage(
   theme = bs_theme(version = 3),
-  setBackgroundImage(src = "https://miro.medium.com/max/1400/1*JEDiI4tGpVZYM2Y5kzW5XA.png"),
+  setBackgroundImage(src = "maelstrom_background.png"),
   ##### CSS #####
   tags$head(
     tags$style(
@@ -174,8 +174,8 @@ ui <- fluidPage(
         font-size: 100%;
         }
         #modalBackground .modal-body {
-        height: 0px; !important;
-        width: 0px; !important;
+        height: 0px !important;
+        width: 0px !important;
         margin: 0px;
         padding: 0px;
         background-color: rgba(0, 0, 0, 0) !important;
@@ -184,6 +184,31 @@ ui <- fluidPage(
         .shiny-notification {
         background-color: #87CEFA;
         text-shadow: 2px 2px 2px rgba(255, 255, 255, 0.5);
+        }
+        .data-structure-plot {
+        width: 100%;
+        max-height: calc(100vh - 125px);
+        min-height: 430px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        background-color: rgba(255, 255, 255, 0.97);
+        }
+        @media (max-width: 1200px) {
+          .well {
+            min-width: 0;
+          }
+          .tabbable {
+            width: 100%;
+            position: relative;
+            right: auto;
+          }
+          #modalHelp .modal-dialog,
+          #modalWarning .modal-dialog,
+          .modal-lg,
+          .modal-sm {
+            width: 92% !important;
+            left: 4% !important;
+          }
         }
         "
         )
@@ -637,7 +662,7 @@ ui <- fluidPage(
                                            "Data structure - Population",
                                            "zoomPopButton",
                                            size = "large",
-                                           plotOutput("zoomPop"),
+                                           plotOutput("zoomPop", height = "70vh"),
                                            downloadButton("downloadPop", "Download")
                                    ),
                                    align = "left"
@@ -648,7 +673,7 @@ ui <- fluidPage(
                                            "Data structure - Catches",
                                            "zoomCatchButton",
                                            size = "large",
-                                           plotOutput("zoomCatch"),
+                                           plotOutput("zoomCatch", height = "70vh"),
                                            downloadButton("downloadCatch", "Download")
                                    ),
                                    align = "center"
@@ -659,7 +684,7 @@ ui <- fluidPage(
                                            "Data structure - SSB",
                                            "zoomWaaButton",
                                            size = "large",
-                                           plotOutput("zoomWaa"),
+                                           plotOutput("zoomWaa", height = "70vh"),
                                            downloadButton("downloadWaa", "Download")
                                    ),
                                    align = "right"
@@ -1409,7 +1434,7 @@ ui <- fluidPage(
                                      plotOutput("plotFit")
                             ),
                             tabPanel("Train/Test Plot",
-                                     plotlyOutput("plotTrainTest"),
+                                     plotlyOutput("plotTrainTest", height = "520px"),
                                      checkboxInput("plotLogTrainTest", "log10", value = F),
                                      plotOutput("plotMetricsTest"),
                                      verbatimTextOutput("nParamsTest"),
@@ -1463,6 +1488,7 @@ ui <- fluidPage(
                                                         h4("Status Quo"),
                                                         tableOutput("statquoFmort"),
                                                         h4("New Exploitation Pattern"),
+                                                        helpText("Import a named F vector or annual F table; each row is one forecast year."),
                                                         tableOutput("adjustedFmort")
                                                     ),
                                                     fluidRow(
@@ -1501,7 +1527,7 @@ ui <- fluidPage(
                                              ),
                                              column(4,
                                                     actionButton("loadAdjFmort",
-                                                                 "Load Adjusted Fishing Mortality")
+                                                                 "Load F Vector / Annual Matrix")
                                              )
                                            )
                                    ),
@@ -1586,7 +1612,7 @@ ui <- fluidPage(
                         mainPanel(
                           tabsetPanel(
                             tabPanel("Forecast",
-                                     plotlyOutput("plotPred"),
+                                     plotlyOutput("plotPred", height = "520px"),
                                      checkboxInput("plotLogPred", "log10", value = F)
                             ),
                             tabPanel("Recruitment",
@@ -1648,7 +1674,7 @@ ui <- fluidPage(
                                    align = "center"
                             ),
                             column(4,
-                                   actionButton("loadWS", "Load RData", width = "75%"),
+                                   actionButton("loadWS", "Load session", width = "75%"),
                                    align = "right"
                             )
                           ),

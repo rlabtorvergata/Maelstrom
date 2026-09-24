@@ -23,88 +23,132 @@
   library(tinytex)
   }
 
-##### VARIABLES #####
+##### OPTIONS #####
 
 options(max.print = 99999)
-set_random_seed(123)
-
-species <- list() #species loaded
-gsa <- list() #list of gsa per stock loaded
-gsa_tot <- vector() #unique gsa loaded
-rv <- list() #list of stocks loaded
-
-pops <- list() #population processing
-pops_l <- data.frame() #population processing
-pops_w <- data.frame() #population processing
-catches <- list() #catches processing
-catches_l <- data.frame() #catches processing
-catches_w <- data.frame() #catches processing
-waa <- list() #weight-at-age processing
-waa_l <- data.frame() #weight-at-age processing
-waa_w <- data.frame() #weight-at-age processing
-fmorts <- list() #fishing mortality processing
-fmort_l <- data.frame() #fishing mortality processing
-fmort_w <- data.frame() #fishing mortality processing
-fmort_spawns <- list() #fishing mortality before spawning processing
-fmort_spawn_l <- data.frame() #fishing mortality before spawning processing
-fmort_spawn_w <- data.frame() #fishing mortality before spawning processing
-morts <- list() #natural mortality processing
-mort_l <- data.frame() #natural mortality processing
-mort_w <- data.frame() #natural mortality processing
-mort_spawns <- list() #natural mortality before spawning processing
-mort_spawn_l <- data.frame() #natural mortality before spawning processing
-mort_spawn_w <- data.frame() #natural mortality before spawning processing
-matures <- list() #mature ratio processing
-mature_l <- data.frame() #mature ratio processing
-mature_w <- data.frame() #mature ratio processing
-
-neuralNetInputs <- data.frame() #neural network input dataframe
-f_w <- data.frame() #fishing mortality dataframe
-fmort_baseline <- NULL #baseline for fishing mortality standard
-f_new <- data.frame() #status quo fishing mortality vector
-f_adj <- data.frame() #adjusted fishing mortality vector
-f_tot <- data.frame() #status quo + adjusted fishing mortality table (for markdown)
-f_adj_display <- data.frame() #adjusted fishing mortality vector (for modal display)
-
-range_inputs <- data.frame() #range for inputs denormalization
-range_outputs <- data.frame() #range for outputs denormalization
-
-depth_test <- NULL #number of years to forecast
-plotTestCount <- 0 #traintest species counter
-testfit_results <- data.frame() #testfit results
-traintest_output_raw <- list() #partial results of prediction
-traintest_iter_results <- list() #traintest results per iteration
-traintest_metrics <- data.frame() #traintest metrics per species
-traintest_metrics_plot <- NULL #traintest metrics plot
-traintest_nparams <- 0 #traintest number of parameters
-traintest_results <- data.frame() #traintest results
-traintest_plots <- list() #traintest plots
-traintest_recr_plots <- list() #recruitment distribution plots
-taylor_diagram <- list() #Taylor diagrams
-
-depth_pred <- NULL #number of years to forecast
-plotPredCount <- 0 #forecast species counter
-pred_output_raw <- vector("list", length = 3) # Partial results of prediction
-model_pred <- list() #list of models in prediction
-pred_iter_partial <- data.frame() #forecast results
-pred_results <- list() #forecast results
-pred_plots <- list() #forecast plots
-pred_recr_plots <- list() #recruitment distribution plots
-
-sens_results <- data.frame() #sensitivity analysis results
-sens_plots <- list() #sensitivity analysis plot
-
-save_list <- list() #saved files list
 
 ##### SERVER LOGIC #####
 
 server <- function(input, output, session) {
+
+  ##### VARIABLES #####
   
-  session$onSessionEnded(function() {
-    stopApp()
-  })
+  app_version <- "1.2.0"
+  base_seed <- 123L
+  ensemble_iterations <- 30L
+  maximum_lookback <- 5L
+  validation_fraction <- 0.20
+  minimum_preferred_training_samples <- 8L
+  absolute_minimum_training_samples <- 6L
+  minimum_validation_samples <- 2L
+  minimum_years_for_temporal_test <- 9L
+  keras3::set_random_seed(base_seed)
+
+  species <- list()
+  gsa <- list()
+  gsa_tot <- vector()
+  rv <- list()
+
+  pops <- list()
+  pops_l <- data.frame()
+  pops_w <- data.frame()
+  catches <- list()
+  catches_l <- data.frame()
+  catches_w <- data.frame()
+  waa <- list()
+  waa_l <- data.frame()
+  waa_w <- data.frame()
+  fmorts <- list()
+  fmort_l <- data.frame()
+  fmort_w <- data.frame()
+  fmort_spawns <- list()
+  fmort_spawn_l <- data.frame()
+  fmort_spawn_w <- data.frame()
+  morts <- list()
+  mort_l <- data.frame()
+  mort_w <- data.frame()
+  mort_spawns <- list()
+  mort_spawn_l <- data.frame()
+  mort_spawn_w <- data.frame()
+  matures <- list()
+  mature_l <- data.frame()
+  mature_w <- data.frame()
+
+  neuralNetInputs <- data.frame()
+  f_w <- data.frame()
+  fmort_baseline <- NULL
+  f_new <- data.frame()
+  f_adj <- data.frame()
+  f_tot <- data.frame()
+  f_adj_display <- data.frame()
+
+  range_inputs <- data.frame()
+  range_outputs <- data.frame()
+
+  depth_test <- NULL
+  plotTestCount <- 0
+  testfit_results <- data.frame()
+  traintest_output_raw <- list()
+  traintest_iter_results <- list()
+  traintest_metrics <- data.frame()
+  traintest_metrics_plot <- NULL
+  traintest_nparams <- 0
+  traintest_results <- data.frame()
+  traintest_plots <- list()
+  traintest_recr_plots <- list()
+  taylor_diagram <- list()
+
+  depth_pred <- NULL
+  plotPredCount <- 0
+  forecast_iterations <- ensemble_iterations
+  pred_output_raw <- vector("list", length = forecast_iterations)
+  model_pred <- list()
+  pred_iter_partial <- data.frame()
+  pred_results <- list()
+  f_applied <- data.frame()
+  pred_plots <- list()
+  pred_recr_plots <- list()
+
+  sens_results <- data.frame()
+  sens_plots <- list()
+  save_list <- list()
+  vol <- shinyFiles::getVolumes()()
+
+  message(sprintf(
+    "Starting MAELSTROM %s from %s (R %s; keras3 %s; tensorflow %s)",
+    app_version,
+    normalizePath(getwd(), winslash = "/", mustWork = FALSE),
+    paste(R.version$major, R.version$minor, sep = "."),
+    as.character(utils::packageVersion("keras3")),
+    as.character(utils::packageVersion("tensorflow"))
+  ))
   
   ##### FUNCTIONS #####
+
+  formatRuntimeError <- function(error, action) {
+    error_message <- conditionMessage(error)
+    if (startsWith(error_message, "[MAELSTROM ")) return(error_message)
+
+    error_call <- conditionCall(error)
+    call_text <- if (is.null(error_call)) {
+      "unavailable"
+    } else {
+      paste(deparse(error_call, width.cutoff = 160L), collapse = " ")
+    }
+    sprintf(
+      "[MAELSTROM %s | %s] %s | originating call: %s",
+      app_version, action, error_message, call_text
+    )
+  }
+
+  withRuntimeStage <- function(stage, expression) {
+    tryCatch(
+      force(expression),
+      error = function(error) {
+        stop(formatRuntimeError(error, stage), call. = FALSE)
+      }
+    )
+  }
   
   speciesInfo <- function(triAlphaCode) {
     if (triAlphaCode == "ANE") {
@@ -270,63 +314,358 @@ server <- function(input, output, session) {
   }
   
   loadRData <- function(fileName) {
-    load(fileName)
-    get(ls()[ls() != "fileName"])
+    load_env <- new.env(parent = emptyenv())
+    object_names <- load(fileName, envir = load_env)
+    stock_names <- object_names[vapply(object_names, function(object_name) {
+      inherits(load_env[[object_name]], "FLStock")
+    }, logical(1))]
+    if (length(stock_names) != 1L) {
+      stop(
+        "Each .RData/.rda file must contain exactly one FLStock object.",
+        call. = FALSE
+      )
+    }
+    load_env[[stock_names[[1L]]]]
+  }
+
+  validateStockObject <- function(stock, file_name = "uploaded file") {
+    if (!inherits(stock, "FLStock")) {
+      stop(sprintf("%s does not contain an FLStock object.", file_name), call. = FALSE)
+    }
+
+    stock_dims <- dim(FLCore::stock.n(stock))
+    if (length(stock_dims) != 6L || any(stock_dims[3:6] != 1L)) {
+      stop(
+        sprintf(
+          "%s must contain a single unit, season, area and iteration.",
+          file_name
+        ),
+        call. = FALSE
+      )
+    }
+    if (stock_dims[2L] < 6L) {
+      stop(sprintf("%s must contain at least six years.", file_name), call. = FALSE)
+    }
+
+    required_slots <- list(
+      stock.n = FLCore::stock.n(stock),
+      catch.n = FLCore::catch.n(stock),
+      stock.wt = FLCore::stock.wt(stock),
+      harvest = FLCore::harvest(stock),
+      m = FLCore::m(stock),
+      mat = FLCore::mat(stock),
+      harvest.spwn = FLCore::harvest.spwn(stock),
+      m.spwn = FLCore::m.spwn(stock)
+    )
+    invalid <- names(required_slots)[!vapply(required_slots, function(slot_value) {
+      values <- as.numeric(slot_value)
+      length(values) > 0L && all(is.finite(values))
+    }, logical(1))]
+    if (length(invalid)) {
+      stop(
+        sprintf("%s has missing or non-finite values in: %s.",
+                file_name, paste(invalid, collapse = ", ")),
+        call. = FALSE
+      )
+    }
+
+    nonnegative_slots <- required_slots[c("stock.n", "catch.n", "stock.wt", "harvest", "m")]
+    negative <- names(nonnegative_slots)[vapply(nonnegative_slots, function(slot_value) {
+      any(as.numeric(slot_value) < 0)
+    }, logical(1))]
+    if (length(negative)) {
+      stop(sprintf("%s has negative values in: %s.",
+                   file_name, paste(negative, collapse = ", ")), call. = FALSE)
+    }
+    if (any(as.numeric(required_slots$mat) < 0 | as.numeric(required_slots$mat) > 1) ||
+        any(as.numeric(required_slots$harvest.spwn) < 0 | as.numeric(required_slots$harvest.spwn) > 1) ||
+        any(as.numeric(required_slots$m.spwn) < 0 | as.numeric(required_slots$m.spwn) > 1)) {
+      stop(sprintf("%s has mat or spawning-timing values outside [0, 1].", file_name),
+           call. = FALSE)
+    }
+
+    asAgeYearMatrix <- function(flq) {
+      array_value <- as.array(flq)
+      matrix(array_value[, , 1, 1, 1, 1],
+             nrow = dim(array_value)[1L], ncol = dim(array_value)[2L])
+    }
+    manual_ssb <- colSums(
+      asAgeYearMatrix(required_slots$stock.n) *
+        asAgeYearMatrix(required_slots$stock.wt) *
+        asAgeYearMatrix(required_slots$mat) *
+        exp(-(
+          asAgeYearMatrix(required_slots$harvest) *
+            asAgeYearMatrix(required_slots$harvest.spwn) +
+            asAgeYearMatrix(required_slots$m) *
+            asAgeYearMatrix(required_slots$m.spwn)
+        ))
+    )
+    flcore_ssb <- as.numeric(FLCore::ssb(stock))
+    relative_error <- max(abs(manual_ssb - flcore_ssb) / pmax(1, abs(flcore_ssb)))
+    if (!is.finite(relative_error) || relative_error > 1e-7) {
+      stop(sprintf("%s failed the SSB consistency check against FLCore::ssb().", file_name),
+           call. = FALSE)
+    }
+
+    invisible(stock)
+  }
+
+  loadStockFile <- function(path, original_name) {
+    extension <- tolower(tools::file_ext(original_name))
+    stock <- switch(
+      extension,
+      rds = readRDS(path),
+      rdata = loadRData(path),
+      rda = loadRData(path),
+      stop("Supported formats are .rds, .RData and .rda.", call. = FALSE)
+    )
+    validateStockObject(stock, original_name)
+    stock
+  }
+
+  numberMultiplier <- function(stock_quant) {
+    unit_label <- tolower(trimws(as.character(units(stock_quant))[1L]))
+    if (is.na(unit_label) || unit_label %in% c("", "na")) {
+      warning("Missing abundance units: retaining the v1 assumption of thousands.",
+              call. = FALSE)
+      return(1000)
+    }
+    if (grepl("thousand|1000|10\\^3", unit_label)) return(1000)
+    if (unit_label %in% c("1", "number", "numbers", "individual", "individuals")) return(1)
+    stop(sprintf("Unsupported abundance unit '%s'.", unit_label), call. = FALSE)
+  }
+
+  weightMultiplierToTonnes <- function(weight_quant) {
+    unit_label <- tolower(trimws(as.character(units(weight_quant))[1L]))
+    if (is.na(unit_label) || unit_label %in% c("", "na")) {
+      warning("Missing stock.wt units: retaining the v1 assumption of kilograms.",
+              call. = FALSE)
+      return(1 / 1000)
+    }
+    if (grepl("tonne|ton|^t$", unit_label)) return(1)
+    if (grepl("kilogram|kg", unit_label)) return(1 / 1000)
+    if (grepl("gram|^g$", unit_label)) return(1 / 1e6)
+    stop(sprintf("Unsupported stock.wt unit '%s'.", unit_label), call. = FALSE)
   }
   
-  normalizeInputs <- function(source_df, range_df) {
-    norm_df <- data.frame()
-    range <- data.frame()
-    for (i in 1:ncol(source_df)) {
-      range[1, i] <- min(source_df[, i])
-      range[2, i] <- max(source_df[, i])
-      for (j in 1:nrow(source_df)) {
-        norm_df[j, i] = (source_df[j, i] - min(source_df[, i]))/(max(source_df[, i]) - min(source_df[, i]))
-      }
+  asFiniteNumericMatrix <- function(data, context = "Neural-network data") {
+    data <- as.data.frame(data, check.names = FALSE)
+    if (!nrow(data) || !ncol(data)) {
+      stop(paste(context, "must be a non-empty table."), call. = FALSE)
     }
-    colnames(norm_df) <- colnames(source_df)
-    colnames(range) <- colnames(source_df)
-    assign(deparse(substitute(range_df)), range, pos = parent.frame())
-    return(norm_df)
+
+    numeric_columns <- lapply(seq_along(data), function(column_index) {
+      column <- data[[column_index]]
+      if (is.factor(column)) column <- as.character(column)
+      if (is.list(column)) {
+        if (any(lengths(column) != 1L)) {
+          stop(
+            sprintf("%s column '%s' contains non-scalar list values.",
+                    context, names(data)[column_index]),
+            call. = FALSE
+          )
+        }
+        column <- unlist(column, recursive = FALSE, use.names = FALSE)
+      }
+      numeric_column <- suppressWarnings(as.numeric(column))
+      if (length(numeric_column) != nrow(data) || any(!is.finite(numeric_column))) {
+        stop(
+          sprintf("%s column '%s' is not entirely finite and numeric.",
+                  context, names(data)[column_index]),
+          call. = FALSE
+        )
+      }
+      numeric_column
+    })
+
+    numeric_matrix <- do.call(cbind, numeric_columns)
+    if (!is.matrix(numeric_matrix)) numeric_matrix <- matrix(numeric_matrix, ncol = 1L)
+    storage.mode(numeric_matrix) <- "double"
+    colnames(numeric_matrix) <- names(data)
+    numeric_matrix
+  }
+
+  normalizationRangeMatrix <- function(range_df, expected_names) {
+    range_matrix <- asFiniteNumericMatrix(range_df, "Normalization range")
+    if (nrow(range_matrix) != 2L) {
+      stop("Normalization range must contain exactly two rows (minimum and maximum).",
+           call. = FALSE)
+    }
+    if (!identical(colnames(range_matrix), expected_names)) {
+      stop("Normalization range columns do not match the supplied neural-network data.",
+           call. = FALSE)
+    }
+    range_matrix
+  }
+
+  normalizeInputs <- function(source_df) {
+    source_matrix <- asFiniteNumericMatrix(source_df, "Neural-network inputs")
+    minima <- apply(source_matrix, 2L, min)
+    maxima <- apply(source_matrix, 2L, max)
+    spans <- maxima - minima
+    safe_spans <- ifelse(spans == 0, 1, spans)
+    normalized_matrix <- sweep(sweep(source_matrix, 2L, minima, "-"),
+                               2L, safe_spans, "/")
+    if (any(spans == 0)) normalized_matrix[, spans == 0] <- 0
+
+    normalized <- as.data.frame(normalized_matrix, check.names = FALSE)
+    range <- as.data.frame(rbind(minimum = minima, maximum = maxima),
+                           check.names = FALSE)
+    list(values = normalized, range = range)
+  }
+
+  normalizeUsingRange <- function(source_df, range_df) {
+    source_matrix <- asFiniteNumericMatrix(source_df, "Neural-network inputs")
+    range_matrix <- normalizationRangeMatrix(range_df, colnames(source_matrix))
+    minima <- range_matrix[1L, ]
+    maxima <- range_matrix[2L, ]
+    spans <- maxima - minima
+    safe_spans <- ifelse(spans == 0, 1, spans)
+    normalized <- as.data.frame(
+      sweep(sweep(source_matrix, 2L, minima, "-"), 2L, safe_spans, "/"),
+      check.names = FALSE
+    )
+    if (any(spans == 0)) normalized[, spans == 0] <- 0
+    normalized
   }
   
   denormalizeInputs <- function(source_df, range_df) {
-    denorm_df <- data.frame()
-    for (i in 1:ncol(source_df)) {
-      for (j in 1:nrow(source_df)) {
-        denorm_df[j, i] = source_df[j, i] * (range_df[2, i] - range_df[1, i]) + (range_df[1, i])
+    source_matrix <- asFiniteNumericMatrix(source_df, "Normalized neural-network data")
+    range_matrix <- normalizationRangeMatrix(range_df, colnames(source_matrix))
+    minima <- range_matrix[1L, ]
+    spans <- range_matrix[2L, ] - minima
+    as.data.frame(
+      sweep(sweep(source_matrix, 2L, spans, "*"), 2L, minima, "+"),
+      check.names = FALSE
+    )
+  }
+
+  buildSequenceSamples <- function(feature_matrix, target_matrix = NULL,
+                                   maximum_lookback = 5L) {
+    feature_matrix <- asFiniteNumericMatrix(
+      feature_matrix, "Temporal neural-network data"
+    )
+    if (is.null(target_matrix)) target_matrix <- feature_matrix
+    target_matrix <- asFiniteNumericMatrix(
+      target_matrix, "Temporal neural-network targets"
+    )
+    if (nrow(feature_matrix) < 3L || ncol(feature_matrix) < 1L ||
+        any(!is.finite(feature_matrix))) {
+      stop("At least three finite yearly observations are required.", call. = FALSE)
+    }
+    if (nrow(target_matrix) != nrow(feature_matrix)) {
+      stop("Temporal inputs and targets must contain the same years.", call. = FALSE)
+    }
+    lookback <- min(as.integer(maximum_lookback), nrow(feature_matrix) - 1L)
+    n_samples <- nrow(feature_matrix) - lookback
+
+    # Build the tensor through its linear storage. This deliberately avoids a
+    # three-subscript replacement such as x[i, , ] <- ..., which can fail when
+    # an R/package combination simplifies a one-sample or one-step array to a
+    # matrix. The resulting layout is still samples x timesteps x features.
+    x_values <- numeric(n_samples * lookback * ncol(feature_matrix))
+    sample_rows <- seq_len(n_samples)
+    for (feature_index in seq_len(ncol(feature_matrix))) {
+      feature_offset <- (feature_index - 1L) * n_samples * lookback
+      for (lag_index in seq_len(lookback)) {
+        tensor_positions <- feature_offset +
+          (lag_index - 1L) * n_samples + sample_rows
+        x_values[tensor_positions] <- feature_matrix[
+          sample_rows + lag_index - 1L, feature_index
+        ]
       }
     }
-    colnames(denorm_df) <- colnames(source_df)
-    return(denorm_df)
+
+    x <- base::array(
+      x_values,
+      dim = c(n_samples, lookback, ncol(feature_matrix))
+    )
+    y <- target_matrix[
+      lookback + sample_rows, seq_len(ncol(target_matrix)), drop = FALSE
+    ]
+    prediction_x <- base::array(
+      as.numeric(utils::tail(feature_matrix, lookback)),
+      dim = c(1L, lookback, ncol(feature_matrix))
+    )
+    if (length(dim(x)) != 3L || length(dim(prediction_x)) != 3L ||
+        !identical(dim(x), c(n_samples, lookback, ncol(feature_matrix)))) {
+      stop("Internal temporal tensor construction returned invalid dimensions.",
+           call. = FALSE)
+    }
+    list(x = x, y = y, prediction_x = prediction_x, lookback = lookback)
+  }
+
+  buildPredictionWindow <- function(feature_matrix, lookback) {
+    feature_matrix <- asFiniteNumericMatrix(feature_matrix, "Forecast state")
+    lookback <- as.integer(lookback)
+    if (!is.finite(lookback) || lookback < 1L || nrow(feature_matrix) < lookback) {
+      stop("The forecast state is shorter than the fitted temporal lookback.",
+           call. = FALSE)
+    }
+    prediction_window <- base::array(
+      as.numeric(utils::tail(feature_matrix, lookback)),
+      dim = c(1L, lookback, ncol(feature_matrix))
+    )
+    if (length(dim(prediction_window)) != 3L) {
+      stop("The forecast window could not be preserved as a three-dimensional tensor.",
+           call. = FALSE)
+    }
+    prediction_window
+  }
+
+  coercePredictionRow <- function(prediction, feature_names) {
+    prediction_values <- as.numeric(prediction)
+    expected_values <- length(feature_names)
+    if (length(prediction_values) != expected_values ||
+        any(!is.finite(prediction_values))) {
+      stop(
+        sprintf(
+          paste(
+            "The neural network returned %s finite output values;",
+            "%s were expected."
+          ),
+          sum(is.finite(prediction_values)), expected_values
+        ),
+        call. = FALSE
+      )
+    }
+    matrix(
+      prediction_values,
+      nrow = 1L,
+      ncol = expected_values,
+      dimnames = list(NULL, feature_names)
+    )
+  }
+
+  toModelScale <- function(values) {
+    values <- as.data.frame(values, check.names = FALSE)
+    if (identical(input$activation, "tanh")) {
+      values[] <- as.matrix(values) - 0.5
+    }
+    values
+  }
+
+  fromModelScale <- function(values) {
+    values <- as.data.frame(values, check.names = FALSE)
+    if (identical(input$activation, "tanh")) {
+      values[] <- as.matrix(values) + 0.5
+    }
+    values
   }
   
   procGSA <- function(gsa) {
-    for (i in 1:length(gsa)) {
-      if (i == 1) {
-        gsa1 = NULL
-        gsa1 = paste0(gsa1, gsa[i], sep = "_")
-      } else {
-        gsa1 = paste0(gsa1, gsa[i], sep = "_")
-      }
-      if (i == length(gsa)) {
-        gsa1 = substr(gsa1, 1, nchar(gsa1)-1)
-      }
-    }
-    return(gsa1)
+    paste(as.character(gsa), collapse = "_")
   }
   
   procDfLongQuant <- function(stock, gsa, tri, minAge, baselineAge, baselineYear, fun, var) {
-    if (minAge == 0) {baselineAge = baselineAge + 1}
-    stk_temp = fun(stock)
-    if (nrow(fun(stock)) > baselineAge) {
-      stk_temp = stk_temp[1:baselineAge,]
-      stk_temp[baselineAge,] = colSums(fun(stock)[baselineAge:nrow(fun(stock)), ])
+    if (baselineAge < stock@range["max"]) {
+      stock <- FLCore::setPlusGroup(stock, plusgroup = as.numeric(baselineAge))
     }
+    stk_temp = fun(stock)
     df_temp = as.data.frame(stk_temp)[, c("year", "age", "data")]
     df_temp = df_temp[which(df_temp$year >= baselineYear),]
     df = df_temp[, 1:2]
-    df[, 3] = df_temp[, 3] * 1000
+    df[, 3] = df_temp[, 3] * numberMultiplier(stk_temp)
     df[, 4] = procGSA(paste0(gsa, collapse = "-"))
     df[, 5] = tri
     df[, 6] = paste(tri, paste(paste0(gsa, collapse = "-"), collapse = "_"), sep = "_")
@@ -335,16 +674,19 @@ server <- function(input, output, session) {
   }
   
   procDfLongMult <- function(stock, gsa, tri, minAge, baselineAge, baselineYear, fun, var) {
-    if (minAge == 0) {baselineAge = baselineAge + 1}
-    stk_temp = fun(stock)
-    if (nrow(fun(stock)) > baselineAge) {
-      stk_temp = stk_temp[1:baselineAge,]
-      stk_temp[baselineAge,] = colMeans(fun(stock)[baselineAge:nrow(fun(stock)), ])
+    if (baselineAge < stock@range["max"]) {
+      stock <- FLCore::setPlusGroup(stock, plusgroup = as.numeric(baselineAge))
     }
+    stk_temp = fun(stock)
     df_temp = as.data.frame(stk_temp)[, c("year", "age", "data")] #Thousands
     df_temp = df_temp[which(df_temp$year >= baselineYear),]
     df = df_temp[, 1:2]
-    df[, 3] = df_temp[, 3]
+    multiplier <- if (identical(as.character(substitute(var)), "weight_at_age")) {
+      weightMultiplierToTonnes(stk_temp)
+    } else {
+      1
+    }
+    df[, 3] = df_temp[, 3] * multiplier
     df[, 4] = procGSA(paste0(gsa, collapse = "-"))
     df[, 5] = tri
     df[, 6] = paste(tri, paste(paste0(gsa, collapse = "-"), collapse = "_"), sep = "_")
@@ -353,42 +695,67 @@ server <- function(input, output, session) {
   }
   
   procDfWide <- function(dflong, var, code) {
-    df_w <- dcast(data = dflong, paste0("year + ", as.character(substitute(var)), " ~ tri_gsa + age"))
-    for (i in 1:nrow(df_w)) {
-      for (j in 3:ncol(df_w)) {
-        if (!is.na(df_w[i, j])) {
-          df_w[i, j] = df_w[i, 2]
-        }
-      }
-    }
-    df_w[, 2] <- NULL
-    for (i in 2:ncol(df_w)) {
-      colnames(df_w)[i] <- paste0(strsplit(colnames(df_w)[i], "_")[[1]][1], "_",
-                                  strsplit(colnames(df_w)[i], "_")[[1]][length(strsplit(colnames(df_w)[i], "_")[[1]])], "_", as.character(substitute(code)), "_",
-                                  strsplit(colnames(df_w)[i], "_")[[1]][2])
-    }
-    df_w[is.na(df_w)] = 0
+    variable_label <- as.character(substitute(var))
+    code_label <- as.character(substitute(code))
+    df_w <- dcast(
+      data = dflong,
+      paste0("year + ", variable_label, " ~ tri_gsa + age")
+    )
+    values <- as.numeric(df_w[[2L]])
+    data_columns <- seq.int(3L, ncol(df_w))
+    df_w[data_columns] <- lapply(df_w[data_columns], function(column) {
+      ifelse(is.na(column), NA_real_, values)
+    })
+    df_w[[2L]] <- NULL
+
+    original_names <- colnames(df_w)[-1L]
+    colnames(df_w)[-1L] <- vapply(original_names, function(original_name) {
+      parts <- strsplit(original_name, "_", fixed = TRUE)[[1L]]
+      paste(parts[[1L]], parts[[length(parts)]], code_label,
+            parts[[2L]], sep = "_")
+    }, character(1))
+
+    df_w[is.na(df_w)] <- 0
     df_w <- mutate_all(df_w, function(x) as.numeric(as.character(x)))
     df_w <- aggregate(. ~ year, df_w, FUN = sum)
     return(df_w)
   }
 
-  adjDfWide <- function(dflong, dfwide) {
-    for (i in 2:ncol(dfwide)) {
-      out = boxplot.stats(dfwide[, i])$out
-      if (length(out) != 0) {
-        out_pos = match(out, dfwide[, i])
-        for (j in 1:length(out_pos)) {
-          if (dfwide[out_pos[j], i] > 2 * mean(dfwide[-out_pos, i]) | dfwide[out_pos[j], i] < mean(dfwide[-out_pos, i])/2) {
-            dfwide[out_pos[j], i] = stats::filter(as.double(dfwide[,i]), c(0, 1/2, 1/2), circular = TRUE, sides = 1)[out_pos[j]]
-            dflong[match(round(out[j], 5), round(dflong[, 3], 5)), 3] <<- dfwide[out_pos[j], i]
-          }
-        }
-      }
+  parseFeatureMetadata <- function(feature_names, variable_code = "N") {
+    pattern <- sprintf("^([^_]+)_([^_]+)_%s_(.+)$", variable_code)
+    matches <- regexec(pattern, feature_names)
+    parts <- regmatches(feature_names, matches)
+    if (any(lengths(parts) != 4L)) {
+      stop("Unexpected neural-network feature names.", call. = FALSE)
     }
-    return(dfwide)
+    data.frame(
+      species = vapply(parts, `[[`, character(1), 2L),
+      age = vapply(parts, `[[`, character(1), 3L),
+      gsa = vapply(parts, `[[`, character(1), 4L),
+      stringsAsFactors = FALSE
+    )
   }
-  
+
+  populationFeatureMetadata <- function(net_inputs) {
+    feature_names <- grep("_N_", names(net_inputs), value = TRUE)
+    if (!length(feature_names)) {
+      stop(
+        paste(
+          "No population-abundance features were found in the neural-network input.",
+          "Expected column names containing '_N_'."
+        ),
+        call. = FALSE
+      )
+    }
+    metadata <- parseFeatureMetadata(feature_names, "N")
+    age_numeric <- suppressWarnings(as.numeric(gsub("\\+", "", metadata$age)))
+    if (any(!is.finite(age_numeric))) {
+      stop("Population feature ages must be numeric.", call. = FALSE)
+    }
+    metadata$age_numeric <- age_numeric
+    metadata
+  }
+
   totDf <- function(df1, df2, df3, df4, df5, df6, df7, df8, df9, df10) {
     df_names <- substr(colnames(df1)[2], 1, (nchar(df1) - 1))
     if (missing(df2)) {
@@ -424,7 +791,7 @@ server <- function(input, output, session) {
       years <- intersect(years, df8$year)
     }
     if (!missing(df9)) {
-      tot_df <- rbind(tot_df, df59)
+      tot_df <- rbind(tot_df, df9)
       years <- intersect(years, df9$year)
     }
     if (!missing(df10)) {
@@ -435,129 +802,722 @@ server <- function(input, output, session) {
     return(tot_df)
   }
   
-  totDfBiomass <- function(df1, df2, df3, df4, df5) {
-    df_names <- substr(colnames(df1)[2], 1, (nchar(df1) - 1))
-    if (missing(df2)) {
-      tot_df <- df1
-    }
-    if (!missing(df2)) {
-      tot_df <- rbind(df1, df2)
-    }
-    if (!missing(df3)) {
-      tot_df <- rbind(tot_df, df3)
-    }
-    if (!missing(df4)) {
-      tot_df <- rbind(tot_df, df4)
-    }
-    if (!missing(df5)) {
-      tot_df <- rbind(tot_df, df5)
-    }
-    return(tot_df)
-  }
-  
   catchBaranov <- function(fmortwide, mortwide, popwide) {
-    ((fmortwide/(fmortwide + mortwide)) * (1 - exp(-(fmortwide + mortwide))) * popwide)
+    population_matrix <- asFiniteNumericMatrix(popwide, "Forecast population")
+    fishing_matrix <- asFiniteNumericMatrix(fmortwide, "Forecast fishing mortality")
+    natural_matrix <- asFiniteNumericMatrix(mortwide, "Forecast natural mortality")
+
+    if (nrow(population_matrix) != 1L ||
+        nrow(fishing_matrix) != 1L ||
+        nrow(natural_matrix) != 1L) {
+      stop("Baranov forecast inputs must each contain exactly one row.", call. = FALSE)
+    }
+    if (ncol(fishing_matrix) != ncol(population_matrix) ||
+        ncol(natural_matrix) != ncol(population_matrix)) {
+      stop(
+        "Population, fishing mortality and natural mortality have different age dimensions.",
+        call. = FALSE
+      )
+    }
+
+    population_metadata <- parseFeatureMetadata(colnames(population_matrix), "N")
+    fishing_metadata <- parseFeatureMetadata(colnames(fishing_matrix), "F")
+    natural_metadata <- parseFeatureMetadata(colnames(natural_matrix), "M")
+    canonicalMetadata <- function(metadata) {
+      metadata$gsa <- gsub("\\.", "-", metadata$gsa)
+      metadata
+    }
+    if (!identical(canonicalMetadata(population_metadata),
+                   canonicalMetadata(fishing_metadata)) ||
+        !identical(canonicalMetadata(population_metadata),
+                   canonicalMetadata(natural_metadata))) {
+      stop(
+        "Population, fishing mortality and natural mortality columns are not aligned by stock and age.",
+        call. = FALSE
+      )
+    }
+
+    fishing_mortality <- as.numeric(fishing_matrix[1L, ])
+    natural_mortality <- as.numeric(natural_matrix[1L, ])
+    total_mortality <- fishing_mortality + natural_mortality
+    exploitation <- ifelse(
+      total_mortality > sqrt(.Machine$double.eps),
+      fishing_mortality / total_mortality * (-expm1(-total_mortality)),
+      0
+    )
+    predicted_catch <- sweep(population_matrix, 2L, exploitation, "*")
+    predicted_catch[] <- pmax(0, predicted_catch)
+    colnames(predicted_catch) <- sub(
+      "_N_", "_C_", colnames(population_matrix), fixed = TRUE
+    )
+    predicted_catch
   }
-  
+
+  applyRelativeFishingMortality <- function(neural_population,
+                                            previous_population,
+                                            scenario_fishing_mortality,
+                                            reference_fishing_mortality,
+                                            natural_mortality) {
+    neural_matrix <- asFiniteNumericMatrix(
+      neural_population, "Neural-network abundance vector"
+    )
+    previous_matrix <- asFiniteNumericMatrix(
+      previous_population, "Previous population"
+    )
+    scenario_matrix <- asFiniteNumericMatrix(
+      scenario_fishing_mortality, "Scenario fishing mortality"
+    )
+    reference_matrix <- asFiniteNumericMatrix(
+      reference_fishing_mortality, "Reference fishing mortality"
+    )
+    natural_matrix <- asFiniteNumericMatrix(
+      natural_mortality, "Transition natural mortality"
+    )
+
+    matrices <- list(
+      neural_matrix, previous_matrix, scenario_matrix,
+      reference_matrix, natural_matrix
+    )
+    if (any(vapply(matrices, nrow, integer(1)) != 1L)) {
+      stop("Counterfactual projection inputs must each contain exactly one row.",
+           call. = FALSE)
+    }
+    expected_columns <- ncol(neural_matrix)
+    if (any(vapply(matrices, ncol, integer(1)) != expected_columns)) {
+      stop("Counterfactual projection inputs have different age dimensions.",
+           call. = FALSE)
+    }
+
+    neural_metadata <- parseFeatureMetadata(colnames(neural_matrix), "N")
+    previous_metadata <- parseFeatureMetadata(colnames(previous_matrix), "N")
+    scenario_metadata <- parseFeatureMetadata(colnames(scenario_matrix), "F")
+    reference_metadata <- parseFeatureMetadata(colnames(reference_matrix), "F")
+    natural_metadata <- parseFeatureMetadata(colnames(natural_matrix), "M")
+    canonicalMetadata <- function(metadata) {
+      metadata$gsa <- gsub("\\.", "-", metadata$gsa)
+      metadata
+    }
+    population_metadata <- canonicalMetadata(neural_metadata)
+    if (!identical(population_metadata, canonicalMetadata(previous_metadata)) ||
+        !identical(population_metadata, canonicalMetadata(scenario_metadata)) ||
+        !identical(population_metadata, canonicalMetadata(reference_metadata)) ||
+        !identical(population_metadata, canonicalMetadata(natural_metadata))) {
+      stop(
+        paste(
+          "Neural abundance, previous population and mortality columns are",
+          "not aligned by stock and age."
+        ),
+        call. = FALSE
+      )
+    }
+
+    neural_values <- pmax(0, as.numeric(neural_matrix[1L, ]))
+    previous_values <- as.numeric(previous_matrix[1L, ])
+    scenario_values <- as.numeric(scenario_matrix[1L, ])
+    reference_values <- as.numeric(reference_matrix[1L, ])
+    natural_values <- as.numeric(natural_matrix[1L, ])
+    if (any(previous_values < 0) || any(scenario_values < 0) ||
+        any(reference_values < 0) || any(natural_values < 0)) {
+      stop("Population and mortality inputs must be non-negative.",
+           call. = FALSE)
+    }
+
+    age_values <- suppressWarnings(
+      as.numeric(gsub("\\+", "", population_metadata$age))
+    )
+    if (any(!is.finite(age_values))) {
+      stop("Counterfactual projection requires numeric age classes.",
+           call. = FALSE)
+    }
+    stock_keys <- paste(
+      population_metadata$species, population_metadata$gsa, sep = "\r"
+    )
+    adjusted_values <- neural_values
+
+    for (stock_key in unique(stock_keys)) {
+      stock_positions <- which(stock_keys == stock_key)
+      stock_positions <- stock_positions[order(age_values[stock_positions])]
+      stock_ages <- age_values[stock_positions]
+      if (length(stock_positions) < 2L) {
+        stop(
+          paste(
+            "Counterfactual abundance projection requires at least two age",
+            "classes for every stock."
+          ),
+          call. = FALSE
+        )
+      }
+      if (anyDuplicated(stock_ages) || any(diff(stock_ages) != 1)) {
+        stop(
+          paste(
+            "Counterfactual projection requires unique, consecutive age",
+            "classes within every stock."
+          ),
+          call. = FALSE
+        )
+      }
+
+      recruitment_position <- stock_positions[[1L]]
+      adjusted_values[[recruitment_position]] <-
+        neural_values[[recruitment_position]]
+
+      for (age_index in seq.int(2L, length(stock_positions))) {
+        source_position <- stock_positions[[age_index - 1L]]
+        destination_position <- stock_positions[[age_index]]
+        relative_survival <- exp(
+          reference_values[[source_position]] -
+            scenario_values[[source_position]]
+        )
+        if (!is.finite(relative_survival)) {
+          stop("Fishing-mortality contrast produced a non-finite survival ratio.",
+               call. = FALSE)
+        }
+        adjusted_values[[destination_position]] <-
+          neural_values[[destination_position]] * relative_survival
+      }
+
+      # The terminal plus-group mixes survivors from the preceding and oldest
+      # ages. Its counterfactual factor therefore uses their weighted survival
+      # ratio instead of the single-source-age factor used by younger classes.
+      plus_position <- utils::tail(stock_positions, 1L)
+      preceding_position <- stock_positions[[length(stock_positions) - 1L]]
+      scenario_survivors <-
+        previous_values[[preceding_position]] * exp(-(
+          scenario_values[[preceding_position]] +
+            natural_values[[preceding_position]]
+        )) +
+        previous_values[[plus_position]] * exp(-(
+          scenario_values[[plus_position]] + natural_values[[plus_position]]
+        ))
+      reference_survivors <-
+        previous_values[[preceding_position]] * exp(-(
+          reference_values[[preceding_position]] +
+            natural_values[[preceding_position]]
+        )) +
+        previous_values[[plus_position]] * exp(-(
+          reference_values[[plus_position]] + natural_values[[plus_position]]
+        ))
+      plus_ratio <- if (reference_survivors <= sqrt(.Machine$double.eps)) {
+        1
+      } else {
+        scenario_survivors / reference_survivors
+      }
+      if (!is.finite(plus_ratio) || plus_ratio < 0) {
+        stop("Plus-group fishing-mortality correction is invalid.",
+             call. = FALSE)
+      }
+      adjusted_values[[plus_position]] <-
+        neural_values[[plus_position]] * plus_ratio
+    }
+
+    matrix(
+      adjusted_values,
+      nrow = 1L,
+      ncol = expected_columns,
+      dimnames = list(NULL, colnames(neural_matrix))
+    )
+  }
+
+  ensembleSummary <- function(values) {
+    values <- as.numeric(values)
+    values <- values[is.finite(values)]
+    if (!length(values)) return(c(lower = NA_real_, mean = NA_real_, upper = NA_real_))
+    bounds <- stats::quantile(values, probs = c(0.05, 0.95),
+                              names = FALSE, type = 8)
+    c(lower = bounds[1L], mean = mean(values), upper = bounds[2L])
+  }
+
+  extendLastBiologicalYear <- function(data, depth) {
+    if (!nrow(data) || !"year" %in% names(data)) {
+      stop("Cannot extend an empty biological table.", call. = FALSE)
+    }
+    last_year <- max(data$year)
+    last_block <- data[data$year == last_year, , drop = FALSE]
+    future <- lapply(seq_len(as.integer(depth)), function(lead) {
+      transform(last_block, year = last_year + lead)
+    })
+    do.call(rbind, c(list(data), future))
+  }
+
+  normalizeFishingScenario <- function(scenario, expected_names,
+                                       first_forecast_year) {
+    if (is.numeric(scenario) && is.null(dim(scenario)) &&
+        !is.null(names(scenario))) {
+      scenario <- data.frame(as.list(scenario), check.names = FALSE)
+    }
+    if (!is.data.frame(scenario) && !is.matrix(scenario)) {
+      stop("Fishing mortality must be a named vector, matrix or data frame.",
+           call. = FALSE)
+    }
+    scenario <- as.data.frame(
+      scenario, optional = TRUE, check.names = FALSE
+    )
+    if (!nrow(scenario) || !ncol(scenario) ||
+        anyNA(names(scenario)) || any(!nzchar(names(scenario))) ||
+        anyDuplicated(names(scenario))) {
+      stop("The fishing-mortality scenario needs rows and unique column names.",
+           call. = FALSE)
+    }
+    first_forecast_year <- as.integer(first_forecast_year)
+    if (length(first_forecast_year) != 1L ||
+        !is.finite(first_forecast_year)) {
+      stop("The first forecast year is unavailable.", call. = FALSE)
+    }
+    expected_years <- first_forecast_year + seq_len(nrow(scenario)) - 1L
+    year_position <- which(tolower(names(scenario)) == "year")
+    if (length(year_position) > 1L) {
+      stop("Provide at most one year column in the F scenario.", call. = FALSE)
+    }
+    if (length(year_position)) {
+      supplied_years <- suppressWarnings(as.numeric(
+        as.character(scenario[[year_position]])
+      ))
+      scenario[[year_position]] <- NULL
+      if (any(!is.finite(supplied_years)) ||
+          !identical(supplied_years, as.numeric(expected_years))) {
+        stop(
+          sprintf(
+            "Fishing-mortality years must be consecutive starting in %s.",
+            first_forecast_year
+          ), call. = FALSE
+        )
+      }
+    } else {
+      row_years <- rownames(scenario)
+      if (!identical(row_years, as.character(seq_len(nrow(scenario)))) &&
+          all(grepl("^[0-9]{4}$", row_years))) {
+        if (!identical(as.integer(row_years), expected_years)) {
+          stop(
+            sprintf(
+              "Fishing-mortality row years must start in %s and be consecutive.",
+              first_forecast_year
+            ), call. = FALSE
+          )
+        }
+      }
+    }
+    if (!setequal(names(scenario), expected_names) ||
+        length(names(scenario)) != length(expected_names)) {
+      stop(
+        paste(
+          "Fishing-mortality columns must exactly match the loaded stocks",
+          "(species, age and GSA)."
+        ), call. = FALSE
+      )
+    }
+    scenario <- scenario[, expected_names, drop = FALSE]
+    scenario_matrix <- asFiniteNumericMatrix(
+      scenario, "Fishing-mortality scenario"
+    )
+    if (any(scenario_matrix < 0)) {
+      stop("Fishing mortality must be non-negative.", call. = FALSE)
+    }
+    result <- as.data.frame(
+      scenario_matrix, optional = TRUE, check.names = FALSE
+    )
+    rownames(result) <- NULL
+    result
+  }
+
+  forecastFishingSchedule <- function(scenario, expected_names,
+                                      last_observed_year, depth) {
+    depth <- as.integer(depth)
+    if (length(depth) != 1L || !is.finite(depth) || depth < 1L) {
+      stop("Forecast depth must be a positive number of years.", call. = FALSE)
+    }
+    first_forecast_year <- as.integer(last_observed_year) + 1L
+    validated <- normalizeFishingScenario(
+      scenario, expected_names, first_forecast_year
+    )
+    selected_rows <- pmin(seq_len(depth), nrow(validated))
+    schedule <- validated[selected_rows, , drop = FALSE]
+    rownames(schedule) <- NULL
+    data.frame(
+      year = first_forecast_year + seq_len(depth) - 1L,
+      schedule, check.names = FALSE
+    )
+  }
+
+  scenarioFishingVector <- function(fishing_row, species_code, gsa_code,
+                                    ages) {
+    fishing_matrix <- asFiniteNumericMatrix(
+      fishing_row, "Scenario fishing mortality"
+    )
+    if (nrow(fishing_matrix) != 1L) {
+      stop("Scenario fishing mortality must contain exactly one row.",
+           call. = FALSE)
+    }
+    metadata <- parseFeatureMetadata(colnames(fishing_matrix), "F")
+    metadata$age_numeric <- suppressWarnings(
+      as.numeric(gsub("\\+", "", metadata$age))
+    )
+    metadata$gsa <- gsub("\\.", "-", metadata$gsa)
+    gsa_code <- gsub("\\.", "-", as.character(gsa_code))
+    selected <- which(
+      metadata$species == as.character(species_code) &
+        metadata$gsa == gsa_code
+    )
+    if (!length(selected)) {
+      stop("Scenario fishing mortality does not contain the requested stock.",
+           call. = FALSE)
+    }
+    age_match <- match(as.numeric(ages), metadata$age_numeric[selected])
+    if (anyNA(age_match) || anyDuplicated(metadata$age_numeric[selected])) {
+      stop(
+        "Scenario fishing mortality is not aligned with the retained ages.",
+        call. = FALSE
+      )
+    }
+    values <- as.numeric(fishing_matrix[1L, selected[age_match]])
+    if (any(values < 0)) {
+      stop("Scenario fishing mortality must be non-negative.", call. = FALSE)
+    }
+    stats::setNames(values, as.character(as.numeric(ages)))
+  }
+
+  extendScenarioFishingMortality <- function(historical_data, scenario_schedule,
+                                             last_observed_year, depth,
+                                             species_code, gsa_code) {
+    extended <- extendLastBiologicalYear(historical_data, depth)
+    schedule <- forecastFishingSchedule(
+      scenario_schedule,
+      expected_names = names(scenario_schedule)[-1L],
+      last_observed_year = last_observed_year,
+      depth = depth
+    )
+    for (step in seq_len(as.integer(depth))) {
+      year <- schedule$year[[step]]
+      scenario_values <- scenarioFishingVector(
+        schedule[step, -1L, drop = FALSE],
+        species_code = species_code,
+        gsa_code = gsa_code,
+        ages = sort(unique(extended$age))
+      )
+      year_rows <- extended$year == year
+      year_ages <- as.character(as.numeric(extended$age[year_rows]))
+      replacements <- unname(scenario_values[year_ages])
+      if (!any(year_rows) || anyNA(replacements)) {
+        stop("Future SSB fishing mortality could not be matched by age and year.",
+             call. = FALSE)
+      }
+      extended$fmort[year_rows] <- replacements
+    }
+    extended
+  }
+
+  validateCounterfactualProjectionEngine <- function() {
+    population_names <- paste0("TST_", 0:2, "_N_1")
+    fishing_names <- sub("_N_", "_F_", population_names, fixed = TRUE)
+    natural_names <- sub("_N_", "_M_", population_names, fixed = TRUE)
+    oneRow <- function(values, names) {
+      matrix(values, nrow = 1L, dimnames = list(NULL, names))
+    }
+
+    previous <- oneRow(c(1000, 500, 200), population_names)
+    neural <- oneRow(c(120, 450, 210), population_names)
+    reference_fishing <- oneRow(c(0.2, 0.2, 0.2), fishing_names)
+    scenario_fishing <- oneRow(c(0.5, 0.4, 0.3), fishing_names)
+    natural <- oneRow(c(0.2, 0.2, 0.2), natural_names)
+    adjusted <- applyRelativeFishingMortality(
+      neural, previous, scenario_fishing, reference_fishing, natural
+    )
+    plus_ratio <- (
+      500 * exp(-0.6) + 200 * exp(-0.5)
+    ) / (
+      500 * exp(-0.4) + 200 * exp(-0.4)
+    )
+    expected <- c(
+      120,
+      450 * exp(-0.3),
+      210 * plus_ratio
+    )
+    if (!isTRUE(all.equal(
+      as.numeric(adjusted), expected, tolerance = 1e-12
+    ))) {
+      stop("Counterfactual projection failed its relative-survival formula check.",
+           call. = FALSE)
+    }
+
+    identity <- applyRelativeFishingMortality(
+      neural, previous, reference_fishing, reference_fishing, natural
+    )
+    if (!isTRUE(all.equal(as.numeric(identity), as.numeric(neural),
+                          tolerance = 1e-12))) {
+      stop("Counterfactual projection failed its reference-identity check.",
+           call. = FALSE)
+    }
+
+    reversed <- applyRelativeFishingMortality(
+      adjusted, previous, reference_fishing, scenario_fishing, natural
+    )
+    if (!isTRUE(all.equal(as.numeric(reversed), as.numeric(neural),
+                          tolerance = 1e-12))) {
+      stop("Counterfactual projection failed its mortality round-trip check.",
+           call. = FALSE)
+    }
+    if (!all(adjusted[1L, 2:3] < neural[1L, 2:3]) ||
+        adjusted[1L, 1L] != neural[1L, 1L]) {
+      stop("Counterfactual projection failed its fishing-mortality response check.",
+           call. = FALSE)
+    }
+
+    zero_fishing <- oneRow(rep(0, 3L), fishing_names)
+    unfished_catch <- catchBaranov(zero_fishing, natural, previous)
+    fished_catch <- catchBaranov(scenario_fishing, natural, previous)
+    if (any(unfished_catch != 0) || any(fished_catch <= 0)) {
+      stop("Counterfactual projection failed its Baranov catch-response check.",
+           call. = FALSE)
+    }
+
+    historical <- data.frame(
+      year = rep(2020L, 3L),
+      age = 0:2,
+      fmort = rep(0.1, 3L),
+      gsa = rep("1", 3L),
+      species = rep("TST", 3L),
+      tri_gsa = rep("TST_1", 3L),
+      stringsAsFactors = FALSE
+    )
+    schedule <- forecastFishingSchedule(
+      rbind(scenario_fishing, zero_fishing),
+      fishing_names, last_observed_year = 2020L, depth = 4L
+    )
+    expected_schedule <- rbind(
+      scenario_fishing, zero_fishing, zero_fishing, zero_fishing
+    )
+    if (!identical(schedule$year, 2021:2024) ||
+        !isTRUE(all.equal(
+          unname(as.matrix(schedule[, -1L, drop = FALSE])),
+          unname(expected_schedule), tolerance = 1e-12
+        ))) {
+      stop("Annual fishing-mortality schedule failed its extension check.",
+           call. = FALSE)
+    }
+    one_row_schedule <- forecastFishingSchedule(
+      scenario_fishing, fishing_names, 2020L, 3L
+    )
+    if (!isTRUE(all.equal(
+      unname(as.matrix(one_row_schedule[, -1L, drop = FALSE])),
+      unname(rbind(scenario_fishing, scenario_fishing, scenario_fishing)),
+      tolerance = 1e-12
+    ))) {
+      stop("A single F row did not remain constant through the forecast.",
+           call. = FALSE)
+    }
+    hyphen_names <- paste0("TST_", 0:2, "_F_9-10-11")
+    hyphen_scenario <- oneRow(c(0.5, 0.4, 0.3), hyphen_names)
+    hyphen_schedule <- forecastFishingSchedule(
+      hyphen_scenario, hyphen_names, 2020L, 1L
+    )
+    if (!identical(names(hyphen_schedule)[-1L], hyphen_names)) {
+      stop("The annual F scenario changed stock/GSA column names.",
+           call. = FALSE)
+    }
+    longer <- forecastFishingSchedule(
+      rbind(scenario_fishing, zero_fishing, reference_fishing),
+      fishing_names, last_observed_year = 2020L, depth = 2L
+    )
+    if (!isTRUE(all.equal(
+      as.numeric(as.matrix(longer[2L, -1L, drop = FALSE])),
+      c(0, 0, 0), tolerance = 1e-12
+    ))) {
+      stop("Annual fishing-mortality schedule failed its truncation check.",
+           call. = FALSE)
+    }
+    with_years <- data.frame(
+      year = 2021:2022,
+      rbind(scenario_fishing, reference_fishing),
+      check.names = FALSE
+    )
+    if (!isTRUE(all.equal(
+      as.numeric(as.matrix(forecastFishingSchedule(
+        with_years, fishing_names, 2020L, 2L
+      )[2L, -1L, drop = FALSE])),
+      rep(0.2, 3L), tolerance = 1e-12
+    ))) {
+      stop("Annual fishing-mortality schedule failed its year-column check.",
+           call. = FALSE)
+    }
+    with_years$year[[2L]] <- 2023L
+    if (!inherits(try(
+      forecastFishingSchedule(with_years, fishing_names, 2020L, 2L),
+      silent = TRUE
+    ), "try-error")) {
+      stop("Annual fishing-mortality schedule accepted a skipped year.",
+           call. = FALSE)
+    }
+    extended <- extendScenarioFishingMortality(
+      historical_data = historical,
+      scenario_schedule = schedule,
+      last_observed_year = 2020L,
+      depth = 4L,
+      species_code = "TST",
+      gsa_code = "1"
+    )
+    expected_future <- c(
+      0.5, 0.4, 0.3, rep(0, 9L)
+    )
+    if (!identical(extended$fmort[extended$year == 2020L], rep(0.1, 3L)) ||
+        !isTRUE(all.equal(
+          extended$fmort[extended$year > 2020L],
+          expected_future,
+          tolerance = 1e-12
+    ))) {
+      stop("Counterfactual projection failed its future-SSB F scenario check.",
+           call. = FALSE)
+    }
+    invisible(TRUE)
+  }
+
+  validateCounterfactualProjectionEngine()
+
+  dataStructureYearBreaks <- function(years, maximum_breaks = 9L) {
+    years <- sort(unique(as.integer(years[is.finite(years)])))
+    if (length(years) <= maximum_breaks) return(years)
+    positions <- unique(round(seq(1L, length(years), length.out = maximum_breaks)))
+    years[positions]
+  }
+
+  dataStructurePlotHeight <- function(data) {
+    facet_count <- max(1L, length(unique(as.character(data$tri_gsa))))
+    facet_rows <- ceiling(facet_count / min(2L, facet_count))
+    as.integer(180L + 250L * facet_rows)
+  }
+
+  dataStructureTheme <- function() {
+    theme_test(base_size = 11) +
+      theme(
+        axis.text.x = element_text(angle = 35, vjust = 1, hjust = 1),
+        plot.title = element_text(hjust = 0.5, size = 15, face = "bold",
+                                  margin = margin(b = 10)),
+        strip.background = element_rect(fill = "#E8F1F8", colour = "#8295A7",
+                                        linewidth = 0.4),
+        strip.text = element_text(face = "bold", colour = "#263746",
+                                  margin = margin(5, 4, 5, 4)),
+        panel.spacing.x = grid::unit(1.4, "lines"),
+        panel.spacing.y = grid::unit(2.2, "lines"),
+        legend.position = "bottom",
+        legend.box = "horizontal",
+        legend.key.width = grid::unit(20, "pt"),
+        plot.margin = margin(12, 22, 18, 20)
+      )
+  }
+
   plotPop <- function(poplong) {
-    
     poplong$age <- as.factor(poplong$age)
-    
     colnames(poplong)[3] <- "Population"
-    
+
     ggplot(data = poplong, aes(x = year)) +
-      geom_line(aes(y = Population, colour = age), linewidth = 2) +
-      scale_x_continuous(breaks = seq(min(poplong$year), max(poplong$year), 1)) +
-      ggtitle("Population by age/year") +
-      xlab("Year") +
-      ylab("Population (n° of individuals)") +
-      scale_colour_brewer(name = "Age", palette = "Blues", direction = -1) +
-      theme_test() +
-      theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust = 1),
-            plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
-            legend.position = "bottom") +
-      facet_wrap(~ tri_gsa, scales = "free")
+      geom_line(aes(y = Population, colour = age), linewidth = 1.1,
+                lineend = "round") +
+      scale_x_continuous(
+        breaks = dataStructureYearBreaks(poplong$year),
+        expand = expansion(mult = c(0.015, 0.025))
+      ) +
+      labs(
+        title = "Population by age and year",
+        x = "Year", y = "Population (number of individuals)", colour = "Age"
+      ) +
+      scale_colour_brewer(palette = "Blues", direction = -1) +
+      guides(colour = guide_legend(nrow = 1L, byrow = TRUE,
+                                   override.aes = list(linewidth = 2))) +
+      dataStructureTheme() +
+      facet_wrap(~ tri_gsa, scales = "free_y", ncol = 2L)
   }
-  
+
   plotCatch <- function(catchlong) {
-    
     catchlong$age <- as.factor(catchlong$age)
-    
     colnames(catchlong)[3] <- "Catches"
-    
+
     ggplot(data = catchlong, aes(x = year)) +
-      geom_line(aes(y = Catches, colour = age), linewidth = 2) +
-      scale_x_continuous(breaks = seq(min(catchlong$year), max(catchlong$year), 1)) +
-      ggtitle("Catch by age/year") +
-      xlab("Year") +
-      ylab("Catches (n° of individuals)") +
-      scale_colour_brewer(name = "Age", palette = "Blues", direction = -1) +
-      theme_test() +
-      theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust = 1),
-            plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
-            legend.position = "bottom") +
-      facet_wrap(~ tri_gsa, scales = "free")
+      geom_line(aes(y = Catches, colour = age), linewidth = 1.1,
+                lineend = "round") +
+      scale_x_continuous(
+        breaks = dataStructureYearBreaks(catchlong$year),
+        expand = expansion(mult = c(0.015, 0.025))
+      ) +
+      labs(
+        title = "Catch by age and year",
+        x = "Year", y = "Catch (number of individuals)", colour = "Age"
+      ) +
+      scale_colour_brewer(palette = "Blues", direction = -1) +
+      guides(colour = guide_legend(nrow = 1L, byrow = TRUE,
+                                   override.aes = list(linewidth = 2))) +
+      dataStructureTheme() +
+      facet_wrap(~ tri_gsa, scales = "free_y", ncol = 2L)
   }
-  
+
   plotWaa <- function(waalong, poplong) {
-    
     waalong$age <- as.factor(waalong$age)
-    
-    biomasslong <- data.frame(year = waalong$year, age = waalong$age, tri_gsa = waalong$tri_gsa,
-                              TotBiomass = round((waalong$weight_at_age * poplong$pop)/1000, 2))
-    
+    biomasslong <- data.frame(
+      year = waalong$year,
+      age = waalong$age,
+      tri_gsa = waalong$tri_gsa,
+      TotBiomass = round(waalong$weight_at_age * poplong$pop, 2)
+    )
+
     ggplot(data = biomasslong, aes(x = year)) +
-      geom_line(aes(y = TotBiomass, colour = age), linewidth = 2) +
-      scale_x_continuous(breaks = seq(min(biomasslong$year), max(biomasslong$year), 1)) +
-      ggtitle("Total Biomass by age/year") +
-      xlab("Year") +
-      ylab("Total Biomass (tons)") +
-      scale_colour_brewer(name = "Age", palette = "Blues", direction = -1) +
-      theme_test() +
-      theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust = 1),
-            plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
-            legend.position = "bottom") +
-      facet_wrap(~ tri_gsa, scales = "free")
+      geom_line(aes(y = TotBiomass, colour = age), linewidth = 1.1,
+                lineend = "round") +
+      scale_x_continuous(
+        breaks = dataStructureYearBreaks(biomasslong$year),
+        expand = expansion(mult = c(0.015, 0.025))
+      ) +
+      labs(
+        title = "Total biomass by age and year",
+        x = "Year", y = "Total biomass (tonnes)", colour = "Age"
+      ) +
+      scale_colour_brewer(palette = "Blues", direction = -1) +
+      guides(colour = guide_legend(nrow = 1L, byrow = TRUE,
+                                   override.aes = list(linewidth = 2))) +
+      dataStructureTheme() +
+      facet_wrap(~ tri_gsa, scales = "free_y", ncol = 2L)
   }
   
   procInputs <- function(popwide, catchwide) {
-    tot_df <- cbind(popwide, catchwide[,2:ncol(catchwide)])
+    if (!identical(as.integer(popwide$year), as.integer(catchwide$year))) {
+      stop("Population and catch tables do not contain the same ordered years.", call. = FALSE)
+    }
+    population_names <- colnames(popwide)[-1L]
+    catch_names <- colnames(catchwide)[-1L]
+    if (!length(population_names) || !all(grepl("_N_", population_names, fixed = TRUE))) {
+      stop("Population wide-table columns must use the '_N_' feature code.",
+           call. = FALSE)
+    }
+    expected_catch_names <- sub("_N_", "_C_", population_names, fixed = TRUE)
+    if (!identical(catch_names, expected_catch_names)) {
+      stop(
+        "Population and catch wide-table columns are not aligned by stock and age.",
+        call. = FALSE
+      )
+    }
+    tot_df <- cbind(popwide, catchwide[,2:ncol(catchwide), drop = FALSE])
+    if (any(!is.finite(as.matrix(tot_df)))) {
+      stop("The neural-network input table contains NA, NaN or Inf.", call. = FALSE)
+    }
     return(tot_df)
   }
   
-  randomEnvVarSum <- function(depth, mult, sd = 1) {
-    D = depth
-    M = mult
-    vec <- rnorm(D, M/D, sd)
-    if (abs(sum(vec)) < 0.01) vec <- vec + 1
-    vec <- round(vec / sum(vec) * M, 2)
-    deviation <- M - sum(vec)
-    for (. in seq_len(abs(deviation))) {
-      vec[i] <- vec[i <- sample(D, 1)] + sign(deviation)
-    }
-    return(vec)
-  }
-  
   plotNet <- function(nLayers, layerTypeTot, neuronsTot, dropoutTot, inputNames) {
-    
+    nLayers <- as.integer(nLayers)
     df <- data.frame(label = NULL, x = NULL, y = NULL, type = NULL, dropout = NULL, nLayer = NULL)
     df_iter <- data.frame(label = NULL, x = NULL, y = NULL, type = NULL, dropout = NULL, nLayer = NULL)
     
-    for (i in 1:as.integer(nLayers)) {
+    for (i in seq_len(nLayers)) {
       
-      l = length(inputNames) * (neuronsTot[i] / length(inputNames))
+      l <- length(inputNames) * (neuronsTot[i] / length(inputNames))
       
-      if (neuronsTot[i] == 0) {l = 1}
+      if (neuronsTot[i] == 0) l <- 1
       
       if (i < as.integer(nLayers)) {
-        df_iter = data.frame(label = NA,
+        df_iter <- data.frame(label = NA,
                              x = rep(10 * i, l),
                              y = seq(90, 10, length = l),
                              type = rep(layerTypeTot[i], l),
                              dropout = rep(dropoutTot[i], l),
                              nLayer = rep(as.integer(i), l))
       } else {
-        df_iter = data.frame(label = NA,
+        df_iter <- data.frame(label = NA,
                              x = rep(10 * i, l/2),
                              y = seq(90, 10, length = l/2),
                              type = rep(layerTypeTot[i], l/2),
@@ -565,9 +1525,11 @@ server <- function(input, output, session) {
                              nLayer = rep(as.integer(i), l/2))
       }
       
-      if (neuronsTot[i] == 0) {df_iter$y = 50}
-      if (i == 1) {df_iter$label = rep(inputNames, each = neuronsTot[i] / length(inputNames))}
-      if (i == as.integer(nLayers)) {df_iter$label = inputNames[1:(length(inputNames)/2)]}
+      if (neuronsTot[i] == 0) df_iter$y <- 50
+      if (i == 1) df_iter$label <- rep(inputNames, each = neuronsTot[i] / length(inputNames))
+      if (i == nLayers) {
+        df_iter$label <- inputNames[seq_len(as.integer(length(inputNames) / 2L))]
+      }
       
       df <- rbind(df, df_iter)
     }
@@ -575,17 +1537,17 @@ server <- function(input, output, session) {
     df_links <- data.frame(x0 = NULL, x1 = NULL, y0 = NULL, y1 = NULL)
     df_links_iter <- data.frame(x0 = NULL, x1 = NULL, y0 = NULL, y1 = NULL)
     
-    for (i in 1:(nLayers - 1)) {
-      set1 <- df[which(df$nLayer == i),]
-      set2 <- df[which(df$nLayer == (i + 1)),]
+    for (link_index in seq_len(max(0L, nLayers - 1L))) {
+      set1 <- df[which(df$nLayer == link_index),]
+      set2 <- df[which(df$nLayer == (link_index + 1L)),]
       
       df_links_iter = data.frame(x0 = numeric(nrow(set1) * nrow(set2)),
                                  y0 = numeric(nrow(set1) * nrow(set2)),
                                  x1 = numeric(nrow(set1) * nrow(set2)),
                                  y1 = numeric(nrow(set1) * nrow(set2))) 
-      k = 0
-      for(i in 1:nrow(set1)) {
-        for(j in 1:nrow(set2)) {
+      k <- 0L
+      for (i in seq_len(nrow(set1))) {
+        for (j in seq_len(nrow(set2))) {
           k = k + 1
           df_links_iter[k, c("x0", "y0")] = set1[i, c("x", "y")]
           df_links_iter[k, c("x1", "y1")] = set2[j, c("x", "y")]
@@ -631,331 +1593,973 @@ server <- function(input, output, session) {
     }
     return(outputs)
   }
-  
-  testFitNet <- function(netInputs) {
-    
-    norm_inputs = netInputs
-    norm_inputs[,2:ncol(norm_inputs)] = normalizeInputs(norm_inputs[,2:ncol(norm_inputs)], range_inputs)
-    
-    species = substr(colnames(netInputs)[grep("_N", names(netInputs))], 1, 3)
-    age = substr(colnames(netInputs)[grep("_N", names(netInputs))], 5, 5)
-    s_a = data.frame(species, age)
-    s_a_min = s_a %>% group_by(species) %>% slice_min(age)
-    s_a = paste(s_a$species, s_a$age)
-    s_a_min = paste(s_a_min$species, s_a_min$age)
-    
-    min_age_pos = vector()
-    for (i in 1:length(s_a_min)) {
-      min_age_pos[i] = grep(s_a_min[i], s_a)
+
+  validateLayerConfiguration <- function() {
+    n_layers <- as.integer(input$nLayers)
+    layer_types <- vapply(seq_len(n_layers), function(index) {
+      as.character(input[[paste0("layerType", index)]])
+    }, character(1))
+
+    for (index in seq_len(n_layers)) {
+      if (layer_types[index] != "Dropout") {
+        neurons <- as.integer(input[[paste0("neurons", index)]])
+        if (!is.finite(neurons) || neurons < 1L) {
+          stop(sprintf("Layer %s must contain at least one neuron.", index), call. = FALSE)
+        }
+      }
+      if (layer_types[index] %in% c("LSTM", "SimpleRNN") && index < n_layers) {
+        later_recurrent <- any(layer_types[(index + 1L):n_layers] %in% c("LSTM", "SimpleRNN"))
+        if (later_recurrent && !isTRUE(as.logical(input[[paste0("returnSeq", index)]]))) {
+          stop(
+            sprintf("Layer %s must return sequences because it precedes another recurrent layer.",
+                    index),
+            call. = FALSE
+          )
+        }
+      }
     }
-    
-    min_age_vec = vector()
-    for (i in 1:length(unique(species))) {
-      min_age_vec[i] = min(substr(colnames(netInputs[which(substr(colnames(netInputs), 1, 3) == unique(species)[i])]), 5, 5))
-    }
-    
-    env_var <- length(grep("PrP_", names(netInputs)))
-    
-    gsa <- c()
-    
-    for (i in 2:(ncol(netInputs)/2 + 1)) {
-      gsa <- append(gsa, strsplit(names(netInputs), "N_")[[i]][2])
-    }
-    
-    proj <- norm_inputs
-    
-    if (env_var > 0) {
-      envMult <- randomEnvVarSum(as.integer(input$depthPred), as.integer(input$envParamMult))
-    }
-    
-    train_df <- as.matrix(proj[, 2:ncol(proj)])
-    val_df <- as.matrix(proj[, 2:ncol(proj)])
-    
-    inputs <- layer_input(shape = c(nrow(train_df), (ncol(proj) - 1)))
-    inputs_df <- train_df
+    invisible(TRUE)
+  }
+
+  createConfiguredModel <- function(lookback, n_features, model_name) {
+    inputs <- layer_input(
+      shape = c(as.integer(lookback), as.integer(n_features)),
+      name = paste0(model_name, "_input")
+    )
     outputs <- inputs
-    outputs_df <- train_df
-    
-    if (as.integer(input$nLayers) >= 1) {outputs <- buildNet(outputs, 1, input$layerType1, input$neurons1, input$returnSeq1,
-                                                             input$dropout1, input$activation, input$recdropout1, input$recactivation)}
-    if (as.integer(input$nLayers) >= 2) {outputs <- buildNet(outputs, 2, input$layerType2, input$neurons2, input$returnSeq2,
-                                                             input$dropout2, input$activation, input$recdropout2, input$recactivation)}
-    if (as.integer(input$nLayers) >= 3) {outputs <- buildNet(outputs, 3, input$layerType3, input$neurons3, input$returnSeq3,
-                                                             input$dropout3, input$activation, input$recdropout3, input$recactivation)}
-    if (as.integer(input$nLayers) >= 4) {outputs <- buildNet(outputs, 4, input$layerType4, input$neurons4, input$returnSeq4,
-                                                             input$dropout4, input$activation, input$recdropout4, input$recactivation)}
-    if (as.integer(input$nLayers) >= 5) {outputs <- buildNet(outputs, 5, input$layerType5, input$neurons5, input$returnSeq5,
-                                                             input$dropout5, input$activation, input$recdropout5, input$recactivation)}
-    
-    dummy <- timeseries_dataset_from_array(
-      inputs_df, outputs_df,
-      sequence_length = as.numeric(nrow(train_df)),
-      batch_size = 2
-    )
-    
-    dummy_val <- timeseries_dataset_from_array(
-      val_df, val_df,
-      sequence_length = 4,
-      batch_size = 2
-    )
-    
-    model <- keras_model(inputs, outputs)
-    
-    callbacks <- list(
-      callback_early_stopping(
-        monitor = "loss", patience = 15),
-      callback_model_checkpoint(
-        "prova.keras", save_best_only = TRUE))
-    
+    for (layer_index in seq_len(as.integer(input$nLayers))) {
+      outputs <- buildNet(
+        outputs = outputs,
+        nLayer = layer_index,
+        layerType = input[[paste0("layerType", layer_index)]],
+        neurons = input[[paste0("neurons", layer_index)]],
+        returnSeq = input[[paste0("returnSeq", layer_index)]],
+        dropout = input[[paste0("dropout", layer_index)]],
+        activation = input$activation,
+        recdropout = input[[paste0("recdropout", layer_index)]],
+        recactivation = input$recactivation
+      )
+    }
+    outputs <- outputs %>%
+      layer_flatten(name = paste0(model_name, "_flatten")) %>%
+      layer_dense(
+        units = as.integer(n_features),
+        activation = "linear",
+        name = paste0(model_name, "_output")
+      )
+    keras_model(inputs, outputs)
+  }
+
+  compileConfiguredModel <- function(model) {
     model %>% compile(
       loss = "mse",
       metrics = "mae",
-      optimizer_rmsprop(learning_rate = as.numeric(input$learnParam))
+      optimizer = optimizer_rmsprop(
+        learning_rate = as.numeric(input$learnParam)
+      )
     )
-    
-    history <- model %>% fit(
-      dummy,
-      verbose = 1,
-      epochs = as.integer(input$nEpochs),
-      callbacks = callbacks
+    invisible(model)
+  }
+
+  temporalSplitDefinition <- function(n_years) {
+    n_years <- as.integer(n_years)
+    if (!is.finite(n_years) || n_years < minimum_years_for_temporal_test) {
+      stop(
+        sprintf(
+          paste(
+            "Too few years for a defensible temporal test.",
+            "At least %s years must remain after the holdout."
+          ),
+          minimum_years_for_temporal_test
+        ),
+        call. = FALSE
+      )
+    }
+
+    preferred_lookback <- n_years -
+      minimum_preferred_training_samples -
+      minimum_validation_samples
+    lookback <- max(1L, min(maximum_lookback, preferred_lookback))
+    n_samples <- n_years - lookback
+    n_validation <- max(
+      minimum_validation_samples,
+      as.integer(ceiling(n_samples * validation_fraction))
     )
-    
+    n_training <- n_samples - n_validation
+
+    if (n_training < absolute_minimum_training_samples) {
+      stop(
+        sprintf(
+          "Only %s supervised training samples remain; at least %s are required.",
+          n_training, absolute_minimum_training_samples
+        ),
+        call. = FALSE
+      )
+    }
+    list(
+      lookback = lookback,
+      n_samples = n_samples,
+      n_training = n_training,
+      n_validation = n_validation,
+      scaler_last_row = lookback + n_training,
+      short_series = n_training < minimum_preferred_training_samples
+    )
+  }
+
+  rawHistoryData <- function(history) {
     history_df <- na.omit(as.data.frame(history))
-    levels(history_df$metric)[match("loss", levels(history_df$metric))] <- "MSE"
-    levels(history_df$metric)[match("mae", levels(history_df$metric))] <- "MAE"
-    history_df$iter <- 1
-    
-    return(history_df)
-    
+    if (!nrow(history_df)) {
+      stop("Keras returned an empty training history.", call. = FALSE)
+    }
+    history_df
+  }
+
+  bestValidationEpoch <- function(history_df) {
+    metric <- tolower(as.character(history_df$metric))
+    data_type <- rep("", nrow(history_df))
+    if ("data" %in% names(history_df)) {
+      data_type <- tolower(as.character(history_df$data))
+    }
+    validation_loss <- (grepl("loss", metric) & grepl("validation", data_type)) |
+      grepl("^val[_-]?loss$", metric)
+    if (!any(validation_loss)) {
+      stop("Temporal validation loss is missing from the Keras history.", call. = FALSE)
+    }
+    validation_history <- history_df[validation_loss, , drop = FALSE]
+    validation_history <- validation_history[
+      order(validation_history$epoch), , drop = FALSE
+    ]
+    as.integer(which.min(validation_history$value))
+  }
+
+  formatHistoryData <- function(history_df, iteration) {
+    metric <- as.character(history_df$metric)
+    if (!"data" %in% names(history_df)) {
+      history_df$data <- ifelse(grepl("^val_", metric), "validation", "training")
+    }
+    metric <- sub("^val_", "", metric)
+    metric[metric %in% c("loss", "mean_squared_error", "val_loss")] <- "MSE"
+    metric[metric %in% c("mae", "mean_absolute_error", "val_mae")] <- "MAE"
+    history_df$metric <- factor(metric)
+    history_df$iter <- as.integer(iteration)
+    history_df
+  }
+
+  fitTemporalModel <- function(source_df, validation_target_df,
+                               final_target_df, seed, model_name,
+                               verbose = 0L) {
+    source_df <- as.data.frame(source_df, check.names = FALSE)
+    validation_target_df <- as.data.frame(
+      validation_target_df, check.names = FALSE
+    )
+    final_target_df <- as.data.frame(final_target_df, check.names = FALSE)
+    target_tables <- list(validation_target_df, final_target_df)
+    if (any(vapply(target_tables, nrow, integer(1)) != nrow(source_df)) ||
+        any(vapply(target_tables, ncol, integer(1)) != ncol(source_df)) ||
+        any(vapply(
+          target_tables,
+          function(target) identical(names(target), names(source_df)),
+          logical(1)
+        ) == FALSE)) {
+      stop(
+        "Temporal neural-network inputs and targets are not aligned.",
+        call. = FALSE
+      )
+    }
+    split <- temporalSplitDefinition(nrow(source_df))
+
+    validation_preparation <- withRuntimeStage(
+      "temporal-validation preprocessing",
+      {
+        validation_input_normalizer <- normalizeInputs(
+          source_df[seq_len(split$scaler_last_row), , drop = FALSE]
+        )
+        validation_input_values <- normalizeUsingRange(
+          source_df, validation_input_normalizer$range
+        )
+        validation_input_values <- toModelScale(validation_input_values)
+        validation_training_targets <- seq.int(
+          split$lookback + 1L,
+          split$lookback + split$n_training
+        )
+        validation_output_normalizer <- normalizeInputs(
+          validation_target_df[
+            validation_training_targets, , drop = FALSE
+          ]
+        )
+        validation_target_values <- normalizeUsingRange(
+          validation_target_df, validation_output_normalizer$range
+        )
+        validation_target_values <- toModelScale(validation_target_values)
+        validation_sequences <- buildSequenceSamples(
+          validation_input_values,
+          target_matrix = validation_target_values,
+          maximum_lookback = split$lookback
+        )
+        list(
+          input_normalizer = validation_input_normalizer,
+          output_normalizer = validation_output_normalizer,
+          input_values = validation_input_values,
+          target_values = validation_target_values,
+          sequences = validation_sequences
+        )
+      }
+    )
+    validation_sequences <- validation_preparation$sequences
+
+    training_rows <- seq_len(split$n_training)
+    validation_rows <- seq.int(split$n_training + 1L, split$n_samples)
+
+    keras3::set_random_seed(as.integer(seed))
+    validation_model <- withRuntimeStage(
+      "temporal-validation model construction",
+      {
+        model <- createConfiguredModel(
+          split$lookback, ncol(source_df), paste0(model_name, "_validation")
+        )
+        compileConfiguredModel(model)
+        model
+      }
+    )
+
+    parameter_count <- as.numeric(validation_model$count_params())
+
+    validation_history <- withRuntimeStage(
+      "temporal-validation Keras fit",
+      validation_model %>% fit(
+        x = validation_sequences$x[training_rows, , , drop = FALSE],
+        y = validation_sequences$y[training_rows, , drop = FALSE],
+        validation_data = list(
+          validation_sequences$x[validation_rows, , , drop = FALSE],
+          validation_sequences$y[validation_rows, , drop = FALSE]
+        ),
+        batch_size = min(8L, split$n_training),
+        shuffle = FALSE,
+        verbose = as.integer(verbose),
+        epochs = as.integer(input$nEpochs),
+        callbacks = list(
+          callback_early_stopping(
+            monitor = "val_loss",
+            patience = 15L,
+            restore_best_weights = TRUE
+          ),
+          callback_terminate_on_nan()
+        )
+      )
+    )
+    history_selection <- withRuntimeStage(
+      "validation-history processing",
+      {
+        history_df <- rawHistoryData(validation_history)
+        list(
+          history = history_df,
+          best_epoch = max(1L, bestValidationEpoch(history_df))
+        )
+      }
+    )
+    history_df <- history_selection$history
+    best_epoch <- history_selection$best_epoch
+
+    final_preparation <- withRuntimeStage(
+      "full-period refit preprocessing",
+      {
+        final_input_normalizer <- normalizeInputs(source_df)
+        final_input_values <- toModelScale(final_input_normalizer$values)
+        final_target_rows <- seq.int(split$lookback + 1L, nrow(source_df))
+        final_output_normalizer <- normalizeInputs(
+          final_target_df[final_target_rows, , drop = FALSE]
+        )
+        final_target_values <- normalizeUsingRange(
+          final_target_df, final_output_normalizer$range
+        )
+        final_target_values <- toModelScale(final_target_values)
+        final_sequences <- buildSequenceSamples(
+          final_input_values,
+          target_matrix = final_target_values,
+          maximum_lookback = split$lookback
+        )
+        list(
+          input_normalizer = final_input_normalizer,
+          output_normalizer = final_output_normalizer,
+          input_values = final_input_values,
+          target_values = final_target_values,
+          sequences = final_sequences
+        )
+      }
+    )
+    final_input_normalizer <- final_preparation$input_normalizer
+    final_output_normalizer <- final_preparation$output_normalizer
+    final_input_values <- final_preparation$input_values
+    final_sequences <- final_preparation$sequences
+
+    keras3::set_random_seed(as.integer(seed))
+    final_model <- withRuntimeStage(
+      "full-period model construction",
+      {
+        model <- createConfiguredModel(
+          split$lookback, ncol(source_df), paste0(model_name, "_final")
+        )
+        compileConfiguredModel(model)
+        model
+      }
+    )
+    withRuntimeStage(
+      "full-period Keras refit",
+      final_model %>% fit(
+        x = final_sequences$x,
+        y = final_sequences$y,
+        batch_size = min(8L, nrow(final_sequences$y)),
+        shuffle = FALSE,
+        verbose = 0L,
+        epochs = best_epoch,
+        callbacks = list(callback_terminate_on_nan())
+      )
+    )
+
+    list(
+      model = final_model,
+      history = history_df,
+      input_range = final_input_normalizer$range,
+      output_range = final_output_normalizer$range,
+      model_values = final_input_values,
+      lookback = split$lookback,
+      best_epoch = best_epoch,
+      parameter_count = parameter_count
+    )
+  }
+
+  historicalRateRow <- function(rate_table, year, label) {
+    row <- rate_table[rate_table$year == as.integer(year), -1L, drop = FALSE]
+    if (nrow(row) != 1L) {
+      stop(sprintf("Expected exactly one %s row for year %s.", label, year),
+           call. = FALSE)
+    }
+    row
+  }
+
+  effectiveBaselineYears <- function(n_available_years) {
+    requested <- suppressWarnings(as.integer(input$baseline))
+    if (!length(requested) || !is.finite(requested) || requested < 1L) {
+      requested <- suppressWarnings(as.integer(fmort_baseline))
+    }
+    if (!length(requested) || !is.finite(requested) || requested < 1L) {
+      requested <- 1L
+    }
+    min(as.integer(requested), as.integer(n_available_years))
+  }
+
+  coerceReferenceFishingMortality <- function(reference_row, expected_names,
+                                               label) {
+    reference_matrix <- asFiniteNumericMatrix(reference_row, label)
+    if (nrow(reference_matrix) != 1L ||
+        is.null(colnames(reference_matrix)) ||
+        anyDuplicated(colnames(reference_matrix)) ||
+        !setequal(colnames(reference_matrix), expected_names)) {
+      stop(
+        sprintf("%s is not aligned with the fishing-mortality features.", label),
+        call. = FALSE
+      )
+    }
+    reference_matrix <- reference_matrix[, expected_names, drop = FALSE]
+    if (any(reference_matrix < 0)) {
+      stop(sprintf("%s must be non-negative.", label), call. = FALSE)
+    }
+    as.data.frame(reference_matrix, check.names = FALSE)
+  }
+
+  referenceFishingMortality <- function(fishing_history, available_years,
+                                        baseline_years) {
+    fishing_history <- as.data.frame(fishing_history, check.names = FALSE)
+    available_years <- sort(unique(as.integer(available_years)))
+    selected <- fishing_history[
+      fishing_history$year %in% available_years, , drop = FALSE
+    ]
+    selected <- selected[order(selected$year), , drop = FALSE]
+    if (nrow(selected) != length(available_years) ||
+        !identical(as.integer(selected$year), available_years)) {
+      stop(
+        "Reference fishing mortality could not be matched to every model year.",
+        call. = FALSE
+      )
+    }
+    baseline_years <- min(
+      max(1L, as.integer(baseline_years)), nrow(selected)
+    )
+    baseline_rows <- seq.int(
+      nrow(selected) - baseline_years + 1L, nrow(selected)
+    )
+    reference_values <- colMeans(
+      selected[baseline_rows, -1L, drop = FALSE]
+    )
+    reference <- data.frame(
+      matrix(
+        reference_values,
+        nrow = 1L,
+        dimnames = list(NULL, names(selected)[-1L])
+      ),
+      check.names = FALSE
+    )
+    coerceReferenceFishingMortality(
+      reference, names(selected)[-1L], "Calculated reference fishing mortality"
+    )
+  }
+
+  standardizeTemporalTargets <- function(net_inputs,
+                                         reference_fishing_mortality) {
+    net_inputs <- as.data.frame(net_inputs, check.names = FALSE)
+    years <- as.integer(net_inputs$year)
+    if (any(!is.finite(years)) || anyDuplicated(years) ||
+        is.unsorted(years, strictly = TRUE) || any(diff(years) != 1L)) {
+      stop(
+        "Counterfactual target standardization requires consecutive model years.",
+        call. = FALSE
+      )
+    }
+
+    feature_names <- names(net_inputs)[-1L]
+    population_names <- grep("_N_", feature_names, value = TRUE, fixed = TRUE)
+    if (!length(population_names)) {
+      stop("Counterfactual target standardization found no abundance features.",
+           call. = FALSE)
+    }
+    expected_catch_names <- sub(
+      "_N_", "_C_", population_names, fixed = TRUE
+    )
+    if (!all(expected_catch_names %in% feature_names)) {
+      stop("Counterfactual targets require catches aligned with abundance.",
+           call. = FALSE)
+    }
+
+    fishing_names <- names(fmort_w)[-1L]
+    reference_fishing_mortality <- coerceReferenceFishingMortality(
+      reference_fishing_mortality,
+      fishing_names,
+      "Reference fishing mortality"
+    )
+    targets <- net_inputs[, -1L, drop = FALSE]
+
+    for (target_index in seq.int(2L, nrow(net_inputs))) {
+      source_year <- years[[target_index - 1L]]
+      target_year <- years[[target_index]]
+      previous_population <- net_inputs[
+        target_index - 1L, population_names, drop = FALSE
+      ]
+      observed_target_population <- net_inputs[
+        target_index, population_names, drop = FALSE
+      ]
+      reference_population <- applyRelativeFishingMortality(
+        neural_population = observed_target_population,
+        previous_population = previous_population,
+        scenario_fishing_mortality = reference_fishing_mortality,
+        reference_fishing_mortality = historicalRateRow(
+          fmort_w, source_year, "source-year fishing mortality"
+        ),
+        natural_mortality = historicalRateRow(
+          mort_w, source_year, "source-year natural mortality"
+        )
+      )
+      targets[target_index, population_names] <-
+        as.numeric(reference_population)
+
+      reference_catch <- catchBaranov(
+        reference_fishing_mortality,
+        historicalRateRow(
+          mort_w, target_year, "target-year natural mortality"
+        ),
+        reference_population
+      )
+      catch_positions <- match(colnames(reference_catch), names(targets))
+      if (anyNA(catch_positions)) {
+        stop("Reference catches could not be matched to neural-network targets.",
+             call. = FALSE)
+      }
+      targets[target_index, catch_positions] <- as.numeric(reference_catch)
+    }
+
+    if (any(!is.finite(as.matrix(targets)))) {
+      stop("Counterfactual neural-network targets contain non-finite values.",
+           call. = FALSE)
+    }
+    targets
+  }
+
+  prepareTemporalModelData <- function(net_inputs,
+                                       final_reference_fishing = NULL) {
+    net_inputs <- as.data.frame(net_inputs, check.names = FALSE)
+    split <- temporalSplitDefinition(nrow(net_inputs))
+    baseline_years <- effectiveBaselineYears(nrow(net_inputs))
+    validation_years <- net_inputs$year[seq_len(split$scaler_last_row)]
+    validation_reference <- referenceFishingMortality(
+      fmort_w, validation_years, baseline_years
+    )
+    if (is.null(final_reference_fishing)) {
+      final_reference <- referenceFishingMortality(
+        fmort_w, net_inputs$year, baseline_years
+      )
+    } else {
+      final_reference <- coerceReferenceFishingMortality(
+        final_reference_fishing,
+        names(fmort_w)[-1L],
+        "Final reference fishing mortality"
+      )
+    }
+
+    list(
+      source = net_inputs[, -1L, drop = FALSE],
+      validation_targets = standardizeTemporalTargets(
+        net_inputs, validation_reference
+      ),
+      final_targets = standardizeTemporalTargets(
+        net_inputs, final_reference
+      ),
+      validation_reference_fishing = validation_reference,
+      final_reference_fishing = final_reference
+    )
+  }
+
+  insertFeatureValues <- function(target_values, source, source_label) {
+    source_matrix <- asFiniteNumericMatrix(source, source_label)
+    if (nrow(source_matrix) != 1L) {
+      stop(sprintf("%s must contain exactly one row.", source_label),
+           call. = FALSE)
+    }
+
+    source_names <- colnames(source_matrix)
+    if (is.null(source_names) || anyNA(source_names) ||
+        any(!nzchar(source_names)) || anyDuplicated(source_names)) {
+      stop(sprintf("%s must have unique, non-empty feature names.", source_label),
+           call. = FALSE)
+    }
+    target_positions <- match(source_names, names(target_values))
+    if (anyNA(target_positions)) {
+      stop(
+        sprintf(
+          "%s contains features absent from the recursive state: %s.",
+          source_label,
+          paste(source_names[is.na(target_positions)], collapse = ", ")
+        ),
+        call. = FALSE
+      )
+    }
+    if (any(!is.na(target_values[target_positions]))) {
+      stop(sprintf("%s overlaps features already inserted in the recursive state.",
+                   source_label), call. = FALSE)
+    }
+
+    target_values[target_positions] <- as.numeric(source_matrix)
+    target_values
+  }
+
+  appendRecursiveYear <- function(physical_state, model_state, fitted,
+                                  transition_fishing_mortality,
+                                  reference_fishing_mortality,
+                                  transition_natural_mortality,
+                                  catch_fishing_mortality,
+                                  catch_natural_mortality) {
+    feature_names <- colnames(physical_state)[-1L]
+    population_positions <- grep("_N_", feature_names, fixed = TRUE)
+    if (!length(population_positions)) {
+      stop(
+        paste(
+          "Recursive prediction found no population-abundance columns.",
+          "Expected feature names containing '_N_'."
+        ),
+        call. = FALSE
+      )
+    }
+    environmental_positions <- grep("PrP_", feature_names, fixed = TRUE)
+    prediction_input <- buildPredictionWindow(
+      model_state[, -1L, drop = FALSE], fitted$lookback
+    )
+    predicted_features <- coercePredictionRow(
+      fitted$model %>% predict(prediction_input, verbose = 0L),
+      feature_names
+    )
+
+    network_population <- predicted_features[, population_positions, drop = FALSE]
+    network_population <- fromModelScale(network_population)
+    network_population <- denormalizeInputs(
+      network_population,
+      fitted$output_range[, population_positions, drop = FALSE]
+    )
+    network_population[] <- pmax(0, as.matrix(network_population))
+
+    previous_population <- physical_state[
+      nrow(physical_state), population_positions + 1L, drop = FALSE
+    ]
+    predicted_population <- applyRelativeFishingMortality(
+      neural_population = network_population,
+      previous_population = previous_population,
+      scenario_fishing_mortality = transition_fishing_mortality,
+      reference_fishing_mortality = reference_fishing_mortality,
+      natural_mortality = transition_natural_mortality
+    )
+
+    predicted_catch <- catchBaranov(
+      catch_fishing_mortality,
+      catch_natural_mortality,
+      predicted_population
+    )
+    next_values <- stats::setNames(
+      rep(NA_real_, length(feature_names)), feature_names
+    )
+    next_values <- insertFeatureValues(
+      next_values, predicted_population, "Predicted population"
+    )
+    next_values <- insertFeatureValues(
+      next_values, predicted_catch, "Baranov-predicted catch"
+    )
+    if (length(environmental_positions)) {
+      next_environment <- physical_state[
+        nrow(physical_state), environmental_positions + 1L, drop = FALSE
+      ]
+      next_values <- insertFeatureValues(
+        next_values, next_environment, "Carried-forward environment"
+      )
+    }
+    if (anyNA(next_values)) {
+      stop(
+        "Recursive forecast could not construct every required feature.",
+        call. = FALSE
+      )
+    }
+    next_features <- matrix(
+      unname(next_values), nrow = 1L, ncol = length(feature_names),
+      dimnames = list(NULL, feature_names)
+    )
+
+    next_year <- as.integer(utils::tail(physical_state$year, 1L) + 1L)
+    next_physical_row <- data.frame(
+      year = next_year, next_features, check.names = FALSE
+    )
+    physical_state <- rbind(physical_state, next_physical_row)
+
+    next_model_features <- normalizeUsingRange(
+      next_features, fitted$input_range
+    )
+    next_model_features <- toModelScale(next_model_features)
+    next_model_row <- data.frame(
+      year = next_year, next_model_features, check.names = FALSE
+    )
+    model_state <- rbind(model_state, next_model_row)
+
+    list(physical = physical_state, model = model_state)
   }
   
+  testFitNet <- function(netInputs) {
+    validateLayerConfiguration()
+    prepared <- prepareTemporalModelData(netInputs)
+    fitted <- fitTemporalModel(
+      source_df = prepared$source,
+      validation_target_df = prepared$validation_targets,
+      final_target_df = prepared$final_targets,
+      seed = base_seed + 100L,
+      model_name = "fit",
+      verbose = 1L
+    )
+    formatHistoryData(fitted$history, 1L)
+  }
+  
+  maelstromPlotTheme <- function(base_size = 12) {
+    theme_minimal(base_size = base_size) +
+      theme(
+        plot.title = element_text(face = "bold", colour = "#111827", size = 14),
+        plot.subtitle = element_text(colour = "#4B5563", size = 10.5,
+                                     margin = margin(b = 9)),
+        plot.caption = element_text(colour = "#6B7280", hjust = 0, size = 9,
+                                    margin = margin(t = 8)),
+        axis.title = element_text(face = "bold", colour = "#374151"),
+        axis.text = element_text(colour = "#4B5563"),
+        panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank(),
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        legend.box = "horizontal",
+        legend.margin = margin(t = 8),
+        legend.box.margin = margin(t = 4),
+        legend.spacing.x = grid::unit(8, "pt"),
+        plot.margin = margin(12, 16, 16, 12)
+      )
+  }
+
+  cleanPlotlyLegendName <- function(name) {
+    if (is.null(name) || !length(name)) return("")
+    name <- as.character(name[[1L]])
+    name <- sub("^\\((.*),[[:space:]]*[0-9]+\\)$", "\\1", name)
+    name <- sub(",[[:space:]]*[0-9]+$", "", name)
+    name
+  }
+
+  asMaelstromPlotly <- function(plot, tooltip = c("x", "y")) {
+    widget <- ggplotly(plot, tooltip = tooltip)
+    shown_names <- character()
+    legend_order <- c(
+      "Observed SSB" = 1L,
+      "Ensemble mean" = 2L,
+      "Ensemble forecast" = 2L,
+      "90% interval" = 3L
+    )
+
+    if (length(widget$x$data)) {
+      for (trace_index in seq_along(widget$x$data)) {
+        trace <- widget$x$data[[trace_index]]
+        clean_name <- cleanPlotlyLegendName(trace$name)
+        trace$legendgrouptitle <- NULL
+
+        if (nzchar(clean_name)) {
+          trace$name <- clean_name
+          trace$legendgroup <- clean_name
+          if (is.null(trace$showlegend) || isTRUE(trace$showlegend)) {
+            trace$showlegend <- !clean_name %in% shown_names
+            if (isTRUE(trace$showlegend)) {
+              shown_names <- c(shown_names, clean_name)
+            }
+          }
+          if (clean_name %in% names(legend_order)) {
+            trace$legendrank <- unname(legend_order[[clean_name]])
+          }
+        }
+        widget$x$data[[trace_index]] <- trace
+      }
+    }
+
+    widget %>%
+      layout(
+        hovermode = "x unified",
+        xaxis = list(tickangle = -45, automargin = TRUE),
+        legend = list(
+          orientation = "h",
+          x = 0.5,
+          xanchor = "center",
+          y = -0.24,
+          yanchor = "top",
+          title = list(text = ""),
+          traceorder = "normal"
+        ),
+        margin = list(l = 82, r = 28, t = 92, b = 118)
+      ) %>%
+      config(displaylogo = FALSE, responsive = TRUE)
+  }
+
+  prettyYearBreaks <- function(years, maximum_breaks = 9L) {
+    years <- sort(unique(as.integer(years[is.finite(years)])))
+    if (length(years) <= maximum_breaks) return(years)
+    break_positions <- unique(round(seq(1, length(years), length.out = maximum_breaks)))
+    years[break_positions]
+  }
+
+  annualYearBreaks <- function(years) {
+    years <- as.integer(years)
+    sort(unique(years[is.finite(years)]))
+  }
+
+  ssbYearAxisTheme <- function() {
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)
+    )
+  }
+
+  stockAreaLabel <- function(data) {
+    paste0(unique(as.character(data$species)), " — GSA ",
+           unique(as.character(data$gsa)))
+  }
+
   plotFitNet <- function(history_df) {
-    
-    n_runs <- 10
-    n_last <- 10
-    use_ci <- TRUE # TRUE = 95% CI; FALSE = SD
-    
-    traj <- history_df %>%
-      group_by(epoch, data) %>%
+    history_df <- history_df[
+      as.character(history_df$metric) == "MSE" & is.finite(history_df$value),
+      , drop = FALSE
+    ]
+    if (!nrow(history_df)) {
+      stop("No finite MSE history is available for the diagnostic plot.", call. = FALSE)
+    }
+
+    history_df$series <- ifelse(
+      grepl("validation|^val", tolower(as.character(history_df$data))),
+      "Validation", "Training"
+    )
+    history_df$series <- factor(
+      history_df$series, levels = c("Training", "Validation")
+    )
+    n_runs <- dplyr::n_distinct(history_df$iter)
+    diagnostic_colours <- c(Training = "#0072B2", Validation = "#D55E00")
+
+    trajectory <- history_df %>%
+      group_by(epoch, series) %>%
       summarise(
         mean_mse = mean(value, na.rm = TRUE),
-        sd_mse = sd(value, na.rm = TRUE),
-        se_mse = sd_mse / sqrt(n_distinct(iter)),
+        sd_mse = ifelse(n_distinct(iter) > 1L, sd(value, na.rm = TRUE), 0),
         n_run = n_distinct(iter),
-        .groups = "drop") %>%
-      mutate(
-        ribbon = ifelse(use_ci, se_mse, sd_mse),
-        ymin = pmax(0, mean_mse - ribbon),
-        ymax = mean_mse + ribbon)
-    
-    pA <- ggplot(traj, aes(x = epoch, y = mean_mse, colour = data, fill = data)) +
-      geom_ribbon(aes(ymin = ymin, ymax = ymax), alpha = 0.18, colour = NA) +
-      geom_line(linewidth = 0.8) +
-      labs(x = "Epoch", y = "Training and Validation", colour = "Metric", fill = "Metric",
-           title = "A. Training and Validation across ten independent random initializations") +
-      theme_bw() +
-      theme(
-        legend.position = "bottom",
-        strip.background = element_rect(fill = "grey95"),
-        panel.grid.minor = element_blank()
-      )
-    
-    plateau_run <- history_df %>%
-      group_by(iter, data) %>%
-      mutate(max_epoch = max(epoch, na.rm = TRUE)) %>%
-      filter(epoch > max_epoch - n_last) %>%
-      summarise(plateau_mse = mean(value, na.rm = TRUE), .groups = "drop")
-    
-    plateau_summary <- plateau_run %>%
-      group_by(data) %>% 
-      summarise(
-        mean_plateau_mse = mean(plateau_mse, na.rm = TRUE),
-        sd_plateau_mse = sd(plateau_mse, na.rm = TRUE),
-        cv_percent = 100 * sd_plateau_mse / mean_plateau_mse,
-        n_runs = 10,
-        label = paste0(round(cv_percent, 2), "%"),
-        y_label = max(plateau_mse, na.rm = TRUE) + 0.08 * diff(range(plateau_mse, na.rm = TRUE)),
         .groups = "drop"
+      ) %>%
+      mutate(
+        ci = ifelse(n_run > 1L, 1.96 * sd_mse / sqrt(n_run), 0),
+        ymin = pmax(0, mean_mse - ci),
+        ymax = mean_mse + ci
       )
-    
-    pB <- ggplot(plateau_run, aes(x = data, y = plateau_mse, fill = data)) +
-      geom_boxplot(alpha = 0.65, outlier.shape = NA, width = 0.62) +
-      geom_jitter(width = 0.08, size = 1.8, alpha = 0.75) +
-      labs(y = paste0("Plateau training and validation\n(mean last ", n_last, " epochs)"),
-           title = "B. Run-to-run variability of the validation-loss plateau") +
-      theme_bw() +
-      theme(
-        legend.position = "none",
-        strip.background = element_rect(fill = "grey95"),
-        panel.grid.minor = element_blank()
-      )
-    
-    fig_stability <- wrap_plots(A = pA, B = pB, design = "AABB")
-    
-    return(fig_stability)
+
+    validation_best <- history_df %>%
+      filter(series == "Validation") %>%
+      group_by(iter) %>%
+      arrange(value, epoch, .by_group = TRUE) %>%
+      slice_head(n = 1L) %>%
+      ungroup() %>%
+      transmute(iter, best_epoch = epoch, validation_mse = value)
+    if (!nrow(validation_best)) {
+      stop("Validation MSE is missing from the diagnostic history.", call. = FALSE)
+    }
+
+    training_selected <- history_df %>%
+      filter(series == "Training") %>%
+      inner_join(validation_best, by = "iter") %>%
+      filter(epoch == best_epoch) %>%
+      transmute(iter, best_epoch, training_mse = value, validation_mse)
+    selected_runs <- validation_best %>%
+      left_join(training_selected[, c("iter", "training_mse")], by = "iter")
+    selected_long <- bind_rows(
+      selected_runs %>% transmute(iter, series = "Training", mse = training_mse),
+      selected_runs %>% transmute(iter, series = "Validation", mse = validation_mse)
+    ) %>%
+      filter(is.finite(mse)) %>%
+      mutate(series = factor(series, levels = c("Training", "Validation")))
+
+    median_epoch <- as.integer(round(stats::median(validation_best$best_epoch)))
+    epoch_range <- range(validation_best$best_epoch)
+    run_label <- if (n_runs == 1L) {
+      "single initialization"
+    } else {
+      paste(n_runs, "independent initializations")
+    }
+
+    pA <- ggplot(trajectory, aes(x = epoch, y = mean_mse,
+                                colour = series, fill = series)) +
+      geom_ribbon(aes(ymin = ymin, ymax = ymax), alpha = 0.14, colour = NA) +
+      geom_vline(xintercept = median_epoch, linetype = "22",
+                 colour = "#6B7280", linewidth = 0.55) +
+      geom_line(linewidth = 0.95) +
+      scale_colour_manual(values = diagnostic_colours, drop = FALSE) +
+      scale_fill_manual(values = diagnostic_colours, drop = FALSE) +
+      labs(
+        title = "A. Temporal-validation learning curves",
+        subtitle = paste0(
+          run_label, "; line = mean MSE, band = 95% CI; dashed line = median selected epoch (",
+          median_epoch, ")"
+        ),
+        x = "Epoch", y = "Normalized MSE"
+      ) +
+      maelstromPlotTheme()
+
+    pB <- ggplot(selected_long, aes(x = series, y = mse, colour = series)) +
+      geom_boxplot(aes(fill = series), width = 0.48, alpha = 0.18,
+                   outlier.shape = NA, colour = "#6B7280") +
+      geom_jitter(width = 0.055, size = 2.1, alpha = 0.78) +
+      scale_colour_manual(values = diagnostic_colours, drop = FALSE) +
+      scale_fill_manual(values = diagnostic_colours, drop = FALSE) +
+      labs(
+        title = "B. Error at the selected epoch",
+        subtitle = paste0(
+          "Best validation epoch: median ", median_epoch,
+          " (range ", epoch_range[[1L]], "–", epoch_range[[2L]], ")"
+        ),
+        x = NULL, y = "Normalized MSE",
+        caption = "Points are individual initializations; boxes summarize their distributions."
+      ) +
+      guides(colour = "none", fill = "none") +
+      maelstromPlotTheme()
+
+    wrap_plots(pA, pB, widths = c(1.65, 1))
   }
   
   trainTestFitNet <- function(netInputs, depthTest) {
+
+    validateLayerConfiguration()
     
-    species = substr(colnames(netInputs)[grep("_N", names(netInputs))], 1, 3)
-    age = substr(colnames(netInputs)[grep("_N", names(netInputs))], 5, 5)
-    s_a = data.frame(species, age)
-    s_a_min = s_a %>% group_by(species) %>% slice_min(age)
-    s_a = paste(s_a$species, s_a$age)
-    s_a_min = paste(s_a_min$species, s_a_min$age)
-    
-    min_age_pos = vector()
-    for (i in 1:length(s_a_min)) {
-      min_age_pos[i] = grep(s_a_min[i], s_a)
+    population_metadata <- populationFeatureMetadata(netInputs)
+    species <- population_metadata$species
+    age <- as.character(population_metadata$age_numeric)
+    gsa <- population_metadata$gsa
+    species_levels <- unique(species)
+    min_age_vec <- vapply(species_levels, function(species_code) {
+      min(population_metadata$age_numeric[population_metadata$species == species_code])
+    }, numeric(1))
+
+    niter <- ensemble_iterations
+    cutoff_row <- nrow(netInputs) - depthTest
+    if (cutoff_row < 1L) {
+      stop("The test depth leaves no years for model training.", call. = FALSE)
     }
-    
-    min_age_vec = vector()
-    for (i in 1:length(unique(species))) {
-      min_age_vec[i] = min(substr(colnames(netInputs[which(substr(colnames(netInputs), 1, 3) == unique(species)[i])]), 5, 5))
-    }
-    
-    env_var <- length(grep("PrP_", names(netInputs)))
-    
-    gsa <- c()
-    
-    for (i in 2:(ncol(netInputs)/2 + 1)) {
-      gsa <- append(gsa, strsplit(names(netInputs), "N_")[[i]][2])
-    }
-    
-    if (env_var > 0) {
-      envMult <- randomEnvVarSum(as.integer(input$depthPred), as.integer(input$envParamMult))
-    }
-    
-    niter <- 10
-    
+    training_data <- netInputs[seq_len(cutoff_row), , drop = FALSE]
+    prepared <- prepareTemporalModelData(training_data)
+    history_df_tot <- data.frame()
+
     withProgress(message = "Calculating...", value = 0, detail = "0%", {
       
-      for (iter in 1:niter) {
-        
-        norm_inputs = netInputs
-        norm_inputs[,2:ncol(norm_inputs)] = normalizeInputs(norm_inputs[,2:ncol(norm_inputs)], range_inputs)
-        if (input$activation == "tanh") {
-          norm_inputs[,2:ncol(norm_inputs)] <- norm_inputs[,2:ncol(norm_inputs)] - 0.5
+      for (iter in seq_len(niter)) {
+        fitted <- fitTemporalModel(
+          source_df = prepared$source,
+          validation_target_df = prepared$validation_targets,
+          final_target_df = prepared$final_targets,
+          seed = base_seed + 1000L + iter,
+          model_name = paste0("backtest_", iter)
+        )
+        iter_physical <- training_data
+        iter_model <- training_data
+        iter_model[, -1L] <- fitted$model_values
+
+        history_df_tot <- rbind(
+          history_df_tot,
+          formatHistoryData(fitted$history, iter)
+        )
+        traintest_metrics <<- history_df_tot
+        traintest_nparams <<- fitted$parameter_count
+
+        for (i in seq_len(depthTest)) {
+          source_year <- utils::tail(iter_physical$year, 1L)
+          target_year <- source_year + 1L
+          updated <- withRuntimeStage(
+            sprintf("recursive backtest: initialization %s, year %s", iter, target_year),
+            appendRecursiveYear(
+              physical_state = iter_physical,
+              model_state = iter_model,
+              fitted = fitted,
+              transition_fishing_mortality = historicalRateRow(
+                fmort_w, source_year, "source-year fishing-mortality"
+              ),
+              reference_fishing_mortality =
+                prepared$final_reference_fishing,
+              transition_natural_mortality = historicalRateRow(
+                mort_w, source_year, "source-year natural-mortality"
+              ),
+              catch_fishing_mortality = historicalRateRow(
+                fmort_w, target_year, "fishing-mortality"
+              ),
+              catch_natural_mortality = historicalRateRow(
+                mort_w, target_year, "natural-mortality"
+              )
+            )
+          )
+          iter_physical <- updated$physical
+          iter_model <- updated$model
+
+          completed_steps <- (iter - 1L) * depthTest + i
+          total_steps <- depthTest * niter
+          incProgress(
+            amount = 1 / total_steps,
+            detail = paste0(round(100 * completed_steps / total_steps, 2), "%")
+          )
         }
-        val_df <- as.matrix(norm_inputs[, 2:ncol(norm_inputs)])
-        iter_df <- norm_inputs[1:(nrow(val_df) - depthTest),]
-    
-        for (i in 1:depthTest) {
-          
-          inputs <- layer_input(shape = c((nrow(iter_df)), (ncol(iter_df) - 1)))
-          outputs <- inputs
-          inputs_df <- as.matrix(iter_df[, 2:ncol(iter_df)])
-          outputs_df <- as.matrix(iter_df[, 2:ncol(iter_df)])
-          
-          if (as.integer(input$nLayers) >= 1) {outputs <- buildNet(outputs, 1, input$layerType1, input$neurons1, input$returnSeq1,
-                                                                   input$dropout1, input$activation, input$recdropout1, input$recactivation)}
-          if (as.integer(input$nLayers) >= 2) {outputs <- buildNet(outputs, 2, input$layerType2, input$neurons2, input$returnSeq2,
-                                                                   input$dropout2, input$activation, input$recdropout2, input$recactivation)}
-          if (as.integer(input$nLayers) >= 3) {outputs <- buildNet(outputs, 3, input$layerType3, input$neurons3, input$returnSeq3,
-                                                                   input$dropout3, input$activation, input$recdropout3, input$recactivation)}
-          if (as.integer(input$nLayers) >= 4) {outputs <- buildNet(outputs, 4, input$layerType4, input$neurons4, input$returnSeq4,
-                                                                   input$dropout4, input$activation, input$recdropout4, input$recactivation)}
-          if (as.integer(input$nLayers) >= 5) {outputs <- buildNet(outputs, 5, input$layerType5, input$neurons5, input$returnSeq5,
-                                                                   input$dropout5, input$activation, input$recdropout5, input$recactivation)}
-          
-          dummy <- timeseries_dataset_from_array(
-            inputs_df, outputs_df,
-            sequence_length = as.numeric(nrow(iter_df)),
-            batch_size = 2
-          )
-          
-          dummy_val <- timeseries_dataset_from_array(
-            val_df, val_df,
-            sequence_length = 4,
-            batch_size = 2
-          )
-          
-          model <- keras_model(inputs, outputs)
-          
-          callbacks <- list(
-            callback_early_stopping(
-              monitor = "loss", patience = 15),
-            callback_model_checkpoint(
-              "callback.keras", save_best_only = TRUE))
-          
-          model %>% compile(
-            loss = loss_mean_squared_error(),
-            metrics = loss_mean_absolute_error(),
-            optimizer_rmsprop(learning_rate = as.numeric(input$learnParam))
-          )
-          
-          history <- model %>% fit(
-            dummy,
-            validation_data = dummy_val,
-            verbose = 0,
-            epochs = as.integer(input$nEpochs),
-            callbacks = callbacks
-          )
-          
-          if (i == 1) {
-            history_df <- na.omit(as.data.frame(history))
-            levels(history_df$metric)[match("loss", levels(history_df$metric))] <- "MSE"
-            levels(history_df$metric)[levels(history_df$metric) == "mean_absolute_error"] <- "MAE"
-            history_df$iter <- iter
-            if (iter == 1) {
-              history_df_tot <- history_df
-              save_model(model, "my_model.keras")
-            } else {
-              history_df_tot <- rbind(history_df_tot, history_df)
-            }
-          }
-          
-          traintest_metrics <<- history_df_tot
-          traintest_nparams <<- model$count_params()
-          
-          if (input$activation == "tanh") {
-            iter_df[,2:ncol(iter_df)] <- iter_df[,2:ncol(iter_df)] + 0.5
-          }
-          iter_df[,2:ncol(iter_df)] <- denormalizeInputs(iter_df[,2:ncol(iter_df)], range_inputs)
-          
-          pred_vec <- model %>% predict(dummy)
-          pred_vec <- t(as.matrix(pred_vec[1:as.integer(length(pred_vec)/2)]))
-          colnames(pred_vec) = colnames(iter_df)[2:(ncol(iter_df)/2 + 1)]
-          if (input$activation == "tanh") {
-            pred_vec <- pred_vec + 0.5
-          }
-          pred_vec <- denormalizeInputs(pred_vec, range_inputs[1:length(pred_vec)])
-          pred_catch <- netInputs[(nrow(iter_df) + 1), grep("_C", colnames(netInputs))]
-          pred_vec <- cbind(pred_vec, pred_catch)
-          
-          if (env_var == 1) {
-            pred_vec = cbind(pred_vec, mean(iter_df[(nrow(iter_df)):nrow(iter_df), grep("PrP_", names(iter_df))]))
-          } else if (env_var > 1) {
-            pred_vec = cbind(pred_vec, t(colMeans(iter_df[(nrow(iter_df)):nrow(iter_df), grep("PrP_", names(iter_df))])))
-          }
-          
-          colnames(pred_vec) = colnames(iter_df)[2:ncol(iter_df)]
-          
-          iter_df[(nrow(iter_df) + 1),] <- cbind(as.integer(iter_df$year[nrow(iter_df)] + 1), pred_vec)
-          
-          if (i != depthTest) {
-            iter_df[,2:ncol(iter_df)] <- normalizeInputs(iter_df[,2:ncol(iter_df)], range_inputs)
-            if (input$activation == "tanh") {
-              iter_df[,2:ncol(iter_df)] <- iter_df[,2:ncol(iter_df)] - 0.5
-            }
-          }
-          
-          incProgress(amount = 1/(depthTest * niter), detail = paste0(as.character(round((i + (iter - 1) * depthTest)/(depthTest * niter) * 100, 2)), "%"))
-          
-        }
-      
-      iter_df <- data.frame(year = rep(seq(min(iter_df$year), max(iter_df$year), 1),
-                                       ncol(pred_vec)/2),
-                            N = as.numeric(data.matrix(iter_df[, grep("_N", names(iter_df))])),
-                            species = rep(species, each = nrow(iter_df)),
-                            gsa = rep(gsa, each = nrow(iter_df)),
-                            age = as.numeric(rep(age, each = nrow(iter_df))),
+
+      iter_df <- data.frame(year = rep(seq(min(iter_physical$year), max(iter_physical$year), 1),
+                                       length(species)),
+                            N = as.numeric(data.matrix(iter_physical[, grep("_N", names(iter_physical))])),
+                            species = rep(species, each = nrow(iter_physical)),
+                            gsa = rep(gsa, each = nrow(iter_physical)),
+                            age = as.numeric(rep(age, each = nrow(iter_physical))),
                             type = "Predicted",
                             iter = iter
       )
       
       obs_df <- data.frame(year = rep(seq(min(netInputs$year), max(netInputs$year), 1),
-                                       ncol(pred_vec)/2),
+                                       length(species)),
                             N = as.numeric(data.matrix(netInputs[, grep("_N", names(netInputs))])),
                             species = rep(species, each = nrow(netInputs)),
                             gsa = rep(gsa, each = nrow(netInputs)),
@@ -975,30 +2579,27 @@ server <- function(input, output, session) {
       
       # Create recruitment dataframe
       
-      for (i in 1:length(unique(species))) {
-        if (i == 1) {
-          recr_iter = def_df[which((def_df$species == unique(species)[i]) & (def_df$age == min_age_vec[i])),]
-        } else {
-          recr_iter_sp = def_df[which((def_df$species == unique(species)[i]) & (def_df$age == min_age_vec[i])),]
-          recr_iter = rbind (recr_iter, recr_iter_sp)
-        }
-      }
-      recr_iter = recr_iter[order(recr_iter$species),]
+      minimum_age_by_species <- stats::setNames(min_age_vec, species_levels)
+      recruitment_rows <- def_df$age == unname(
+        minimum_age_by_species[as.character(def_df$species)]
+      )
+      recr_iter <- def_df[recruitment_rows, , drop = FALSE]
+      recr_iter <- recr_iter[order(recr_iter$species), ]
   
       # Create total biomass dataframe
       
       ssb_df_convert <- data.frame()
-      ssb_iter <- def_df[which(def_df$age > 0),]
+      ssb_iter <- def_df
       ssb_species <- unique(ssb_iter$species)
       
-      for (sp in 1:length(ssb_species)) {
+      for (sp in seq_along(ssb_species)) {
         ssb_iter_sub <- ssb_iter[which(ssb_iter$species == ssb_species[sp]),]
         ssb_year <- sort(unique(ssb_iter_sub$year))
         ssb_age <- sort(unique(ssb_iter_sub$age))
         
-        for (y in 1:nrow(ssb_iter_sub)) {
-          for(a in 1:length(ssb_age)) {
-            ssb_iter_sub[which(ssb_iter_sub$year == ssb_year[y] & ssb_iter_sub$age == ssb_age[a]), "N"] <- (ssb_iter_sub[which(ssb_iter_sub$year == ssb_year[y] & ssb_iter_sub$age == ssb_age[a]), "N"] * exp(-(fmort_l[which(fmort_l$year == ssb_year[y] & fmort_l$age == ssb_age[a] & fmort_l$species == unique(ssb_iter_sub$species)), "fmort"] * fmort_spawn_l[which(fmort_spawn_l$year == ssb_year[y] & fmort_spawn_l$age == ssb_age[a] & fmort_spawn_l$species == unique(ssb_iter_sub$species)), "fmort_spawn"] + mort_l[which(mort_l$year == ssb_year[y] & mort_l$age == ssb_age[a] & mort_l$species == unique(ssb_iter_sub$species)), "mort"] * mort_spawn_l[which(mort_spawn_l$year == ssb_year[y] & mort_spawn_l$age == ssb_age[a] & mort_spawn_l$species == unique(ssb_iter_sub$species)), "mort_spawn"])) * waa_l[which(waa_l$year == ssb_year[y] & waa_l$age == ssb_age[a] & waa_l$species == unique(ssb_iter_sub$species)), "weight_at_age"] * mature_l[which(mature_l$year == ssb_year[y] & mature_l$age == ssb_age[a] & mature_l$species == unique(ssb_iter_sub$species)), "mature"])/1000
+        for (y in seq_along(ssb_year)) {
+          for (a in seq_along(ssb_age)) {
+            ssb_iter_sub[which(ssb_iter_sub$year == ssb_year[y] & ssb_iter_sub$age == ssb_age[a]), "N"] <- ssb_iter_sub[which(ssb_iter_sub$year == ssb_year[y] & ssb_iter_sub$age == ssb_age[a]), "N"] * exp(-(fmort_l[which(fmort_l$year == ssb_year[y] & fmort_l$age == ssb_age[a] & fmort_l$species == unique(ssb_iter_sub$species)), "fmort"] * fmort_spawn_l[which(fmort_spawn_l$year == ssb_year[y] & fmort_spawn_l$age == ssb_age[a] & fmort_spawn_l$species == unique(ssb_iter_sub$species)), "fmort_spawn"] + mort_l[which(mort_l$year == ssb_year[y] & mort_l$age == ssb_age[a] & mort_l$species == unique(ssb_iter_sub$species)), "mort"] * mort_spawn_l[which(mort_spawn_l$year == ssb_year[y] & mort_spawn_l$age == ssb_age[a] & mort_spawn_l$species == unique(ssb_iter_sub$species)), "mort_spawn"])) * waa_l[which(waa_l$year == ssb_year[y] & waa_l$age == ssb_age[a] & waa_l$species == unique(ssb_iter_sub$species)), "weight_at_age"] * mature_l[which(mature_l$year == ssb_year[y] & mature_l$age == ssb_age[a] & mature_l$species == unique(ssb_iter_sub$species)), "mature"]
           }
         }
         if (sp == 1) {
@@ -1026,7 +2627,7 @@ server <- function(input, output, session) {
     
     traintest_output_raw <<- traintest_df_raw
     traintest_iter_results <<- vector(mode = "list", length = length(unique(species)))
-    for (sp in 1:length(unique(species))) {
+    for (sp in seq_along(unique(species))) {
       traintest_iter_results[[sp]] <<- ssb_df_tot[which(ssb_df_tot$species == unique(species)[sp]),]
     }
     
@@ -1035,22 +2636,25 @@ server <- function(input, output, session) {
     if (length(unique(species)) == 1) {
       
       sp_biomass_sub <- ssb_df_tot
-      sp_biomass_wide <- data.frame(year = sp_biomass_sub$year[1:(nrow(sp_biomass_sub)/(niter * 2))],
-                                    species = sp_biomass_sub$species[1:(nrow(sp_biomass_sub)/(niter * 2))],
-                                    gsa = sp_biomass_sub$gsa[1:(nrow(sp_biomass_sub)/(niter * 2))],
+      rows_per_series <- as.integer(nrow(sp_biomass_sub) / (niter * 2L))
+      series_rows <- seq_len(rows_per_series)
+      sp_biomass_wide <- data.frame(year = sp_biomass_sub$year[series_rows],
+                                    species = sp_biomass_sub$species[series_rows],
+                                    gsa = sp_biomass_sub$gsa[series_rows],
                                     ssb_obs = sp_biomass_sub$ssb[which(sp_biomass_sub$type == "Observed" & sp_biomass_sub$iter == 1)],
+                                    recr_obs = sp_biomass_sub$recruitment[which(sp_biomass_sub$type == "Observed" & sp_biomass_sub$iter == 1)],
                                     ssb_min = NA, ssb_mean = NA, ssb_max = NA,
                                     recr_min = NA, recr_mean = NA, recr_max = NA,
                                     rmse_min = NA, rmse_mean = NA, rmse_max = NA,
                                     mae_min = NA, mae_mean = NA, mae_max = NA)
 
-      for (i in 1:nrow(sp_biomass_wide)) {
-        sp_biomass_wide[i, "ssb_min"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "ssb"])[3]
-        sp_biomass_wide[i, "ssb_mean"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "ssb"])[6]
-        sp_biomass_wide[i, "ssb_max"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "ssb"])[8]
-        sp_biomass_wide[i, "recr_min"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "recruitment"])[3]
-        sp_biomass_wide[i, "recr_mean"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "recruitment"])[6]
-        sp_biomass_wide[i, "recr_max"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "recruitment"])[8]
+      for (i in seq_len(nrow(sp_biomass_wide))) {
+        predicted_rows <- which(sp_biomass_sub$year == sp_biomass_wide$year[i] &
+                                  sp_biomass_sub$type == "Predicted")
+        ssb_summary <- ensembleSummary(sp_biomass_sub[predicted_rows, "ssb"])
+        recruitment_summary <- ensembleSummary(sp_biomass_sub[predicted_rows, "recruitment"])
+        sp_biomass_wide[i, c("ssb_min", "ssb_mean", "ssb_max")] <- ssb_summary
+        sp_biomass_wide[i, c("recr_min", "recr_mean", "recr_max")] <- recruitment_summary
       }
       
       results_incasting <- sp_biomass_wide[(nrow(sp_biomass_wide) - (depthTest - 1)):nrow(sp_biomass_wide), c("ssb_obs", "ssb_min", "ssb_mean", "ssb_max")]
@@ -1065,25 +2669,28 @@ server <- function(input, output, session) {
       
     } else {
       
-      for (sp in 1:length(unique(species))) {
+      for (sp in seq_along(unique(species))) {
         
         sp_biomass_sub <- ssb_df_tot[which(ssb_df_tot$species == unique(species)[sp]),]
-        sp_biomass_wide <- data.frame(year = sp_biomass_sub$year[1:(nrow(sp_biomass_sub)/(niter * 2))],
-                                      species = sp_biomass_sub$species[1:(nrow(sp_biomass_sub)/(niter * 2))],
-                                      gsa = sp_biomass_sub$gsa[1:(nrow(sp_biomass_sub)/(niter * 2))],
+        rows_per_series <- as.integer(nrow(sp_biomass_sub) / (niter * 2L))
+        series_rows <- seq_len(rows_per_series)
+        sp_biomass_wide <- data.frame(year = sp_biomass_sub$year[series_rows],
+                                      species = sp_biomass_sub$species[series_rows],
+                                      gsa = sp_biomass_sub$gsa[series_rows],
                                       ssb_obs = sp_biomass_sub$ssb[which(sp_biomass_sub$type == "Observed" & sp_biomass_sub$iter == 1)],
+                                      recr_obs = sp_biomass_sub$recruitment[which(sp_biomass_sub$type == "Observed" & sp_biomass_sub$iter == 1)],
                                       ssb_min = NA, ssb_mean = NA, ssb_max = NA,
                                       recr_min = NA, recr_mean = NA, recr_max = NA,
                                       rmse_min = NA, rmse_mean = NA, rmse_max = NA,
                                       mae_min = NA, mae_mean = NA, mae_max = NA)
         
-        for (i in 1:nrow(sp_biomass_wide)) {
-          sp_biomass_wide[i, "ssb_min"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "ssb"])[3]
-          sp_biomass_wide[i, "ssb_mean"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "ssb"])[6]
-          sp_biomass_wide[i, "ssb_max"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "ssb"])[8]
-          sp_biomass_wide[i, "recr_min"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "recruitment"])[3]
-          sp_biomass_wide[i, "recr_mean"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "recruitment"])[6]
-          sp_biomass_wide[i, "recr_max"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i] & sp_biomass_sub$type == "Predicted"), "recruitment"])[8]
+        for (i in seq_len(nrow(sp_biomass_wide))) {
+          predicted_rows <- which(sp_biomass_sub$year == sp_biomass_wide$year[i] &
+                                    sp_biomass_sub$type == "Predicted")
+          ssb_summary <- ensembleSummary(sp_biomass_sub[predicted_rows, "ssb"])
+          recruitment_summary <- ensembleSummary(sp_biomass_sub[predicted_rows, "recruitment"])
+          sp_biomass_wide[i, c("ssb_min", "ssb_mean", "ssb_max")] <- ssb_summary
+          sp_biomass_wide[i, c("recr_min", "recr_mean", "recr_max")] <- recruitment_summary
         }
         
         results_incasting <- sp_biomass_wide[(nrow(sp_biomass_wide) - (depthTest - 1)):nrow(sp_biomass_wide), c("ssb_obs", "ssb_min", "ssb_mean", "ssb_max")]
@@ -1105,74 +2712,220 @@ server <- function(input, output, session) {
   }
   
   plotTrainTestFitNet <- function(proj_biomass, plotTrainTestFitCount, depthTest) {
-    
-    year = as.integer(max(unique(proj_biomass$year))) - (depthTest + 1)
-    
-    line_obs <- as.data.frame(spline(x = proj_biomass$year,
-                                     y = proj_biomass$ssb_obs,
-                                     xout = seq(min(proj_biomass$year), max(proj_biomass$year), by = 0.25)))
+    depthTest <- as.integer(depthTest)
+    first_test_year <- max(proj_biomass$year) - depthTest + 1L
+    connection_year <- first_test_year - 1L
+    projected_window <- proj_biomass[
+      proj_biomass$year >= connection_year, , drop = FALSE
+    ]
+    test_window <- proj_biomass[
+      proj_biomass$year >= first_test_year, , drop = FALSE
+    ]
+    metric_value <- function(column) {
+      values <- unique(as.numeric(proj_biomass[[column]]))
+      values <- values[is.finite(values)]
+      if (length(values)) values[[1L]] else NA_real_
+    }
+    rmse_value <- metric_value("rmse_mean")
+    mae_value <- metric_value("mae_mean")
+    metric_text <- if (is.finite(rmse_value) && is.finite(mae_value)) {
+      paste0("Holdout RMSE = ", format(rmse_value, big.mark = ",", trim = TRUE),
+             "; MAE = ", format(mae_value, big.mark = ",", trim = TRUE), ". ")
+    } else {
+      ""
+    }
 
-    line_pred_min <- as.data.frame(spline(x = proj_biomass[which(proj_biomass$year > year), "year"],
-                                          y = proj_biomass[which(proj_biomass$year > year), "ssb_min"],
-                                          xout = seq((year + 1), max(proj_biomass$year), by = 0.25)))
-
-    line_pred_mean <- as.data.frame(spline(x = proj_biomass[which(proj_biomass$year > year), "year"],
-                                           y = proj_biomass[which(proj_biomass$year > year), "ssb_mean"],
-                                           xout = seq((year + 1), max(proj_biomass$year), by = 0.25)))
-
-    line_pred_max <- as.data.frame(spline(x = proj_biomass[which(proj_biomass$year > year), "year"],
-                                          y = proj_biomass[which(proj_biomass$year > year), "ssb_max"],
-                                          xout = seq((year + 1), max(proj_biomass$year), by = 0.25)))
-    
-    g = ggplot(data = proj_biomass, aes(x = year)) +
-      geom_ribbon(data = line_pred_min, aes(x = x, ymin = y, ymax = line_pred_max$y,
-                                            ),
-                  fill = "firebrick", alpha = 0.5) +
-      geom_line(data = line_pred_mean, aes(x = x, y = y), color = "red", linewidth = 2) +
-      geom_line(data = line_obs, aes(x = x, y = y), color = "black", linewidth = 2) +
-      scale_x_continuous(breaks = sort(unique(proj_biomass$year))) +
-      ggtitle(paste0(unique(proj_biomass$species), " - ", unique(proj_biomass$gsa))) +
-      xlab("Year") +
-      ylab("SSB (tonnes)") +
-      theme_test() +
-      theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
-            plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
-            legend.position = "bottom")
-    
-    return(g)
+    ggplot() +
+      annotate(
+        "rect", xmin = first_test_year - 0.5, xmax = Inf,
+        ymin = -Inf, ymax = Inf, fill = "#F59E0B", alpha = 0.055
+      ) +
+      geom_vline(
+        xintercept = first_test_year - 0.5,
+        linetype = "22", colour = "#9CA3AF", linewidth = 0.65
+      ) +
+      geom_ribbon(
+        data = projected_window,
+        aes(x = year, ymin = ssb_min, ymax = ssb_max, fill = "90% interval"),
+        alpha = 0.22, colour = NA
+      ) +
+      geom_line(
+        data = projected_window,
+        aes(x = year, y = ssb_mean, colour = "Ensemble mean"),
+        linewidth = 1.15
+      ) +
+      geom_point(
+        data = test_window,
+        aes(x = year, y = ssb_mean, colour = "Ensemble mean"),
+        size = 2.35
+      ) +
+      geom_line(
+        data = proj_biomass,
+        aes(x = year, y = ssb_obs, colour = "Observed SSB"),
+        linewidth = 1.05
+      ) +
+      geom_point(
+        data = proj_biomass,
+        aes(x = year, y = ssb_obs, colour = "Observed SSB"),
+        size = 1.9
+      ) +
+      scale_colour_manual(
+        values = c("Observed SSB" = "#1F2937", "Ensemble mean" = "#D55E00"),
+        breaks = c("Observed SSB", "Ensemble mean")
+      ) +
+      scale_fill_manual(values = c("90% interval" = "#E69F00")) +
+      scale_x_continuous(
+        breaks = annualYearBreaks(proj_biomass$year),
+        expand = expansion(mult = c(0.015, 0.035))
+      ) +
+      scale_y_continuous(labels = scales::label_number(big.mark = ",")) +
+      labs(
+        title = paste("SSB backtest —", stockAreaLabel(proj_biomass)),
+        subtitle = paste0(
+          "Model fitted through ", connection_year, "; holdout period ",
+          first_test_year, "–", max(proj_biomass$year), "."
+        ),
+        x = "Year", y = "Spawning stock biomass (tonnes)",
+        caption = paste0(
+          metric_text,
+          paste(
+            "Counterfactual backtest: the full neural abundance vector is",
+            "corrected from reference F to historical F; "
+          ),
+          "ribbon: empirical 5th–95th percentiles across initializations."
+        )
+      ) +
+      guides(
+        colour = guide_legend(order = 1, override.aes = list(linewidth = 1.1)),
+        fill = guide_legend(order = 2)
+      ) +
+      maelstromPlotTheme() +
+      ssbYearAxisTheme()
   }
   
   plotRecruitment <- function(proj_biomass, plotPredCount, depth) {
-    
-    df_recruitment <- proj_biomass[, c(1:3, 8:10)]
-    df_recruitment_l <- df_recruitment[(1:(nrow(df_recruitment) - depth)), 1:4]
-    colnames(df_recruitment_l) <- c("year", "species", "gsa", "recruitment")
-    df_recruitment_l$variable <- "recr_ref"
-    
-    df_recruitment_pred <- df_recruitment[-(1:(nrow(df_recruitment) - depth)),]
-    df_recruitment_pred <- melt(df_recruitment_pred, id.vars = c("year", "species", "gsa"), value.name = "recruitment") %>% relocate(recruitment, .after = gsa)
-    
-    df_plot <- rbind(df_recruitment_l, df_recruitment_pred) %>%
-      mutate(variable = gsub("recr_ref", "Reference", variable)) %>%
-      mutate(variable = gsub("recr_min", "Min Recruitment", variable)) %>%
-      mutate(variable = gsub("recr_mean", "Mean Recruitment", variable)) %>%
-      mutate(variable = gsub("recr_max", "Max Recruitment", variable))
-    
-    colnames(df_plot) <- c("Year", "Species", "GSA", "Recruitment", "Type")
-    
-    recr_plot <- ggplot(df_plot, aes(x = Recruitment/1000000, y = Recruitment/1000000, fill = Type, shape = Type)) +
-      geom_jitter(size = 4, alpha = 0.75, width = 0.8, height = 0.8) +
-      scale_shape_manual(values = c(23, 23, 23, 21)) +
-      scale_fill_manual(values = c("firebrick1", "firebrick3", "firebrick4", "blue")) +
-      ggtitle(paste0(unique(df_plot$Species), " - ", unique(df_plot$GSA))) +
-      xlab("Recruitment (millions)") +
-      ylab("Recruitment (millions)") +
-      theme_test() +
-      theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
-            plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
-            legend.position = "bottom")
-    
-    return(recr_plot)
+    depth <- as.integer(depth)
+    is_backtest <- "ssb_obs" %in% names(proj_biomass)
+
+    if (is_backtest) {
+      first_prediction_year <- max(proj_biomass$year) - depth + 1L
+      connection_year <- first_prediction_year - 1L
+      observed_data <- proj_biomass
+      observed_data$recruitment_observed <- if ("recr_obs" %in% names(observed_data)) {
+        observed_data$recr_obs
+      } else {
+        # Compatibility with results saved before recruitment observations
+        # became an explicit output column.
+        ifelse(observed_data$year < first_prediction_year,
+               observed_data$recr_mean, NA_real_)
+      }
+      prediction_data <- proj_biomass[
+        proj_biomass$year >= connection_year, , drop = FALSE
+      ]
+      prediction_points <- prediction_data[
+        prediction_data$year >= first_prediction_year, , drop = FALSE
+      ]
+      plot_title <- paste("Recruitment backtest —", stockAreaLabel(proj_biomass))
+      plot_subtitle <- paste0(
+        "Observed recruitment versus recursive predictions for ",
+        first_prediction_year, "–", max(proj_biomass$year), "."
+      )
+    } else {
+      observed_data <- proj_biomass[
+        as.character(proj_biomass$type) == "Observed", , drop = FALSE
+      ]
+      forecast_rows <- as.character(proj_biomass$type) == "Forecast"
+      if (!nrow(observed_data) || !any(forecast_rows)) {
+        stop("Recruitment forecast plot requires observed and forecast years.",
+             call. = FALSE)
+      }
+      first_prediction_year <- min(proj_biomass$year[forecast_rows])
+      connection_year <- first_prediction_year - 1L
+      observed_data$recruitment_observed <- observed_data$recr_mean
+      # Select the connection row from the unmodified source table. Selecting
+      # it from observed_data would include the display-only
+      # recruitment_observed column and make rbind() incompatible with the
+      # forecast rows.
+      connection_data <- proj_biomass[
+        as.character(proj_biomass$type) == "Observed" &
+          proj_biomass$year == connection_year, , drop = FALSE
+      ]
+      prediction_points <- proj_biomass[
+        forecast_rows, , drop = FALSE
+      ]
+      if (nrow(connection_data) != 1L) {
+        stop("Recruitment forecast plot requires one observed connection year.",
+             call. = FALSE)
+      }
+      prediction_data <- rbind(connection_data, prediction_points)
+      plot_title <- paste("Recruitment forecast —", stockAreaLabel(proj_biomass))
+      plot_subtitle <- paste0(
+        "Observed through ", connection_year, "; forecast ",
+        first_prediction_year, "–", max(proj_biomass$year), "."
+      )
+    }
+
+    ggplot() +
+      annotate(
+        "rect", xmin = first_prediction_year - 0.5, xmax = Inf,
+        ymin = -Inf, ymax = Inf, fill = "#F59E0B", alpha = 0.055
+      ) +
+      geom_vline(
+        xintercept = first_prediction_year - 0.5,
+        linetype = "22", colour = "#9CA3AF", linewidth = 0.65
+      ) +
+      geom_ribbon(
+        data = prediction_data,
+        aes(x = year, ymin = recr_min, ymax = recr_max, fill = "90% interval"),
+        alpha = 0.22, colour = NA
+      ) +
+      geom_line(
+        data = prediction_data,
+        aes(x = year, y = recr_mean, colour = "Ensemble mean"),
+        linewidth = 1.15
+      ) +
+      geom_point(
+        data = prediction_points,
+        aes(x = year, y = recr_mean, colour = "Ensemble mean"),
+        size = 2.35
+      ) +
+      geom_line(
+        data = observed_data,
+        aes(x = year, y = recruitment_observed, colour = "Observed recruitment"),
+        linewidth = 1.05
+      ) +
+      geom_point(
+        data = observed_data,
+        aes(x = year, y = recruitment_observed, colour = "Observed recruitment"),
+        size = 1.9
+      ) +
+      scale_colour_manual(
+        values = c(
+          "Observed recruitment" = "#1F2937",
+          "Ensemble mean" = "#D55E00"
+        ),
+        breaks = c("Observed recruitment", "Ensemble mean")
+      ) +
+      scale_fill_manual(values = c("90% interval" = "#E69F00")) +
+      scale_x_continuous(
+        breaks = prettyYearBreaks(c(observed_data$year, prediction_data$year)),
+        expand = expansion(mult = c(0.015, 0.035))
+      ) +
+      scale_y_continuous(
+        labels = scales::label_number(scale = 1 / 1e6, accuracy = 0.1,
+                                      big.mark = ",")
+      ) +
+      labs(
+        title = plot_title,
+        subtitle = plot_subtitle,
+        x = "Year", y = "Recruitment (million individuals)",
+        caption = "Ribbon: empirical 5th–95th percentiles across initializations."
+      ) +
+      guides(
+        colour = guide_legend(order = 1, override.aes = list(linewidth = 1.1)),
+        fill = guide_legend(order = 2)
+      ) +
+      maelstromPlotTheme()
   }
   
   plotTaylorDiagram <- function(proj_biomass) {
@@ -1283,7 +3036,7 @@ server <- function(input, output, session) {
       )
     }
     
-    taylorDiagram <- function(dati, col = "red", pch = 19,
+    taylorDiagram <- function(dati, col = "#D55E00", pch = 19,
                               xlab = "Standard deviation", ylab = "",
                               main = "",
                               show.gamma = TRUE, gamma.col = 8,
@@ -1331,7 +3084,10 @@ server <- function(input, output, session) {
         geom_point(data = dati$model_points, aes(x = x, y = y, colour = "Iterations"), shape = pch, size = pcex * 2) +
         # Mean point
         geom_point(data = dati$mean_point, aes(x = x, y = y, colour = "Mean"), fill = "darkblue", shape = 24, size = pcex * 2) +
-        scale_colour_manual(values = c("red", "black"), labels = c("Iterations", "Mean")) +
+        scale_colour_manual(
+          values = c("Iterations" = "#D55E00", "Mean" = "black"),
+          breaks = c("Iterations", "Mean")
+        ) +
         scale_x_continuous(name = NULL, limits = c(0, lim), expand = c(0, 0), breaks = dati$axis.ticks) +
         scale_y_continuous(name = ylab, limits = c(0, lim), expand = c(0, 0), breaks = dati$axis.ticks) +
         coord_fixed(ratio = 1, clip = "off") +
@@ -1353,160 +3109,86 @@ server <- function(input, output, session) {
     return(g)
   }
   
-  predNet <- function(netInputs, f_adj, depth) {
-    
-    norm_inputs = netInputs
-    norm_inputs[,2:ncol(norm_inputs)] = normalizeInputs(norm_inputs[, 2:ncol(norm_inputs)], range_inputs)
-    if (input$activation == "tanh") {
-      norm_inputs[,2:ncol(norm_inputs)] <- norm_inputs[,2:ncol(norm_inputs)] - 0.5
-    }
-    
-    species = substr(colnames(netInputs)[grep("_N", names(netInputs))], 1, 3)
-    age = substr(colnames(netInputs)[grep("_N", names(netInputs))], 5, 5)
-    
-    if (min(age) == 1) {
-      age = as.character(as.integer(age) - 1)
-    }
-    
-    s_a = data.frame(species, age)
-    s_a_min = s_a %>% group_by(species) %>% slice_min(age)
-    s_a = paste(s_a$species, s_a$age)
-    s_a_min = paste(s_a_min$species, s_a_min$age)
-    
-    min_age_pos = vector()
-    for (i in 1:length(s_a_min)) {
-      min_age_pos[i] = grep(s_a_min[i], s_a)
-    }
-    
-    min_age_vec = vector()
-    for (i in 1:length(unique(species))) {
-      min_age_vec[i] = min(as.integer(age))
-    }
-    
-    env_var <- length(grep("PrP_", names(netInputs)))
-    
-    gsa <- c()
-    
-    for (i in 2:(ncol(netInputs)/2 + 1)) {
-      gsa <- append(gsa, strsplit(names(netInputs), "N_")[[i]][2])
-    }
-    
-    proj_df <- data.frame()
-    tot_df <- data.frame()
-    
-    if (env_var > 0) {
-      envMult <- randomEnvVarSum(as.integer(input$depthPred), as.integer(input$envParamMult))
-    }
-    
+  predNet <- function(netInputs, f_reference, f_adj, depth) {
+
+    validateLayerConfiguration()
+    last_observed_year <- max(as.integer(netInputs$year))
+    fishing_schedule <- forecastFishingSchedule(
+      f_adj, names(fmort_w)[-1L], last_observed_year, depth
+    )
+
+    population_metadata <- populationFeatureMetadata(netInputs)
+    species <- population_metadata$species
+    age <- as.character(population_metadata$age_numeric)
+    gsa <- population_metadata$gsa
+    species_levels <- unique(species)
+    min_age_vec <- vapply(species_levels, function(species_code) {
+      min(population_metadata$age_numeric[population_metadata$species == species_code])
+    }, numeric(1))
+
+    model_pred <<- vector("list", forecast_iterations)
+    pred_output_raw <<- vector("list", forecast_iterations)
+    prepared <- prepareTemporalModelData(
+      netInputs, final_reference_fishing = f_reference
+    )
+
     withProgress(message = "Calculating...", value = 0, detail = "0%", {
-    
-      for (iter in 1:3) {
-        
-        proj <- norm_inputs
-      
-        for (i in 1:input$depthPred) {
-          train_df <- as.matrix(proj[1:(7 + i), 2:ncol(proj)])
-          val_df <- as.matrix(proj[(8 + i):nrow(proj), 2:ncol(proj)])
-          
-          inputs <- layer_input(shape = c((nrow(train_df) - 1), (ncol(proj) - 1)))
-          inputs_df <- train_df[1:(nrow(train_df) - 1),]
-          outputs <- inputs
-          outputs_df <- train_df[2:(nrow(train_df)),]
-  
-          n_layers <- as.integer(input$nLayers)
-  
-          dummy <- timeseries_dataset_from_array(
-            inputs_df, outputs_df,
-            sequence_length = 6 + i,
-            batch_size = 2
-          )
-  
-          dummy_val <- timeseries_dataset_from_array(
-            val_df, val_df,
-            sequence_length = 4,
-            batch_size = 2
-          )
-  
-          model <- keras_model_sequential()
-          
-          if (as.integer(input$nLayers) >= 1) {model <- buildNet(model, 1, input$layerType1, input$neurons1, input$returnSeq1,
-                                                                   input$dropout1, input$activation, input$recdropout1, input$recactivation)}
-          if (as.integer(input$nLayers) >= 2) {model <- buildNet(model, 2, input$layerType2, input$neurons2, input$returnSeq2,
-                                                                   input$dropout2, input$activation, input$recdropout2, input$recactivation)}
-          if (as.integer(input$nLayers) >= 3) {model <- buildNet(model, 3, input$layerType3, input$neurons3, input$returnSeq3,
-                                                                   input$dropout3, input$activation, input$recdropout3, input$recactivation)}
-          if (as.integer(input$nLayers) >= 4) {model <- buildNet(model, 4, input$layerType4, input$neurons4, input$returnSeq4,
-                                                                   input$dropout4, input$activation, input$recdropout4, input$recactivation)}
-          if (as.integer(input$nLayers) >= 5) {model <- buildNet(model, 5, input$layerType5, input$neurons5, input$returnSeq5,
-                                                                   input$dropout5, input$activation, input$recdropout5, input$recactivation)}
-    
-          callbacks <- list(
-            callback_early_stopping(
-              monitor = "loss", patience = 10),
-            callback_model_checkpoint(
-              "prova.keras", save_best_only = TRUE))
-    
-          model %>% compile(
-            loss = "mse",
-            metrics = "mae",
-            optimizer_rmsprop(learning_rate = as.numeric(input$learnParam))
-          )
-          
-          history <- model %>% fit(
-            dummy,
-            validation_data = dummy_val,
-            verbose = 0,
-            epochs = as.integer(input$nEpochs),
-            callbacks = callbacks
-          )
-          
-          history_df <- as.data.frame(history)
-          
-          if (input$activation == "tanh") {
-            proj[,2:ncol(proj)] <- proj[,2:ncol(proj)] + 0.5
+      for (iter in seq_len(forecast_iterations)) {
+        fitted <- fitTemporalModel(
+          source_df = prepared$source,
+          validation_target_df = prepared$validation_targets,
+          final_target_df = prepared$final_targets,
+          seed = base_seed + 2000L + iter,
+          model_name = paste0("forecast_", iter)
+        )
+        proj_physical <- netInputs
+        proj_model <- netInputs
+        proj_model[, -1L] <- fitted$model_values
+
+        last_historical_fishing <- historicalRateRow(
+          fmort_w, last_observed_year, "last-observed fishing-mortality"
+        )
+        future_natural_mortality <- historicalRateRow(
+          mort_w, last_observed_year, "last-observed natural-mortality"
+        )
+
+        for (i in seq_len(depth)) {
+          current_fishing <- fishing_schedule[i, -1L, drop = FALSE]
+          transition_fishing <- if (i == 1L) {
+            last_historical_fishing
+          } else {
+            fishing_schedule[i - 1L, -1L, drop = FALSE]
           }
-          proj[,2:ncol(proj)] <- denormalizeInputs(proj[,2:ncol(proj)], range_inputs)
-          
-          pred_vec <- model %>% predict(dummy)
-          pred_vec <- t(as.matrix(pred_vec[1:as.integer(length(pred_vec)/2)]))
-          colnames(pred_vec) = colnames(proj)[2:(ncol(proj)/2 + 1)]
-          if (input$activation == "tanh") {
-            pred_vec <- pred_vec + 0.5
-          }
-          pred_vec <- denormalizeInputs(pred_vec, range_inputs[1:length(pred_vec)])
-          pred_catch <- catchBaranov(f_adj, mort_w[nrow(mort_w), 2:ncol(mort_w)], pred_vec)
-          pred_vec <- cbind(pred_vec, pred_catch)
-          
-          if (env_var == 1) {
-            pred_vec = cbind(pred_vec, mean(proj[(nrow(proj)):nrow(proj), grep("PrP_", names(proj))]))
-          } else if (env_var > 1) {
-            pred_vec = cbind(pred_vec, t(colMeans(proj[(nrow(proj)):nrow(proj), grep("PrP_", names(proj))])))
-          }
-          
-          colnames(pred_vec) = colnames(proj)[2:ncol(proj)]
-          
-          proj[(nrow(proj) + 1),] <- cbind(as.integer(proj$year[nrow(proj)] + 1), pred_vec)
-          proj[,2:ncol(proj)] <- normalizeInputs(proj[,2:ncol(proj)], range_inputs)
-          if (input$activation == "tanh") {
-            proj[,2:ncol(proj)] <- proj[,2:ncol(proj)] - 0.5
-          }
-          
-          incProgress(amount = 1/(3 * as.integer(input$depthPred)),
-                      detail = paste0(as.character(round(((as.integer(input$depthPred) * (iter - 1) + i)/(3 * as.integer(input$depthPred))) * 100, 2)), "%"))
-          
+          updated <- appendRecursiveYear(
+            physical_state = proj_physical,
+            model_state = proj_model,
+            fitted = fitted,
+            transition_fishing_mortality = transition_fishing,
+            reference_fishing_mortality =
+              prepared$final_reference_fishing,
+            transition_natural_mortality = future_natural_mortality,
+            catch_fishing_mortality = current_fishing,
+            catch_natural_mortality = future_natural_mortality
+          )
+          proj_physical <- updated$physical
+          proj_model <- updated$model
+
+          completed_steps <- (iter - 1L) * depth + i
+          total_steps <- forecast_iterations * depth
+          incProgress(
+            amount = 1 / total_steps,
+            detail = paste0(round(100 * completed_steps / total_steps, 2), "%")
+          )
         }
-        
-        # Denormalize outputs
-        if (input$activation == "tanh") {
-          proj[,2:ncol(proj)] <- proj[,2:ncol(proj)] + 0.5
-        }
-        proj[,2:ncol(proj)] <- denormalizeInputs(proj[,2:ncol(proj)], range_inputs)
+
+        proj <- proj_physical
         pred_output_raw[[iter]] <<- proj
+        model_pred[[iter]] <<- fitted$model
         
         # Wide to long
         proj_df <- data.frame(year = rep(seq(min(netInputs$year),
                                              (max(netInputs$year) + depth), 1),
-                                         ncol(pred_vec)/2),
+                                         length(species)),
                               N = as.numeric(data.matrix(proj[, grep("_N", names(proj))])),
                               species = rep(species, each = nrow(proj)),
                               gsa = rep(gsa, each = nrow(proj)),
@@ -1526,43 +3208,58 @@ server <- function(input, output, session) {
         proj_df[which(proj_df$type == "Observed"), "N"] = as.numeric(data.matrix(netInputs[, grep("_N", names(netInputs))]))
 
         # Create recruitment dataframe
-        for (i in 1:length(unique(species))) {
-          if (i == 1) {
-            recr_iter = proj_df[which((proj_df$species == unique(species)[i]) & (proj_df$age == min_age_vec[i])),]
-          } else {
-            recr_iter_sp = proj_df[which((proj_df$species == unique(species)[i]) & (proj_df$age == min_age_vec[i])),]
-            recr_iter = rbind (recr_iter, recr_iter_sp)
-          }
-        }
-        recr_iter = recr_iter[order(recr_iter$species),]
+        minimum_age_by_species <- stats::setNames(min_age_vec, species_levels)
+        recruitment_rows <- proj_df$age == unname(
+          minimum_age_by_species[as.character(proj_df$species)]
+        )
+        recr_iter <- proj_df[recruitment_rows, , drop = FALSE]
+        recr_iter <- recr_iter[order(recr_iter$species), ]
         
         # Create total biomass dataframe
         proj_df_convert <- data.frame()
-        ssb_iter <- proj_df[which(proj_df$age > min_age_vec[i]),]
+        ssb_iter <- proj_df
         
         ssb_species <- unique(ssb_iter$species)
         
-        for (sp in 1:length(ssb_species)) {
+        for (sp in seq_along(ssb_species)) {
           ssb_iter_sub <- ssb_iter[which(ssb_iter$species == ssb_species[sp]),]
           ssb_year <- sort(unique(ssb_iter_sub$year))
           ssb_age <- sort(unique(ssb_iter_sub$age))
+
+          stock_code <- ssb_species[sp]
+          stock_gsa <- unique(as.character(ssb_iter_sub$gsa))
+          if (length(stock_gsa) != 1L) {
+            stop("Forecast SSB requires one GSA per stock.", call. = FALSE)
+          }
+          fmort_ssb <- extendScenarioFishingMortality(
+            historical_data = fmort_l[
+              fmort_l$species == stock_code, , drop = FALSE
+            ],
+            scenario_schedule = fishing_schedule,
+            last_observed_year = last_observed_year,
+            depth = depth,
+            species_code = stock_code,
+            gsa_code = stock_gsa
+          )
+          fmort_spawn_ssb <- extendLastBiologicalYear(
+            fmort_spawn_l[fmort_spawn_l$species == stock_code, , drop = FALSE], depth
+          )
+          mort_ssb <- extendLastBiologicalYear(
+            mort_l[mort_l$species == stock_code, , drop = FALSE], depth
+          )
+          mort_spawn_ssb <- extendLastBiologicalYear(
+            mort_spawn_l[mort_spawn_l$species == stock_code, , drop = FALSE], depth
+          )
+          waa_ssb <- extendLastBiologicalYear(
+            waa_l[waa_l$species == stock_code, , drop = FALSE], depth
+          )
+          mature_ssb <- extendLastBiologicalYear(
+            mature_l[mature_l$species == stock_code, , drop = FALSE], depth
+          )
           
-          fmort_ssb <- fmort_l[which(fmort_l$species == unique(species)[sp]),]
-          fmort_ssb <- rbind(fmort_ssb, transform(fmort_ssb[rep((nrow(fmort_ssb) - ssb_age[length(ssb_age)]):nrow(fmort_ssb), depth),], year = year + rep(seq((1:depth)[1], (1:depth)[depth]), each = (length(ssb_age) + 1))))
-          fmort_spawn_ssb <- fmort_spawn_l[which(fmort_spawn_l$species == unique(species)[sp]),]
-          fmort_spawn_ssb <- rbind(fmort_spawn_ssb, transform(fmort_spawn_ssb[rep((nrow(fmort_spawn_ssb) - ssb_age[length(ssb_age)]):nrow(fmort_spawn_ssb), depth),], year = year + rep(seq((1:depth)[1], (1:depth)[depth]), each = (length(ssb_age) + 1))))
-          mort_ssb <- mort_l[which(mort_l$species == unique(species)[sp]),]
-          mort_ssb <- rbind(mort_ssb, transform(mort_ssb[rep((nrow(mort_ssb) - ssb_age[length(ssb_age)]):nrow(mort_ssb), depth),], year = year + rep(seq((1:depth)[1], (1:depth)[depth]), each = (length(ssb_age) + 1))))
-          mort_spawn_ssb <- mort_spawn_l[which(mort_spawn_l$species == unique(species)[sp]),]
-          mort_spawn_ssb <- rbind(mort_spawn_ssb, transform(mort_spawn_ssb[rep((nrow(mort_spawn_ssb) - ssb_age[length(ssb_age)]):nrow(mort_spawn_ssb), depth),], year = year + rep(seq((1:depth)[1], (1:depth)[depth]), each = (length(ssb_age) + 1))))
-          waa_ssb <- waa_l[which(waa_l$species == unique(species)[sp]),]
-          waa_ssb <- rbind(waa_ssb, transform(waa_ssb[rep((nrow(waa_ssb) - ssb_age[length(ssb_age)]):nrow(waa_ssb), depth),], year = year + rep(seq((1:depth)[1], (1:depth)[depth]), each = (length(ssb_age) + 1))))
-          mature_ssb <- mature_l[which(mature_l$species == unique(species)[sp]),]
-          mature_ssb <- rbind(mature_ssb, transform(mature_ssb[rep((nrow(mature_ssb) - ssb_age[length(ssb_age)]):nrow(mature_ssb), depth),], year = year + rep(seq((1:depth)[1], (1:depth)[depth]), each = (length(ssb_age) + 1))))
-          
-          for (y in 1:nrow(ssb_iter_sub)) {
-            for(a in 1:length(ssb_age)) {
-              ssb_iter_sub[which(ssb_iter_sub$year == ssb_year[y] & ssb_iter_sub$age == ssb_age[a]), "N"] <- (ssb_iter_sub[which(ssb_iter_sub$year == ssb_year[y] & ssb_iter_sub$age == ssb_age[a]), "N"] * exp(-(fmort_ssb[which(fmort_ssb$year == ssb_year[y] & fmort_ssb$age == ssb_age[a]), "fmort"] * fmort_spawn_ssb[which(fmort_spawn_ssb$year == ssb_year[y] & fmort_spawn_ssb$age == ssb_age[a]), "fmort_spawn"] + mort_ssb[which(mort_ssb$year == ssb_year[y] & mort_ssb$age == ssb_age[a]), "mort"] * mort_spawn_ssb[which(mort_spawn_ssb$year == ssb_year[y] & mort_spawn_ssb$age == ssb_age[a]), "mort_spawn"])) * waa_ssb[which(waa_ssb$year == ssb_year[y] & waa_ssb$age == ssb_age[a]), "weight_at_age"] * mature_ssb[which(mature_ssb$year == ssb_year[y] & mature_ssb$age == ssb_age[a]), "mature"])/1000
+          for (y in seq_along(ssb_year)) {
+            for (a in seq_along(ssb_age)) {
+              ssb_iter_sub[which(ssb_iter_sub$year == ssb_year[y] & ssb_iter_sub$age == ssb_age[a]), "N"] <- ssb_iter_sub[which(ssb_iter_sub$year == ssb_year[y] & ssb_iter_sub$age == ssb_age[a]), "N"] * exp(-(fmort_ssb[which(fmort_ssb$year == ssb_year[y] & fmort_ssb$age == ssb_age[a]), "fmort"] * fmort_spawn_ssb[which(fmort_spawn_ssb$year == ssb_year[y] & fmort_spawn_ssb$age == ssb_age[a]), "fmort_spawn"] + mort_ssb[which(mort_ssb$year == ssb_year[y] & mort_ssb$age == ssb_age[a]), "mort"] * mort_spawn_ssb[which(mort_spawn_ssb$year == ssb_year[y] & mort_spawn_ssb$age == ssb_age[a]), "mort_spawn"])) * waa_ssb[which(waa_ssb$year == ssb_year[y] & waa_ssb$age == ssb_age[a]), "weight_at_age"] * mature_ssb[which(mature_ssb$year == ssb_year[y] & mature_ssb$age == ssb_age[a]), "mature"]
             }
           }
           if (sp == 1) {
@@ -1586,8 +3283,6 @@ server <- function(input, output, session) {
             ssb_df_tot <- rbind(ssb_df_tot, ssb_df)
           }
           
-          model_pred[[iter]] <<- model
-        
         }
       })
     
@@ -1598,43 +3293,43 @@ server <- function(input, output, session) {
     if (length(unique(species)) == 1) {
       
       sp_biomass_sub <- ssb_df_tot
-      sp_biomass_wide <- data.frame(year = sp_biomass_sub$year[1:(nrow(sp_biomass_sub)/3)],
-                                    species = sp_biomass_sub$species[1:(nrow(sp_biomass_sub)/3)],
-                                    gsa = sp_biomass_sub$gsa[1:(nrow(sp_biomass_sub)/3)],
-                                    type = sp_biomass_sub$type[1:(nrow(sp_biomass_sub)/3)],
+      rows_per_iteration <- nrow(sp_biomass_sub) / forecast_iterations
+      sp_biomass_wide <- data.frame(year = sp_biomass_sub$year[seq_len(rows_per_iteration)],
+                                    species = sp_biomass_sub$species[seq_len(rows_per_iteration)],
+                                    gsa = sp_biomass_sub$gsa[seq_len(rows_per_iteration)],
+                                    type = sp_biomass_sub$type[seq_len(rows_per_iteration)],
                                     ssb_min = NA, ssb_mean = NA, ssb_max = NA,
                                     recr_min = NA, recr_mean = NA, recr_max = NA)
       
-      for (i in 1:nrow(sp_biomass_wide)) {
-        sp_biomass_wide[i, "ssb_min"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i]), "ssb"])[1]
-        sp_biomass_wide[i, "ssb_mean"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i]), "ssb"])[2]
-        sp_biomass_wide[i, "ssb_max"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i]), "ssb"])[3]
-        sp_biomass_wide[i, "recr_min"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i]), "recruitment"])[1]
-        sp_biomass_wide[i, "recr_mean"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i]), "recruitment"])[2]
-        sp_biomass_wide[i, "recr_max"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i]), "recruitment"])[3]
+      for (i in seq_len(nrow(sp_biomass_wide))) {
+        year_rows <- which(sp_biomass_sub$year == sp_biomass_wide$year[i])
+        ssb_summary <- ensembleSummary(sp_biomass_sub[year_rows, "ssb"])
+        recruitment_summary <- ensembleSummary(sp_biomass_sub[year_rows, "recruitment"])
+        sp_biomass_wide[i, c("ssb_min", "ssb_mean", "ssb_max")] <- ssb_summary
+        sp_biomass_wide[i, c("recr_min", "recr_mean", "recr_max")] <- recruitment_summary
       }
       
       proj_biomass_spec[[1]] <- sp_biomass_wide
       
     } else {
       
-      for (j in 1:length(unique(species))) {
+      for (j in seq_along(unique(species))) {
         
         sp_biomass_sub <- ssb_df_tot[which(ssb_df_tot$species == unique(species)[j]), ]
-        sp_biomass_wide <- data.frame(year = sp_biomass_sub$year[1:(nrow(sp_biomass_sub)/3)],
-                                      species = sp_biomass_sub$species[1:(nrow(sp_biomass_sub)/3)],
-                                      gsa = sp_biomass_sub$gsa[1:(nrow(sp_biomass_sub)/3)],
-                                      type = sp_biomass_sub$type[1:(nrow(sp_biomass_sub)/3)],
+        rows_per_iteration <- nrow(sp_biomass_sub) / forecast_iterations
+        sp_biomass_wide <- data.frame(year = sp_biomass_sub$year[seq_len(rows_per_iteration)],
+                                      species = sp_biomass_sub$species[seq_len(rows_per_iteration)],
+                                      gsa = sp_biomass_sub$gsa[seq_len(rows_per_iteration)],
+                                      type = sp_biomass_sub$type[seq_len(rows_per_iteration)],
                                       ssb_min = NA, ssb_mean = NA, ssb_max = NA,
                                       recr_min = NA, recr_mean = NA, recr_max = NA)
         
-        for (i in 1:nrow(sp_biomass_wide)) {
-          sp_biomass_wide[i, "ssb_min"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i]), "ssb"])[1]
-          sp_biomass_wide[i, "ssb_mean"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i]), "ssb"])[2]
-          sp_biomass_wide[i, "ssb_max"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i]), "ssb"])[3]
-          sp_biomass_wide[i, "recr_min"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i]), "recruitment"])[1]
-          sp_biomass_wide[i, "recr_mean"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i]), "recruitment"])[2]
-          sp_biomass_wide[i, "recr_max"] <- sort(sp_biomass_sub[which(sp_biomass_sub$year == sp_biomass_wide$year[i]), "recruitment"])[3]
+        for (i in seq_len(nrow(sp_biomass_wide))) {
+          year_rows <- which(sp_biomass_sub$year == sp_biomass_wide$year[i])
+          ssb_summary <- ensembleSummary(sp_biomass_sub[year_rows, "ssb"])
+          recruitment_summary <- ensembleSummary(sp_biomass_sub[year_rows, "recruitment"])
+          sp_biomass_wide[i, c("ssb_min", "ssb_mean", "ssb_max")] <- ssb_summary
+          sp_biomass_wide[i, c("recr_min", "recr_mean", "recr_max")] <- recruitment_summary
         }
         
         proj_biomass_spec[[j]] <- sp_biomass_wide
@@ -1643,140 +3338,217 @@ server <- function(input, output, session) {
       
     }
     
+    f_applied <<- fishing_schedule
     return(proj_biomass_spec)
   }
   
   plotPred <- function(proj_biomass, netInputs, plotPredCount) {
-    
-    proj_biomass_def <- proj_biomass[which(proj_biomass$year > netInputs$year[(nrow(netInputs) - 10)]),]
-    proj_biomass_def[, 5:10] <- proj_biomass_def[, 5:10]
-    
-    spline_mean <- as.data.frame(spline(x = proj_biomass_def$year, y = proj_biomass_def$ssb_mean))
-    spline_mean$type <- NA
-    spline_mean[which(as.numeric(spline_mean$x) < proj_biomass_def[which(proj_biomass_def$type == "Forecast")[1], "year"]), "type"] <- "Observed"
-    spline_mean[which(is.na(spline_mean$type)), "type"] <- "Predicted"
-    
-    spline_min <- as.data.frame(spline(x = proj_biomass_def$year, y = proj_biomass_def$ssb_min))
-    spline_min$which <- "min"
-    spline_min$type <- NA
-    spline_min[which(as.numeric(spline_min$x) < proj_biomass_def[which(proj_biomass_def$type == "Forecast")[1], "year"]), "type"] <- "Observed"
-    spline_min[which(is.na(spline_min$type)), "type"] <- "Predicted"
-    
-    spline_max <- as.data.frame(spline(x = proj_biomass_def$year, y = proj_biomass_def$ssb_max))
-    spline_max$which <- "max"
-    spline_max$type <- NA
-    spline_max[which(as.numeric(spline_max$x) < proj_biomass_def[which(proj_biomass_def$type == "Forecast")[1], "year"]), "type"] <- "Observed"
-    spline_max[which(is.na(spline_max$type)), "type"] <- "Predicted"
-    
-    g <- ggplot(data = proj_biomass_def) +
-      geom_ribbon(data = spline_min, aes(x = x, ymin = y, ymax = spline_max$y,
-                                         ),
-                  fill = "firebrick", alpha = 0.5) +
-      geom_line(data = spline_mean, aes(x = x, y = y, color = type,
-                                        ),
-                linewidth = 2) +
-      scale_x_continuous(breaks = sort(unique(proj_biomass_def$year))) +
-      scale_color_manual(name = "Forecast", values = c("black", "red")) +
-      ggtitle(paste0(unique(proj_biomass_def$species), " - ", unique(proj_biomass_def$gsa))) +
-      xlab("Years") +
-      ylab("SSB (tonnes)") +
-      theme_test() +
-      theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
-            plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
-            legend.position = "bottom")
-    
-    return(g)
+    start_row <- max(1L, nrow(netInputs) - 10L)
+    first_display_year <- netInputs$year[start_row]
+    proj_biomass_def <- proj_biomass[
+      proj_biomass$year >= first_display_year, , drop = FALSE
+    ]
+    observed_data <- proj_biomass_def[
+      as.character(proj_biomass_def$type) == "Observed", , drop = FALSE
+    ]
+    forecast_data <- proj_biomass_def[
+      as.character(proj_biomass_def$type) == "Forecast", , drop = FALSE
+    ]
+    if (!nrow(observed_data) || !nrow(forecast_data)) {
+      stop("SSB forecast plot requires both observed and forecast years.", call. = FALSE)
+    }
+    last_observed_year <- max(observed_data$year)
+    first_forecast_year <- min(forecast_data$year)
+    connection_data <- observed_data[
+      observed_data$year == last_observed_year, , drop = FALSE
+    ]
+    forecast_window <- rbind(connection_data, forecast_data)
+
+    ggplot() +
+      annotate(
+        "rect", xmin = first_forecast_year - 0.5, xmax = Inf,
+        ymin = -Inf, ymax = Inf, fill = "#F59E0B", alpha = 0.055
+      ) +
+      geom_vline(
+        xintercept = first_forecast_year - 0.5,
+        linetype = "22", colour = "#9CA3AF", linewidth = 0.65
+      ) +
+      geom_ribbon(
+        data = forecast_window,
+        aes(x = year, ymin = ssb_min, ymax = ssb_max, fill = "90% interval"),
+        alpha = 0.22, colour = NA
+      ) +
+      geom_line(
+        data = forecast_window,
+        aes(x = year, y = ssb_mean, colour = "Ensemble forecast"),
+        linewidth = 1.15
+      ) +
+      geom_point(
+        data = forecast_data,
+        aes(x = year, y = ssb_mean, colour = "Ensemble forecast"),
+        size = 2.35
+      ) +
+      geom_line(
+        data = observed_data,
+        aes(x = year, y = ssb_mean, colour = "Observed SSB"),
+        linewidth = 1.05
+      ) +
+      geom_point(
+        data = observed_data,
+        aes(x = year, y = ssb_mean, colour = "Observed SSB"),
+        size = 1.9
+      ) +
+      scale_colour_manual(
+        values = c("Observed SSB" = "#1F2937", "Ensemble forecast" = "#D55E00"),
+        breaks = c("Observed SSB", "Ensemble forecast")
+      ) +
+      scale_fill_manual(values = c("90% interval" = "#E69F00")) +
+      scale_x_continuous(
+        breaks = annualYearBreaks(proj_biomass_def$year),
+        expand = expansion(mult = c(0.015, 0.035))
+      ) +
+      scale_y_continuous(labels = scales::label_number(big.mark = ",")) +
+      labs(
+        title = paste("SSB forecast —", stockAreaLabel(proj_biomass_def)),
+        subtitle = paste0(
+          "Observed through ", last_observed_year, "; ensemble forecast ",
+          first_forecast_year, "–", max(forecast_data$year), "."
+        ),
+        x = "Year", y = "Spawning stock biomass (tonnes)",
+        caption = paste(
+          "Full neural abundance vector with relative-survival correction from",
+          "reference F to scenario F; catches and spawning-time SSB use the same",
+          "scenario. Ribbon: empirical 5th–95th",
+          "percentiles across initializations."
+        )
+      ) +
+      guides(
+        colour = guide_legend(order = 1, override.aes = list(linewidth = 1.1)),
+        fill = guide_legend(order = 2)
+      ) +
+      maelstromPlotTheme() +
+      ssbYearAxisTheme()
   }
-  
+
   sensAnalysis <- function(netInputs, pred_results, model_pred) {
-    
-    m_num <- c(1, 2, 3)
-    
-    norm_inputs = netInputs
-    norm_inputs[,2:ncol(norm_inputs)] = normalizeInputs(norm_inputs[,2:ncol(norm_inputs)], range_inputs)
-    
-    pert = seq(0.1, 0.5, by = 0.1)
-    inputs = as.matrix(norm_inputs[1:(nrow(norm_inputs) - 1), 2:ncol(norm_inputs)])
-    outputs = as.matrix(norm_inputs[2:nrow(norm_inputs), 2:ncol(norm_inputs)])
-    input_vars = colnames(inputs)
-    output_vars = colnames(outputs)
-    
-    dummy <- timeseries_dataset_from_array(
-      inputs, outputs,
-      sequence_length = 6,
-      batch_size = 2
+    n_models <- length(model_pred)
+    if (n_models < 1L) {
+      stop("No fitted forecast model is available for sensitivity analysis.", call. = FALSE)
+    }
+
+    normalization <- normalizeInputs(netInputs[, -1L, drop = FALSE])
+    feature_matrix <- as.matrix(toModelScale(normalization$values))
+    lookback <- min(maximum_lookback, nrow(feature_matrix) - 1L)
+    reference_input <- buildPredictionWindow(feature_matrix, lookback)
+    input_vars <- colnames(feature_matrix)
+    population_output_names <- grep(
+      "_N_", colnames(feature_matrix), value = TRUE, fixed = TRUE
     )
-    
-    stab = expand.grid(input_vars, m_num, pert, output_vars)
-    stab$delta = 0
-    
+    output_positions <- match(
+      population_output_names, colnames(feature_matrix)
+    )
+    if (anyNA(output_positions)) {
+      stop("Abundance outputs could not be matched for sensitivity analysis.",
+           call. = FALSE)
+    }
+    output_vars <- population_output_names
+    perturbations <- seq(0.1, 0.5, by = 0.1)
+    lower_bound <- if (identical(input$activation, "tanh")) -0.5 else 0
+    upper_bound <- if (identical(input$activation, "tanh")) 0.5 else 1
+    sensitivity_rows <- vector("list", n_models * length(input_vars))
+    row_index <- 0L
+
+    classifyFeature <- function(feature_name) {
+      if (grepl("_N_", feature_name, fixed = TRUE)) return("N")
+      if (grepl("_C_", feature_name, fixed = TRUE)) return("C")
+      if (startsWith(feature_name, "PrP_")) return("Environment")
+      "Feature"
+    }
+    featureSpecies <- function(feature_name) {
+      if (startsWith(feature_name, "PrP_")) return("Environment")
+      sub("_.*$", "", feature_name)
+    }
+
     withProgress(message = "Calculating...", value = 0, detail = "0%", {
-      
-      for (m in 1:length(m_num)) {
-        model = model_pred[[m]]
-        
-        for(i in 1:(ncol(inputs))) {
-          
-          for(j in 1:length(pert)) {
-            y = predict(model, dummy)
-            
-            inputs_noise_pos <- inputs
-            inputs_noise_pos[,i] <- inputs[,i] + pert[j]
-            dummy_pos <- timeseries_dataset_from_array(
-              inputs_noise_pos, outputs,
-              sequence_length = 6,
-              batch_size = 2
+      for (m in seq_len(n_models)) {
+        model <- model_pred[[m]]
+
+        for (i in seq_along(input_vars)) {
+          n_conditions <- 2L * length(perturbations)
+          perturbation_batch <- reference_input[
+            rep(1L, n_conditions), , , drop = FALSE
+          ]
+          effective_span <- numeric(length(perturbations))
+
+          for (j in seq_along(perturbations)) {
+            positive_row <- 2L * j - 1L
+            negative_row <- 2L * j
+            positive_values <- pmin(
+              upper_bound,
+              reference_input[1L, , i] + perturbations[j]
             )
-            y_noise_p = predict(model, dummy_pos)
-            
-            inputs_noise_neg <- inputs
-            inputs_noise_neg[,i] = inputs[,i] - pert[j]
-            dummy_neg <- timeseries_dataset_from_array(
-              inputs_noise_neg, outputs,
-              sequence_length = 6,
-              batch_size = 2
+            negative_values <- pmax(
+              lower_bound,
+              reference_input[1L, , i] - perturbations[j]
             )
-            y_noise_n = predict(model, dummy_neg)
-            
-            ref = outputs
-            
-            mse = sqrt((y[1,] - ref[nrow(ref),])^2)
-            mse_p = sqrt((y_noise_p[1,] - ref[nrow(ref),])^2)
-            mse_n = sqrt((y_noise_n[1,] - ref[nrow(ref),])^2)
-            
-            stab$delta[which((pert[j] == stab$Var3) & (m_num[m] == stab$Var2) & (colnames(inputs)[i] == stab$Var1))] = 100*abs(mse - ((mse_p + mse_n)/2))/mse
+            perturbation_batch[positive_row, , i] <- positive_values
+            perturbation_batch[negative_row, , i] <- negative_values
+            effective_span[j] <- mean(positive_values - negative_values)
           }
-          incProgress(amount = 1/(ncol(inputs) * 3),
-                      detail = paste0(as.character(round(((ncol(inputs) * (m - 1) + i)/(ncol(inputs) * 3)) * 100, 2)), "%"))
+
+          perturbed_predictions <- as.matrix(
+            predict(model, perturbation_batch, verbose = 0L)
+          )
+          perturbed_predictions <- perturbed_predictions[
+            , output_positions, drop = FALSE
+          ]
+          response <- vapply(seq_along(perturbations), function(j) {
+            positive_row <- 2L * j - 1L
+            negative_row <- 2L * j
+            100 * abs(
+              perturbed_predictions[positive_row, ] -
+                perturbed_predictions[negative_row, ]
+            ) / max(effective_span[j], sqrt(.Machine$double.eps))
+          }, numeric(length(output_vars)))
+
+          row_index <- row_index + 1L
+          sensitivity_rows[[row_index]] <- data.frame(
+            Perturbance = rep(perturbations, each = length(output_vars)),
+            Delta = as.numeric(response),
+            Input_Species = featureSpecies(input_vars[i]),
+            Input_Var = classifyFeature(input_vars[i]),
+            Output_Species = rep(
+              vapply(output_vars, featureSpecies, character(1)),
+              times = length(perturbations)
+            ),
+            Output_Var = rep(
+              "Abundance vector", length(perturbations) * length(output_vars)
+            ),
+            stringsAsFactors = FALSE
+          )
+
+          completed_steps <- (m - 1L) * length(input_vars) + i
+          total_steps <- length(input_vars) * n_models
+          incProgress(
+            amount = 1 / total_steps,
+            detail = paste0(round(100 * completed_steps / total_steps, 2), "%")
+          )
         }
       }
     })
-    
-    colnames(stab) <- c("Variable", "Model", "Perturbance", "Output", "Delta")
-    stab$Variable = as.character(stab$Variable)
-    
-    stab$Input_Species = substr(stab$Variable, 1, 3)
-    stab$Input_Var = substr(stab$Variable, 5, 6)
-    
-    stab$Output_Species = substr(stab$Output, 1, 3)
-    stab$Output_Var = substr(stab$Output, 5, 6)
-    
-    
-    stab = stab[,c("Perturbance", "Delta", "Input_Species", 
-                   "Input_Var", "Output_Species", "Output_Var")]
-    
-    stab$Delta = as.numeric(stab$Delta)
-    stab_def = aggregate(data = stab,
-                         Delta ~ Input_Species + Output_Species + Perturbance,
-                         FUN = "mean")
-    
-    return(stab_def)
+
+    sensitivity_data <- do.call(rbind, sensitivity_rows)
+    aggregate(
+      Delta ~ Input_Species + Output_Species + Perturbance,
+      data = sensitivity_data,
+      FUN = mean
+    )
   }
   
   plotSensAnalysis <- function(sens_results) {
-    p = ggplot(data = sens_results, aes(x = Input_Species, y = Delta, fill = Perturbance)) +
-      geom_histogram(position = "stack", stat = "identity") +
-      ggtitle("Sensitivity Analysis") +
+    p <- ggplot(data = sens_results, aes(x = Input_Species, y = Delta, fill = Perturbance)) +
+      geom_col(position = "stack") +
+      ggtitle("Neural-network abundance-vector sensitivity") +
       theme_test() +
       theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust = 1),
             plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
@@ -1787,6 +3559,11 @@ server <- function(input, output, session) {
   }
   
   loadInput <- function(l) {
+    getSaved <- function(name, default) {
+      value <- l[[name]]
+      if (is.null(value)) default else value
+    }
+    loaded_schema <- as.character(getSaved("schema_version", "legacy"))
     species <<- l[["species"]]
     gsa <<- l[["gsa"]]
     gsa_tot <<- l[["gsa_tot"]]
@@ -1811,20 +3588,43 @@ server <- function(input, output, session) {
     fmorts <<- l[["fmorts"]]
     fmort_l <<- l[["fmort_l"]]
     fmort_w <<- l[["fmort_w"]]
+    fmort_spawns <<- getSaved("fmort_spawns", list())
+    fmort_spawn_l <<- getSaved("fmort_spawn_l", data.frame())
+    fmort_spawn_w <<- getSaved("fmort_spawn_w", data.frame())
     morts <<- l[["morts"]]
     mort_l <<- l[["mort_l"]]
     mort_w <<- l[["mort_w"]]
+    mort_spawns <<- getSaved("mort_spawns", list())
+    mort_spawn_l <<- getSaved("mort_spawn_l", data.frame())
+    mort_spawn_w <<- getSaved("mort_spawn_w", data.frame())
+    matures <<- getSaved("matures", list())
+    mature_l <<- getSaved("mature_l", data.frame())
+    mature_w <<- getSaved("mature_w", data.frame())
     neuralNetInputs <<- l[["neuralNetInputs"]]
+    range_inputs <<- getSaved("range_inputs", data.frame())
+    range_outputs <<- getSaved("range_outputs", data.frame())
     f_w <<- l[["f_w"]]
     fmort_baseline <<- l[["fmort_baseline"]]
     f_new <<- l[["f_new"]]
     f_adj <<- l[["f_adj"]]
     f_tot <<- l[["f_tot"]]
     f_adj_display <<- l[["f_adj_display"]]
+    f_applied <<- getSaved("f_applied", data.frame())
+    if (length(f_new)) {
+      output$statquoFmort <- renderTable(
+        f_new, bordered = TRUE, width = "100%", rownames = FALSE
+      )
+    }
+    if (length(f_adj_display)) {
+      output$adjustedFmort <- renderTable(
+        f_adj_display, bordered = TRUE, width = "100%", rownames = FALSE
+      )
+    }
     depth_test <<- l[["depth_test"]]
     plotTestCount <<- 1
     testfit_results <<- l[["testfit_results"]]
     traintest_output_raw <<- l[["traintest_output_raw"]]
+    traintest_iter_results <<- getSaved("traintest_iter_results", list())
     traintest_metrics <<- l[["traintest_metrics"]]
     traintest_metrics_plot <<- l[["traintest_metrics_plot"]]
     traintest_results <<- l[["traintest_results"]]
@@ -1852,6 +3652,50 @@ server <- function(input, output, session) {
     output$plotSens <- renderPlot({
       sens_plots
       })
+    compatible_cache_schemas <- c(
+      "2.3.1-original-structure", "2.3.2-original-structure"
+    )
+    if (!loaded_schema %in% compatible_cache_schemas) {
+      depth_test <<- NULL
+      plotTestCount <<- 0
+      testfit_results <<- data.frame()
+      traintest_output_raw <<- list()
+      traintest_iter_results <<- list()
+      traintest_metrics <<- data.frame()
+      traintest_metrics_plot <<- NULL
+      traintest_results <<- data.frame()
+      traintest_plots <<- list()
+      traintest_recr_plots <<- list()
+      taylor_diagram <<- list()
+      depth_pred <<- NULL
+      plotPredCount <<- 0
+      model_pred <<- list()
+      pred_output_raw <<- vector("list", length = forecast_iterations)
+      pred_iter_partial <<- data.frame()
+      pred_results <<- list()
+      f_applied <<- data.frame()
+      pred_plots <<- list()
+      pred_recr_plots <<- list()
+      sens_results <<- data.frame()
+      sens_plots <<- list()
+      output$plotFit <- renderPlot({NULL})
+      output$plotTrainTest <- renderPlotly({NULL})
+      output$plotMetricsTest <- renderPlot({NULL})
+      output$plotRecruitmentTraintest <- renderPlot({NULL})
+      output$taylorDiagram <- renderPlot({NULL})
+      output$plotPred <- renderPlotly({NULL})
+      output$plotRecruitmentForecast <- renderPlot({NULL})
+      output$plotSens <- renderPlot({NULL})
+      showNotification(
+        paste(
+          "An earlier workspace version was loaded, but cached test and",
+          "forecast results were cleared because F scenario handling changed.",
+          "Run Train/Test and Forecast again."
+        ),
+        type = "warning",
+        duration = 12
+      )
+    }
     }
   
   ##### HELP MODALS #####
@@ -1871,7 +3715,8 @@ server <- function(input, output, session) {
                              DATA LOADING PHASE:<br>
                              - Select and load any number of stock objects<br>
                              - Select the maximum cohort to consider for each species<br>
-                             (cohorts over the selected one will be aggregated to it)<br>
+                             (cohorts over the selected one will be aggregated to it;<br>
+                             in the counterfactual projection it is the terminal plus-group)<br>
                              and the first year of the time series from which to begin<br>
                              the analysis<br>
                              - Press 'Load' Button to process data<br>
@@ -1964,10 +3809,14 @@ server <- function(input, output, session) {
                             the drop-down menù on the bottom left and then adjust it through<br>
                             the slider on the right. The adjusted value will then appear<br>
                             on the relative column in the table.<br><br>
-                            - The user can download the adjusted Fishing Mortality vector<br>
-                            in .rdata format in the last row by clicking the left button,<br>
-                            while the button on the right can be used to load a previously<br>
-                            exported Fishing Mortality vector."),
+                            - Download the adjusted F vector as .rds, or import a named<br>
+                            vector or annual F matrix from .rds, .rda, .RData or .csv.<br>
+                            Columns must exactly match the Status Quo F columns. One<br>
+                            row applies to every future year; multiple rows start in the<br>
+                            first forecast year. An optional 'year' column must contain<br>
+                            consecutive forecast years. Extra rows are ignored; when<br>
+                            rows run out, the last F row is reused. Moving the slider<br>
+                            after importing an annual matrix returns to one-row mode.<br>"),
                             footer = NULL,
                             easyClose = TRUE))
   
@@ -2009,17 +3858,13 @@ server <- function(input, output, session) {
     fileInput(inputId = "sobj1",
               label = NULL,
               placeholder = "Stock Object #1",
-              accept = "RData"
+              accept = c(".rds", ".RData", ".rda")
     )
   })
   
   observe({
     req(input$sobj1)
-    stk1 <- if (sub(".*\\.", "\\1", input$sobj1[4]) == "rds") {
-      readRDS(as.character(input$sobj1[4]))
-      } else {
-        loadRData(as.character(input$sobj1[4]))
-      }
+    stk1 <- loadStockFile(input$sobj1$datapath[[1L]], input$sobj1$name[[1L]])
     rv1$stk <- stk1
     rv1$minYear <- as.integer(stk1@range[4])
     rv1$maxYear <- as.integer(stk1@range[5])
@@ -2037,9 +3882,9 @@ server <- function(input, output, session) {
       choices = rv1$minAge:rv1$maxAge,
       selected = rv1$maxAge
     )
-    rv1$tri <- sub("_.*", "", input$sobj1[1])
+    rv1$tri <- sub("_.*", "", input$sobj1$name[[1L]])
     rv1$spinfo <- speciesInfo(rv1$tri)
-    rv1$gsa <- as.vector(as.integer(strsplit(sub(".*_(.*)\\..*", "\\1", input$sobj1[1]), "-")[[1]]))
+    rv1$gsa <- as.vector(as.integer(strsplit(sub(".*_(.*)\\..*", "\\1", input$sobj1$name[[1L]]), "-")[[1]]))
     rv1$gsainfo <- gsaInfo(rv1$gsa)
   })
   
@@ -2062,7 +3907,8 @@ server <- function(input, output, session) {
     rv1$maxAge <- 0
     rv1$baselineYear <- 0
     rv1$baselineAge <- 0
-    info = "No Species Selected"
+    rv1$spinfo <- "No Species Selected"
+    rv1$gsainfo <- "No GSA Selected"
   })
   
   # Stock 2
@@ -2096,21 +3942,17 @@ server <- function(input, output, session) {
     input$reset2
     conditionalPanel(
       condition = "input.nstocks >= 2",
-      fileInput(inputId = "sobj2",
-                label = NULL,
-                placeholder = "Stock Object #2",
-                accept = "RData"
+    fileInput(inputId = "sobj2",
+              label = NULL,
+              placeholder = "Stock Object #2",
+              accept = c(".rds", ".RData", ".rda")
                 )
     )
   })
   
   observe({
     req(input$sobj2)
-    stk2 <- if (sub(".*\\.", "\\1", input$sobj2[4]) == "rds") {
-      readRDS(as.character(input$sobj2[4]))
-    } else {
-      loadRData(as.character(input$sobj2[4]))
-    }
+    stk2 <- loadStockFile(input$sobj2$datapath[[1L]], input$sobj2$name[[1L]])
     rv2$stk <- stk2
     rv2$minYear <- as.integer(stk2@range[4])
     rv2$maxYear <- as.integer(stk2@range[5])
@@ -2128,9 +3970,9 @@ server <- function(input, output, session) {
       choices = rv2$minAge:rv2$maxAge,
       selected = rv2$maxAge
     )
-    rv2$tri <- sub("_.*", "", input$sobj2[1])
+    rv2$tri <- sub("_.*", "", input$sobj2$name[[1L]])
     rv2$spinfo <- speciesInfo(rv2$tri)
-    rv2$gsa <- as.vector(as.integer(strsplit(sub(".*_(.*)\\..*", "\\1", input$sobj2[1]), "-")[[1]]))
+    rv2$gsa <- as.vector(as.integer(strsplit(sub(".*_(.*)\\..*", "\\1", input$sobj2$name[[1L]]), "-")[[1]]))
     rv2$gsainfo <- gsaInfo(rv2$gsa)
   })
   
@@ -2153,7 +3995,8 @@ server <- function(input, output, session) {
     rv2$maxAge <- 0
     rv2$baselineYear <- 0
     rv2$baselineAge <- 0
-    info = "No Species Selected"
+    rv2$spinfo <- "No Species Selected"
+    rv2$gsainfo <- "No GSA Selected"
   })
   
   # Stock 3
@@ -2187,21 +4030,17 @@ server <- function(input, output, session) {
     input$reset3
     conditionalPanel(
       condition = "input.nstocks >= 3",
-      fileInput(inputId = "sobj3",
-                label = NULL,
-                placeholder = "Stock Object #3",
-                accept = "RData"
+    fileInput(inputId = "sobj3",
+              label = NULL,
+              placeholder = "Stock Object #3",
+              accept = c(".rds", ".RData", ".rda")
                 )
       )
   })
   
   observe({
     req(input$sobj3)
-    stk3 <- if (sub(".*\\.", "\\1", input$sobj3[4]) == "rds") {
-      readRDS(as.character(input$sobj3[4]))
-    } else {
-      loadRData(as.character(input$sobj3[4]))
-    }
+    stk3 <- loadStockFile(input$sobj3$datapath[[1L]], input$sobj3$name[[1L]])
     rv3$stk <- stk3
     rv3$minYear <- as.integer(stk3@range[4])
     rv3$maxYear <- as.integer(stk3@range[5])
@@ -2219,9 +4058,9 @@ server <- function(input, output, session) {
       choices = rv3$minAge:rv3$maxAge,
       selected = rv3$maxAge
     )
-    rv3$tri <- sub("_.*", "", input$sobj3[1])
+    rv3$tri <- sub("_.*", "", input$sobj3$name[[1L]])
     rv3$spinfo <- speciesInfo(rv3$tri)
-    rv3$gsa <- as.vector(as.integer(strsplit(sub(".*_(.*)\\..*", "\\1", input$sobj3[1]), "-")[[1]]))
+    rv3$gsa <- as.vector(as.integer(strsplit(sub(".*_(.*)\\..*", "\\1", input$sobj3$name[[1L]]), "-")[[1]]))
     rv3$gsainfo <- gsaInfo(rv3$gsa)
   })
   
@@ -2244,7 +4083,8 @@ server <- function(input, output, session) {
     rv3$maxAge <- 0
     rv3$baselineYear <- 0
     rv3$baselineAge <- 0
-    info = "No Species Selected"
+    rv3$spinfo <- "No Species Selected"
+    rv3$gsainfo <- "No GSA Selected"
   })
   
   # Stock 4
@@ -2278,21 +4118,17 @@ server <- function(input, output, session) {
     input$reset4
     conditionalPanel(
       condition = "input.nstocks >= 4",
-      fileInput(inputId = "sobj4",
-                label = NULL,
-                placeholder = "Stock Object #4",
-                accept = "RData"
+    fileInput(inputId = "sobj4",
+              label = NULL,
+              placeholder = "Stock Object #4",
+              accept = c(".rds", ".RData", ".rda")
       )
     )
   })
   
   observe({
     req(input$sobj4)
-    stk4 <- if (sub(".*\\.", "\\1", input$sobj4[4]) == "rds") {
-      readRDS(as.character(input$sobj4[4]))
-    } else {
-      loadRData(as.character(input$sobj4[4]))
-    }
+    stk4 <- loadStockFile(input$sobj4$datapath[[1L]], input$sobj4$name[[1L]])
     rv4$stk <- stk4
     rv4$minYear <- as.integer(stk4@range[4])
     rv4$maxYear <- as.integer(stk4@range[5])
@@ -2310,9 +4146,9 @@ server <- function(input, output, session) {
       choices = rv4$minAge:rv4$maxAge,
       selected = rv4$maxAge
     )
-    rv4$tri <- sub("_.*", "", input$sobj4[1])
+    rv4$tri <- sub("_.*", "", input$sobj4$name[[1L]])
     rv4$spinfo <- speciesInfo(rv4$tri)
-    rv4$gsa <- as.vector(as.integer(strsplit(sub(".*_(.*)\\..*", "\\1", input$sobj4[1]), "-")[[1]]))
+    rv4$gsa <- as.vector(as.integer(strsplit(sub(".*_(.*)\\..*", "\\1", input$sobj4$name[[1L]]), "-")[[1]]))
     rv4$gsainfo <- gsaInfo(rv4$gsa)
   })
   
@@ -2335,7 +4171,8 @@ server <- function(input, output, session) {
     rv4$maxAge <- 0
     rv4$baselineYear <- 0
     rv4$baselineAge <- 0
-    info = "No Species Selected"
+    rv4$spinfo <- "No Species Selected"
+    rv4$gsainfo <- "No GSA Selected"
   })
   
   # Stock 5
@@ -2369,21 +4206,17 @@ server <- function(input, output, session) {
     input$reset5
     conditionalPanel(
       condition = "input.nstocks >= 5",
-      fileInput(inputId = "sobj5",
-                label = NULL,
-                placeholder = "Stock Object #5",
-                accept = "RData"
+    fileInput(inputId = "sobj5",
+              label = NULL,
+              placeholder = "Stock Object #5",
+              accept = c(".rds", ".RData", ".rda")
       )
     )
   })
   
   observe({
     req(input$sobj5)
-    stk5 <- if (sub(".*\\.", "\\1", input$sobj5[4]) == "rds") {
-      readRDS(as.character(input$sobj5[4]))
-    } else {
-      loadRData(as.character(input$sobj5[4]))
-    }
+    stk5 <- loadStockFile(input$sobj5$datapath[[1L]], input$sobj5$name[[1L]])
     rv5$stk <- stk5
     rv5$minYear <- as.integer(stk5@range[4])
     rv5$maxYear <- as.integer(stk5@range[5])
@@ -2401,9 +4234,9 @@ server <- function(input, output, session) {
       choices = rv5$minAge:rv5$maxAge,
       selected = rv5$maxAge
     )
-    rv5$tri <- sub("_.*", "", input$sobj5[1])
+    rv5$tri <- sub("_.*", "", input$sobj5$name[[1L]])
     rv5$spinfo <- speciesInfo(rv5$tri)
-    rv5$gsa <- as.vector(as.integer(strsplit(sub(".*_(.*)\\..*", "\\1", input$sobj5[1]), "-")[[1]]))
+    rv5$gsa <- as.vector(as.integer(strsplit(sub(".*_(.*)\\..*", "\\1", input$sobj5$name[[1L]]), "-")[[1]]))
     rv5$gsainfo <- gsaInfo(rv5$gsa)
   })
   
@@ -2426,7 +4259,8 @@ server <- function(input, output, session) {
     rv5$maxAge <- 0
     rv5$baselineYear <- 0
     rv5$baselineAge <- 0
-    info = "No Species Selected"
+    rv5$spinfo <- "No Species Selected"
+    rv5$gsainfo <- "No GSA Selected"
   })
   
   # Stock 6
@@ -2460,21 +4294,17 @@ server <- function(input, output, session) {
     input$reset6
     conditionalPanel(
       condition = "input.nstocks >= 6",
-      fileInput(inputId = "sobj6",
-                label = NULL,
-                placeholder = "Stock Object #6",
-                accept = "RData"
+    fileInput(inputId = "sobj6",
+              label = NULL,
+              placeholder = "Stock Object #6",
+              accept = c(".rds", ".RData", ".rda")
       )
     )
   })
   
   observe({
     req(input$sobj6)
-    stk6 <- if (sub(".*\\.", "\\1", input$sobj6[4]) == "rds") {
-      readRDS(as.character(input$sobj6[4]))
-    } else {
-      loadRData(as.character(input$sobj6[4]))
-    }
+    stk6 <- loadStockFile(input$sobj6$datapath[[1L]], input$sobj6$name[[1L]])
     rv6$stk <- stk6
     rv6$minYear <- as.integer(stk6@range[4])
     rv6$maxYear <- as.integer(stk6@range[5])
@@ -2492,9 +4322,9 @@ server <- function(input, output, session) {
       choices = rv6$minAge:rv6$maxAge,
       selected = rv6$maxAge
     )
-    rv6$tri <- sub("_.*", "", input$sobj6[1])
+    rv6$tri <- sub("_.*", "", input$sobj6$name[[1L]])
     rv6$spinfo <- speciesInfo(rv6$tri)
-    rv6$gsa <- as.vector(as.integer(strsplit(sub(".*_(.*)\\..*", "\\1", input$sobj6[1]), "-")[[1]]))
+    rv6$gsa <- as.vector(as.integer(strsplit(sub(".*_(.*)\\..*", "\\1", input$sobj6$name[[1L]]), "-")[[1]]))
     rv6$gsainfo <- gsaInfo(rv6$gsa)
   })
   
@@ -2517,7 +4347,8 @@ server <- function(input, output, session) {
     rv6$maxAge <- 0
     rv6$baselineYear <- 0
     rv6$baselineAge <- 0
-    info = "No Species Selected"
+    rv6$spinfo <- "No Species Selected"
+    rv6$gsainfo <- "No GSA Selected"
   })
   
   # Stock 7
@@ -2551,21 +4382,17 @@ server <- function(input, output, session) {
     input$reset7
     conditionalPanel(
       condition = "input.nstocks >= 7",
-      fileInput(inputId = "sobj7",
-                label = NULL,
-                placeholder = "Stock Object #7",
-                accept = "RData"
+    fileInput(inputId = "sobj7",
+              label = NULL,
+              placeholder = "Stock Object #7",
+              accept = c(".rds", ".RData", ".rda")
       )
     )
   })
   
   observe({
     req(input$sobj7)
-    stk7 <- if (sub(".*\\.", "\\1", input$sobj7[4]) == "rds") {
-      readRDS(as.character(input$sobj7[4]))
-    } else {
-      loadRData(as.character(input$sobj7[4]))
-    }
+    stk7 <- loadStockFile(input$sobj7$datapath[[1L]], input$sobj7$name[[1L]])
     rv7$stk <- stk7
     rv7$minYear <- as.integer(stk7@range[4])
     rv7$maxYear <- as.integer(stk7@range[5])
@@ -2583,9 +4410,9 @@ server <- function(input, output, session) {
       choices = rv7$minAge:rv7$maxAge,
       selected = rv7$maxAge
     )
-    rv7$tri <- sub("_.*", "", input$sobj7[1])
+    rv7$tri <- sub("_.*", "", input$sobj7$name[[1L]])
     rv7$spinfo <- speciesInfo(rv7$tri)
-    rv7$gsa <- as.vector(as.integer(strsplit(sub(".*_(.*)\\..*", "\\1", input$sobj7[1]), "-")[[1]]))
+    rv7$gsa <- as.vector(as.integer(strsplit(sub(".*_(.*)\\..*", "\\1", input$sobj7$name[[1L]]), "-")[[1]]))
     rv7$gsainfo <- gsaInfo(rv7$gsa)
   })
   
@@ -2608,7 +4435,8 @@ server <- function(input, output, session) {
     rv7$maxAge <- 0
     rv7$baselineYear <- 0
     rv7$baselineAge <- 0
-    info = "No Species Selected"
+    rv7$spinfo <- "No Species Selected"
+    rv7$gsainfo <- "No GSA Selected"
   })
   
   # Stock 8
@@ -2642,21 +4470,17 @@ server <- function(input, output, session) {
     input$reset8
     conditionalPanel(
       condition = "input.nstocks >= 8",
-      fileInput(inputId = "sobj8",
-                label = NULL,
-                placeholder = "Stock Object #8",
-                accept = "RData"
+    fileInput(inputId = "sobj8",
+              label = NULL,
+              placeholder = "Stock Object #8",
+              accept = c(".rds", ".RData", ".rda")
       )
     )
   })
   
   observe({
     req(input$sobj8)
-    stk8 <- if (sub(".*\\.", "\\1", input$sobj8[4]) == "rds") {
-      readRDS(as.character(input$sobj8[4]))
-    } else {
-      loadRData(as.character(input$sobj8[4]))
-    }
+    stk8 <- loadStockFile(input$sobj8$datapath[[1L]], input$sobj8$name[[1L]])
     rv8$stk <- stk8
     rv8$minYear <- as.integer(stk8@range[4])
     rv8$maxYear <- as.integer(stk8@range[5])
@@ -2674,9 +4498,9 @@ server <- function(input, output, session) {
       choices = rv8$minAge:rv8$maxAge,
       selected = rv8$maxAge
     )
-    rv8$tri <- sub("_.*", "", input$sobj8[1])
+    rv8$tri <- sub("_.*", "", input$sobj8$name[[1L]])
     rv8$spinfo <- speciesInfo(rv8$tri)
-    rv8$gsa <- as.vector(as.integer(strsplit(sub(".*_(.*)\\..*", "\\1", input$sobj8[1]), "-")[[1]]))
+    rv8$gsa <- as.vector(as.integer(strsplit(sub(".*_(.*)\\..*", "\\1", input$sobj8$name[[1L]]), "-")[[1]]))
     rv8$gsainfo <- gsaInfo(rv8$gsa)
   })
   
@@ -2699,7 +4523,8 @@ server <- function(input, output, session) {
     rv8$maxAge <- 0
     rv8$baselineYear <- 0
     rv8$baselineAge <- 0
-    info = "No Species Selected"
+    rv8$spinfo <- "No Species Selected"
+    rv8$gsainfo <- "No GSA Selected"
   })
   
   # Stock 9
@@ -2733,21 +4558,17 @@ server <- function(input, output, session) {
     input$reset9
     conditionalPanel(
       condition = "input.nstocks >= 9",
-      fileInput(inputId = "sobj9",
-                label = NULL,
-                placeholder = "Stock Object #9",
-                accept = "RData"
+    fileInput(inputId = "sobj9",
+              label = NULL,
+              placeholder = "Stock Object #9",
+              accept = c(".rds", ".RData", ".rda")
       )
     )
   })
   
   observe({
     req(input$sobj9)
-    stk9 <- if (sub(".*\\.", "\\1", input$sobj9[4]) == "rds") {
-      readRDS(as.character(input$sobj9[4]))
-    } else {
-      loadRData(as.character(input$sobj9[4]))
-    }
+    stk9 <- loadStockFile(input$sobj9$datapath[[1L]], input$sobj9$name[[1L]])
     rv9$stk <- stk9
     rv9$minYear <- as.integer(stk9@range[4])
     rv9$maxYear <- as.integer(stk9@range[5])
@@ -2765,9 +4586,9 @@ server <- function(input, output, session) {
       choices = rv9$minAge:rv9$maxAge,
       selected = rv9$maxAge
     )
-    rv9$tri <- sub("_.*", "", input$sobj9[1])
+    rv9$tri <- sub("_.*", "", input$sobj9$name[[1L]])
     rv9$spinfo <- speciesInfo(rv9$tri)
-    rv9$gsa <- as.vector(as.integer(strsplit(sub(".*_(.*)\\..*", "\\1", input$sobj9[1]), "-")[[1]]))
+    rv9$gsa <- as.vector(as.integer(strsplit(sub(".*_(.*)\\..*", "\\1", input$sobj9$name[[1L]]), "-")[[1]]))
     rv9$gsainfo <- gsaInfo(rv9$gsa)
   })
   
@@ -2790,7 +4611,8 @@ server <- function(input, output, session) {
     rv9$maxAge <- 0
     rv9$baselineYear <- 0
     rv9$baselineAge <- 0
-    info = "No Species Selected"
+    rv9$spinfo <- "No Species Selected"
+    rv9$gsainfo <- "No GSA Selected"
   })
   
   # Stock 10
@@ -2824,21 +4646,17 @@ server <- function(input, output, session) {
     input$reset10
     conditionalPanel(
       condition = "input.nstocks >= 10",
-      fileInput(inputId = "sobj10",
-                label = NULL,
-                placeholder = "Stock Object #10",
-                accept = "RData"
+    fileInput(inputId = "sobj10",
+              label = NULL,
+              placeholder = "Stock Object #10",
+              accept = c(".rds", ".RData", ".rda")
       )
     )
   })
   
   observe({
     req(input$sobj10)
-    stk10 <- if (sub(".*\\.", "\\1", input$sobj10[4]) == "rds") {
-      readRDS(as.character(input$sobj10[4]))
-    } else {
-      loadRData(as.character(input$sobj10[4]))
-    }
+    stk10 <- loadStockFile(input$sobj10$datapath[[1L]], input$sobj10$name[[1L]])
     rv10$stk <- stk10
     rv10$minYear <- as.integer(stk10@range[4])
     rv10$maxYear <- as.integer(stk10@range[5])
@@ -2856,9 +4674,9 @@ server <- function(input, output, session) {
       choices = rv10$minAge:rv10$maxAge,
       selected = rv10$maxAge
     )
-    rv10$tri <- sub("_.*", "", input$sobj10[1])
+    rv10$tri <- sub("_.*", "", input$sobj10$name[[1L]])
     rv10$spinfo <- speciesInfo(rv10$tri)
-    rv10$gsa <- as.vector(as.integer(strsplit(sub(".*_(.*)\\..*", "\\1", input$sobj10[1]), "-")[[1]]))
+    rv10$gsa <- as.vector(as.integer(strsplit(sub(".*_(.*)\\..*", "\\1", input$sobj10$name[[1L]]), "-")[[1]]))
     rv10$gsainfo <- gsaInfo(rv10$gsa)
   })
   
@@ -2881,74 +4699,110 @@ server <- function(input, output, session) {
     rv10$maxAge <- 0
     rv10$baselineYear <- 0
     rv10$baselineAge <- 0
-    info = "No Species Selected"
+    rv10$spinfo <- "No Species Selected"
+    rv10$gsainfo <- "No GSA Selected"
   })
   
   # Load GSAs and 3A codes
   
   observeEvent(input$loadButton, {
-    
-    if (!is.null(rv1$gsa)) {gsa[[1]] <<- as.integer(rv1$gsa)}
-    if (!is.null(rv2$gsa)) {gsa[[2]] <<- as.integer(rv2$gsa)}
-    if (!is.null(rv3$gsa)) {gsa[[3]] <<- as.integer(rv3$gsa)}
-    if (!is.null(rv4$gsa)) {gsa[[4]] <<- as.integer(rv4$gsa)}
-    if (!is.null(rv5$gsa)) {gsa[[5]] <<- as.integer(rv5$gsa)}
-    if (!is.null(rv6$gsa)) {gsa[[6]] <<- as.integer(rv6$gsa)}
-    if (!is.null(rv7$gsa)) {gsa[[7]] <<- as.integer(rv7$gsa)}
-    if (!is.null(rv8$gsa)) {gsa[[8]] <<- as.integer(rv8$gsa)}
-    if (!is.null(rv9$gsa)) {gsa[[9]] <<- as.integer(rv9$gsa)}
-    if (!is.null(rv10$gsa)) {gsa[[10]] <<- as.integer(rv10$gsa)}
-    
-    for (i in 1:length(gsa)) {
-      gsa_tot <<- c(gsa_tot, gsa[[i]])
-    }
-    
-    gsa_tot <<- sort(unique(gsa_tot))
-    
-    if (!is.null(rv1$tri)) {species[[1]] <<- rv1$tri}
-    if (!is.null(rv2$tri)) {species[[2]] <<- rv2$tri}
-    if (!is.null(rv3$tri)) {species[[3]] <<- rv3$tri}
-    if (!is.null(rv4$tri)) {species[[4]] <<- rv4$tri}
-    if (!is.null(rv5$tri)) {species[[5]] <<- rv5$tri}
-    if (!is.null(rv6$tri)) {species[[6]] <<- rv6$tri}
-    if (!is.null(rv7$tri)) {species[[7]] <<- rv7$tri}
-    if (!is.null(rv8$tri)) {species[[8]] <<- rv8$tri}
-    if (!is.null(rv9$tri)) {species[[9]] <<- rv9$tri}
-    if (!is.null(rv10$tri)) {species[[10]] <<- rv10$tri}
-    
+
+    # A second click starts a clean analysis in the current session instead of
+    # appending to objects produced by the previous set of uploaded stocks.
+    species <<- list()
+    gsa <<- list()
+    gsa_tot <<- vector()
     rv <<- list()
-    if (!is.null(rv1$stk)) {rv[[1]] <<- rv1}
-    if (!is.null(rv2$stk)) {rv[[2]] <<- rv2}
-    if (!is.null(rv3$stk)) {rv[[3]] <<- rv3}
-    if (!is.null(rv4$stk)) {rv[[4]] <<- rv4}
-    if (!is.null(rv5$stk)) {rv[[5]] <<- rv5}
-    if (!is.null(rv6$stk)) {rv[[6]] <<- rv6}
-    if (!is.null(rv7$stk)) {rv[[7]] <<- rv7}
-    if (!is.null(rv8$stk)) {rv[[8]] <<- rv8}
-    if (!is.null(rv9$stk)) {rv[[9]] <<- rv9}
-    if (!is.null(rv10$stk)) {rv[[10]] <<- rv10}
+    pops <<- list()
+    catches <<- list()
+    waa <<- list()
+    fmorts <<- list()
+    fmort_spawns <<- list()
+    morts <<- list()
+    mort_spawns <<- list()
+    matures <<- list()
+    neuralNetInputs <<- data.frame()
+    f_w <<- data.frame()
+    f_new <<- data.frame()
+    f_adj <<- data.frame()
+    f_tot <<- data.frame()
+    f_adj_display <<- data.frame()
+    f_applied <<- data.frame()
+    testfit_results <<- data.frame()
+    traintest_results <<- data.frame()
+    pred_results <<- list()
+    sens_results <<- data.frame()
+    
+    # Compact the populated upload slots so that leaving a gap (for example,
+    # using slots 1 and 3) cannot create NULL entries in downstream loops.
+    upload_slots <- list(rv1, rv2, rv3, rv4, rv5, rv6, rv7, rv8, rv9, rv10)
+    loaded_slots <- Filter(function(x) !is.null(x$stk), upload_slots)
+
+    if (!length(loaded_slots)) {
+      showNotification("Load at least one FLStock object.", type = "error")
+      return(invisible(NULL))
+    }
+    if (!is.null(input$nstocks) && length(loaded_slots) != as.integer(input$nstocks)) {
+      showNotification(
+        sprintf("Expected %s stock objects but %s valid objects are loaded.",
+                input$nstocks, length(loaded_slots)),
+        type = "error",
+        duration = 8
+      )
+      return(invisible(NULL))
+    }
+
+    rv <<- loaded_slots
+    species <<- lapply(rv, function(x) toupper(as.character(x$tri)))
+    gsa <<- lapply(rv, function(x) as.integer(x$gsa))
+
+    species_codes <- unlist(species, use.names = FALSE)
+    gsa_codes <- unlist(gsa, use.names = FALSE)
+    if (anyNA(species_codes) || any(!grepl("^[A-Z0-9]{3}$", species_codes))) {
+      showNotification(
+        "Invalid species code in a filename. Use names such as DPS_9-10-11.rds.",
+        type = "error",
+        duration = 8
+      )
+      return(invisible(NULL))
+    }
+    if (anyNA(gsa_codes) || any(gsa_codes < 1L | gsa_codes > 30L)) {
+      showNotification(
+        "Invalid GSA code in a filename. Expected integer GSA values from 1 to 30.",
+        type = "error",
+        duration = 8
+      )
+      return(invisible(NULL))
+    }
+    if (anyDuplicated(species_codes)) {
+      showNotification(
+        paste(
+          "Each uploaded FLStock must have a unique species code.",
+          "Combine multiple GSAs for one species in a single FLStock/file."
+        ),
+        type = "error",
+        duration = 10
+      )
+      return(invisible(NULL))
+    }
+
+    gsa_tot <<- sort(unique(gsa_codes))
     
   })
   
   # Neural network help icons
   
-  output$dropHelp = renderUI({
-    tags$span(
-      tipify(
-        icon("fas fa-info-circle"),
-        title = drop_text
-      )
-    )
-  })
-  
-  output$recdropHelp = renderUI({
-    tags$span(
-      tipify(
-        icon("fas fa-info-circle"),
-        title = recdrop_text
-      )
-    )
-  })
+  for (layer_index in seq_len(5L)) {
+    local({
+      index <- layer_index
+      output[[paste0("dropHelp", index)]] <- renderUI({
+        tags$span(tipify(icon("fas fa-info-circle"), title = drop_text))
+      })
+      output[[paste0("recdropHelp", index)]] <- renderUI({
+        tags$span(tipify(icon("fas fa-info-circle"), title = recdrop_text))
+      })
+    })
+  }
   
   output$actHelp = renderUI({
     tags$span(
@@ -2971,10 +4825,14 @@ server <- function(input, output, session) {
   ##### DATAFRAME LOADING #####
   
   observeEvent(input$loadButton, {
+
+    if (!length(rv) || (!is.null(input$nstocks) && length(rv) != as.integer(input$nstocks))) {
+      return(invisible(NULL))
+    }
     
     # Population
 
-    for (i in 1:length(rv)) {
+    for (i in seq_along(rv)) {
       pops[[i]] <<- procDfLongQuant(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$minAge, rv[[i]]$baselineAge, rv[[i]]$baselineYear, stock.n, pop)
     }
     
@@ -2982,7 +4840,15 @@ server <- function(input, output, session) {
       pops_l <<- do.call(totDf, pops)
       pops_w <<- procDfWide(pops_l, pop, N)
       output$uiPop <- renderUI({
-        withSpinner(plotlyOutput("plotPop"), type = 3, color.background = "transparent")
+        div(
+          class = "data-structure-plot",
+          withSpinner(
+            plotlyOutput(
+              "plotPop", height = paste0(dataStructurePlotHeight(pops_l), "px")
+            ),
+            type = 3, color.background = "transparent"
+          )
+        )
       })
       output$plotPop <- renderPlotly({
         plotPopObj <- layout(ggplotly(plotPop(pops_l), tooltip = "y"), hovermode = "x unified")
@@ -2992,7 +4858,7 @@ server <- function(input, output, session) {
     
     # Catches
     
-    for (i in 1:length(rv)) {
+    for (i in seq_along(rv)) {
       catches[[i]] <<- procDfLongQuant(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$minAge, rv[[i]]$baselineAge, rv[[i]]$baselineYear, catch.n, catch)
     }
     
@@ -3000,7 +4866,15 @@ server <- function(input, output, session) {
       catches_l <<- do.call(totDf, catches)
       catches_w <<- procDfWide(catches_l, catch, C)
       output$uiCatch <- renderUI({
-        withSpinner(plotlyOutput("plotCatch"), type = 3, color.background = "transparent")
+        div(
+          class = "data-structure-plot",
+          withSpinner(
+            plotlyOutput(
+              "plotCatch", height = paste0(dataStructurePlotHeight(catches_l), "px")
+            ),
+            type = 3, color.background = "transparent"
+          )
+        )
       })
       output$plotCatch <- renderPlotly({
         plotCatchObj <- layout(ggplotly(plotCatch(catches_l), tooltip = "y"), hovermode = "x unified")
@@ -3010,15 +4884,23 @@ server <- function(input, output, session) {
     
     # Weight at age
     
-    for (i in 1:length(rv)) {
-      waa[[i]] <<- procDfLongMult(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$minAge, rv[[i]]$baselineAge, rv[[i]]$baselineYear, catch.wt, weight_at_age)
+    for (i in seq_along(rv)) {
+      waa[[i]] <<- procDfLongMult(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$minAge, rv[[i]]$baselineAge, rv[[i]]$baselineYear, stock.wt, weight_at_age)
     }
     
     if (length(waa) > 0) {
       waa_l <<- do.call(totDf, waa)
       waa_w <<- procDfWide(waa_l, weight_at_age, W)
       output$uiWaa <- renderUI({
-        withSpinner(plotlyOutput("plotWaa"), type = 3, color.background = "transparent")
+        div(
+          class = "data-structure-plot",
+          withSpinner(
+            plotlyOutput(
+              "plotWaa", height = paste0(dataStructurePlotHeight(waa_l), "px")
+            ),
+            type = 3, color.background = "transparent"
+          )
+        )
       })
       output$plotWaa <- renderPlotly({
         plotWaaObj <- layout(ggplotly(plotWaa(waa_l, pops_l), tooltip = "y"), hovermode = "x unified")
@@ -3028,7 +4910,7 @@ server <- function(input, output, session) {
     
     # Fishing mortality
     
-    for (i in 1:length(rv)) {
+    for (i in seq_along(rv)) {
       fmorts[[i]] <<- procDfLongMult(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$minAge, rv[[i]]$baselineAge, rv[[i]]$baselineYear, harvest, fmort)
     }
     
@@ -3039,7 +4921,7 @@ server <- function(input, output, session) {
     
     # Fishing mortality of spawners
     
-    for (i in 1:length(rv)) {
+    for (i in seq_along(rv)) {
       fmort_spawns[[i]] <<- procDfLongMult(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$minAge, rv[[i]]$baselineAge, rv[[i]]$baselineYear, harvest.spwn, fmort_spawn)
     }
     
@@ -3050,7 +4932,7 @@ server <- function(input, output, session) {
     
     # Natural mortality
     
-    for (i in 1:length(rv)) {
+    for (i in seq_along(rv)) {
       morts[[i]] <<- procDfLongMult(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$minAge, rv[[i]]$baselineAge, rv[[i]]$baselineYear, m, mort)
     }
     
@@ -3061,7 +4943,7 @@ server <- function(input, output, session) {
     
     # Natural mortality of spawners
     
-    for (i in 1:length(rv)) {
+    for (i in seq_along(rv)) {
       mort_spawns[[i]] <<- procDfLongMult(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$minAge, rv[[i]]$baselineAge, rv[[i]]$baselineYear, m.spwn, mort_spawn)
     }
     
@@ -3072,7 +4954,7 @@ server <- function(input, output, session) {
     
     # Mature ratio
     
-    for (i in 1:length(rv)) {
+    for (i in seq_along(rv)) {
       matures[[i]] <<- procDfLongMult(rv[[i]]$stk, rv[[i]]$gsa, rv[[i]]$tri, rv[[i]]$minAge, rv[[i]]$baselineAge, rv[[i]]$baselineYear, mat, mature)
     }
     
@@ -3187,11 +5069,15 @@ server <- function(input, output, session) {
                                        easyClose = TRUE)))
       } else {
         fmort_baseline <<- as.integer(input$baseline)
-        f_curr <- colMeans(f_w[((nrow(f_w) - as.integer(input$baseline)):nrow(f_w)), -1])
+        baseline_rows <- seq.int(
+          from = nrow(f_w) - as.integer(input$baseline) + 1L,
+          to = nrow(f_w)
+        )
+        f_curr <- colMeans(f_w[baseline_rows, -1, drop = FALSE])
         f_vec <- rep(1, length(f_curr))
         f_new <- f_curr * f_vec
-        f_new <<- data.frame(as.list(f_new))
-        f_adj <<- data.frame(as.list(f_new))
+        f_new <<- data.frame(as.list(f_new), check.names = FALSE)
+        f_adj <<- data.frame(as.list(f_new), check.names = FALSE)
         f_tot <<- t(rbind(f_new, f_adj, round(f_adj/f_new, 2)))
         colnames(f_tot) <<- c("Calculated", "Adjusted", "Multiplier")
         rownames(f_tot) <<- gsub("_F", "_GSA", rownames(f_tot))
@@ -3216,7 +5102,21 @@ server <- function(input, output, session) {
   
   observeEvent(input$adjustFmort, {
     if (length(f_adj) != 0) {
-      pick = grep(input$pickFmort, colnames(f_adj))
+      pick <- if (is.null(input$pickFmort) ||
+                  !length(input$pickFmort)) {
+        integer(0)
+      } else {
+        grep(input$pickFmort, colnames(f_adj), fixed = TRUE)
+      }
+      if (!length(pick)) return(invisible(NULL))
+      if (nrow(f_adj) > 1L) {
+        f_adj <<- f_new
+        f_adj_display <<- f_adj
+        showNotification(
+          "Slider adjustment restored one-row F mode.",
+          type = "message", duration = 6
+        )
+      }
       f_adj[1, pick] <<- f_new[pick] * input$adjustFmort
       f_tot <<- t(rbind(f_new, f_adj, round(f_adj/f_new, 2)))
       colnames(f_tot) <<- c("Calculated", "Adjusted", "Multiplier")
@@ -3233,6 +5133,13 @@ server <- function(input, output, session) {
   
   observeEvent(input$calcMultAdjustFmort, {
     if (length(f_adj) != 0) {
+      if (nrow(f_adj) > 1L) {
+        f_adj <<- f_new
+        showNotification(
+          "Slider adjustment restored one-row F mode.",
+          type = "message", duration = 6
+        )
+      }
       f_adj[1,] <<- f_new * as.double(input$adjustFmort)
       f_tot <<- t(rbind(f_new, f_adj, round(f_adj/f_new, 2)))
       colnames(f_tot) <<- c("Calculated", "Adjusted", "Multiplier")
@@ -3249,30 +5156,95 @@ server <- function(input, output, session) {
     })
   
   output$downloadAdjFmort <- downloadHandler(
-    filename = "Adjusted_Fmort.rdata",
+    filename = "Adjusted_Fmort.rds",
     content = function(filename) {
-      saveRDS(f_adj, filename)
+      exported <- if (nrow(f_adj) > 1L) {
+        data.frame(
+          year = max(as.integer(neuralNetInputs$year)) + seq_len(nrow(f_adj)),
+          f_adj, check.names = FALSE
+        )
+      } else {
+        f_adj
+      }
+      saveRDS(exported, filename)
       }
     )
   
   shinyFileChoose(input, "fileAdjFmort",
                   roots = vol,
-                  filetypes = c("rdata", "RData", "rData"))
+                  filetypes = c("rds", "rda", "rdata", "RData", "csv"))
   
   fadjFilename <- reactive({
     parseFilePaths(vol, input$fileAdjFmort)
   })
   
-  loadAdjFmort <- reactive({
-    f_adj <<- readRDS(as.character(fadjFilename()[4]))
-  })
+  readFishingScenarioFile <- function(path) {
+    extension <- tolower(tools::file_ext(path))
+    if (extension == "rds") return(readRDS(path))
+    if (extension == "csv") {
+      return(utils::read.csv(
+        path, check.names = FALSE, stringsAsFactors = FALSE
+      ))
+    }
+    if (extension %in% c("rda", "rdata")) {
+      isolated <- new.env(parent = emptyenv())
+      objects <- load(path, envir = isolated)
+      if (length(objects) != 1L) {
+        stop("The RData file must contain exactly one F table.", call. = FALSE)
+      }
+      return(isolated[[objects[[1L]]]])
+    }
+    stop("Use an .rds, .rda, .RData or .csv fishing-mortality file.",
+         call. = FALSE)
+  }
+
+  loadAdjustedFishingMortality <- function() {
+    selected <- fadjFilename()
+    if (nrow(selected) != 1L ||
+        !file.exists(selected$datapath[[1L]])) {
+      stop("Select an existing fishing-mortality file first.", call. = FALSE)
+    }
+    if (!length(f_new) || !nrow(neuralNetInputs)) {
+      stop("Load the stocks and calculate baseline F before importing a scenario.",
+           call. = FALSE)
+    }
+    loaded <- normalizeFishingScenario(
+      readFishingScenarioFile(selected$datapath[[1L]]),
+      names(f_new), max(as.integer(neuralNetInputs$year)) + 1L
+    )
+    first_row <- loaded[1L, , drop = FALSE]
+    new_total <- t(rbind(f_new, first_row, round(first_row / f_new, 2)))
+    colnames(new_total) <- c("Calculated", "Adjusted", "Multiplier")
+    rownames(new_total) <- gsub("_F", "_GSA", rownames(new_total))
+    new_display <- if (nrow(loaded) > 1L) {
+      data.frame(
+        year = max(as.integer(neuralNetInputs$year)) + seq_len(nrow(loaded)),
+        loaded, check.names = FALSE
+      )
+    } else {
+      loaded
+    }
+    f_adj <<- loaded
+    f_tot <<- new_total
+    f_adj_display <<- new_display
+    output$adjustedFmort <- renderTable(
+      f_adj_display, bordered = TRUE, width = "100%", rownames = FALSE
+    )
+    invisible(nrow(f_adj))
+  }
   
   observeEvent(input$loadAdjFmort, {
-    if (length(fadjFilename()) == 5) {
-      return(NULL)
-    } else {
-      loadAdjFmort()
-      output$adjustedFmort <- renderTable(f_adj, bordered = TRUE, width = "100%")
+    loaded <- tryCatch(
+      loadAdjustedFishingMortality(), error = function(error) error
+    )
+    if (inherits(loaded, "error")) {
+      showModal(tags$div(
+        id = "modalWarning",
+        modalDialog(
+          paste("F import stopped:", conditionMessage(loaded)),
+          footer = NULL, easyClose = TRUE
+        )
+      ))
     }
   })
   
@@ -3322,7 +5294,7 @@ server <- function(input, output, session) {
       dropoutTot <- vector()
       inputNames <- colnames(neuralNetInputs[,-1])
       
-      for (i in 1:as.integer(input$nLayers)) {
+      for (i in seq_len(as.integer(input$nLayers))) {
         layerTypeTot[i] <- input[[paste0("layerType", i)]]
         neuronsTot[i] <- as.integer(input[[paste0("neurons", i)]])
         dropoutTot[i] <- as.numeric(input[[paste0("dropout", i)]])
@@ -3345,8 +5317,23 @@ server <- function(input, output, session) {
                                      easyClose = TRUE)))
     } else {
       showModal(tags$div(id = "modalBackground", modalDialog("", footer = NULL)))
-      testfit_results <<- testFitNet(neuralNetInputs)
+      fit_result <- tryCatch(
+        testFitNet(neuralNetInputs),
+        error = function(error) error
+      )
       removeModal()
+      if (inherits(fit_result, "error")) {
+        showModal(tags$div(
+          id = "modalWarning",
+          modalDialog(
+            paste("Model fit stopped:", formatRuntimeError(fit_result, "whole-series fit")),
+            footer = NULL,
+            easyClose = TRUE
+          )
+        ))
+      } else {
+        testfit_results <<- fit_result
+      }
     }
   })
   
@@ -3380,10 +5367,38 @@ server <- function(input, output, session) {
                          modalDialog("Warning: select the depth first!",
                                      footer = NULL,
                                      easyClose = TRUE)))
+    } else if (
+      nrow(neuralNetInputs) - as.integer(depth_test) <
+        minimum_years_for_temporal_test
+    ) {
+      showModal(tags$div(id = "modalWarning",
+                         modalDialog(
+                           paste(
+                             "Warning: test depth must leave at least",
+                             minimum_years_for_temporal_test,
+                             "years for temporal training and validation."
+                           ),
+                                     footer = NULL,
+                                     easyClose = TRUE)))
     } else {
       showModal(tags$div(id = "modalBackground", modalDialog("", footer = NULL)))
-      traintest_results <<- trainTestFitNet(neuralNetInputs, as.integer(depth_test))
+      train_test_result <- tryCatch(
+        trainTestFitNet(neuralNetInputs, as.integer(depth_test)),
+        error = function(error) error
+      )
       removeModal()
+      if (inherits(train_test_result, "error")) {
+        showModal(tags$div(
+          id = "modalWarning",
+          modalDialog(
+            paste("Train/test stopped:", formatRuntimeError(train_test_result, "train/test")),
+            footer = NULL,
+            easyClose = TRUE
+          )
+        ))
+      } else {
+        traintest_results <<- train_test_result
+      }
     }
   })
   
@@ -3392,7 +5407,7 @@ server <- function(input, output, session) {
     if (length(traintest_results) > 0) {
       plotTestCount <<- 1
       
-      for (i in 1:length(traintest_results)) {
+      for (i in seq_along(traintest_results)) {
         traintest_plots[[i]] <<- plotTrainTestFitNet(traintest_results[[i]], i, as.integer(input$depthTest))
         traintest_recr_plots[[i]] <<- plotRecruitment(traintest_results[[i]], i, as.integer(input$depthTest))
         taylor_diagram[[i]] <<- plotTaylorDiagram(traintest_iter_results[[i]])
@@ -3402,7 +5417,7 @@ server <- function(input, output, session) {
         species[[plotTestCount]]
       })
       output$plotTrainTest <- renderPlotly({
-        ggplotly(traintest_plots[[plotTestCount]])
+        asMaelstromPlotly(traintest_plots[[plotTestCount]])
       })
       output$plotMetricsTest <- renderPlot({
         traintest_metrics_plot
@@ -3430,11 +5445,13 @@ server <- function(input, output, session) {
     if (length(traintest_results) > 0) {
       if (input$plotLogTrainTest == T) {
         output$plotTrainTest <- renderPlotly({
-          ggplotly(traintest_plots[[plotTestCount]] + scale_y_continuous(trans = "log10"))
+          asMaelstromPlotly(
+            traintest_plots[[plotTestCount]] + scale_y_continuous(trans = "log10")
+          )
           })
         }
         else {output$plotTrainTest <- renderPlotly({
-          ggplotly(traintest_plots[[plotTestCount]])
+          asMaelstromPlotly(traintest_plots[[plotTestCount]])
           })
         }
     }
@@ -3447,7 +5464,7 @@ server <- function(input, output, session) {
       } else if (plotTestCount == 1) {
         plotTestCount <<- as.numeric(length(traintest_results))
         output$plotTrainTest <- renderPlotly({
-          ggplotly(traintest_plots[[plotTestCount]])
+          asMaelstromPlotly(traintest_plots[[plotTestCount]])
         })
         output$plotRecruitmentTraintest <- renderPlot({
           traintest_recr_plots[[plotTestCount]]
@@ -3461,7 +5478,7 @@ server <- function(input, output, session) {
       } else {
         plotTestCount <<- plotTestCount - 1
         output$plotTrainTest <- renderPlotly({
-          ggplotly(traintest_plots[[plotTestCount]])
+          asMaelstromPlotly(traintest_plots[[plotTestCount]])
         })
         output$plotRecruitmentTraintest <- renderPlot({
           traintest_recr_plots[[plotTestCount]]
@@ -3488,7 +5505,7 @@ server <- function(input, output, session) {
       } else if (plotTestCount == as.numeric(length(traintest_results))) {
         plotTestCount <<- 1
         output$plotTrainTest <- renderPlotly({
-          ggplotly(traintest_plots[[plotTestCount]])
+          asMaelstromPlotly(traintest_plots[[plotTestCount]])
         })
         output$plotRecruitmentTraintest <- renderPlot({
           traintest_recr_plots[[plotTestCount]]
@@ -3502,7 +5519,7 @@ server <- function(input, output, session) {
       } else {
         plotTestCount <<- plotTestCount + 1
         output$plotTrainTest <- renderPlotly({
-          ggplotly(traintest_plots[[plotTestCount]])
+          asMaelstromPlotly(traintest_plots[[plotTestCount]])
         })
         output$plotRecruitmentTraintest <- renderPlot({
           traintest_recr_plots[[plotTestCount]]
@@ -3540,28 +5557,44 @@ server <- function(input, output, session) {
   plotPredCount <- 0
   
   observeEvent(input$calcPredButton, {
-    
-    depth_pred <<- input$depthPred
+    selected_depth <- input$depthPred
     
     if (length(species) == 0) {
       showModal(tags$div(id = "modalWarning",
                          modalDialog("Warning: upload one or more stock objects first!",
                                      footer = NULL,
                                      easyClose = TRUE)))
-    } else if (input$baseline == "") {
+    } else if (input$baseline == "" || !length(f_new)) {
       showModal(tags$div(id = "modalWarning",
                          modalDialog("Warning: calculate fishing mortality first!",
                                      footer = NULL,
                                      easyClose = TRUE)))
-    } else if (depth_pred == "") {
+    } else if (is.null(selected_depth) ||
+               !length(selected_depth) || selected_depth == "") {
       showModal(tags$div(id = "modalWarning",
                          modalDialog("Warning: select the depth first!",
                                      footer = NULL,
                                      easyClose = TRUE)))
     } else {
       showModal(tags$div(id = "modalBackground", modalDialog("", footer = NULL)))
-      pred_results <<- predNet(neuralNetInputs, f_adj, as.integer(depth_pred))
+      forecast_result <- tryCatch(
+        predNet(neuralNetInputs, f_new, f_adj, as.integer(selected_depth)),
+        error = function(error) error
+      )
       removeModal()
+      if (inherits(forecast_result, "error")) {
+        showModal(tags$div(
+          id = "modalWarning",
+          modalDialog(
+            paste("Forecast stopped:", formatRuntimeError(forecast_result, "forecast")),
+            footer = NULL,
+            easyClose = TRUE
+          )
+        ))
+      } else {
+        depth_pred <<- selected_depth
+        pred_results <<- forecast_result
+      }
     }
   })
   
@@ -3569,13 +5602,13 @@ server <- function(input, output, session) {
     if (length(pred_results) > 0) {
       plotPredCount <<- 1
       
-      for (i in 1:length(pred_results)) {
+      for (i in seq_along(pred_results)) {
         pred_plots[[i]] <<- plotPred(pred_results[[i]], neuralNetInputs, i)
         pred_recr_plots[[i]] <<- plotRecruitment(pred_results[[i]], i, as.integer(depth_pred))
       }
       
       output$plotPred <- renderPlotly({
-        ggplotly(pred_plots[[plotPredCount]])
+        asMaelstromPlotly(pred_plots[[plotPredCount]])
       })
       
       output$plotRecruitmentForecast <- renderPlot({
@@ -3598,11 +5631,13 @@ server <- function(input, output, session) {
     if (length(pred_results) > 0) {
       if (input$plotLogPred == T) {
         output$plotPred <- renderPlotly({
-          ggplotly(pred_plots[[plotPredCount]] + scale_y_continuous(trans = "log10"))
+          asMaelstromPlotly(
+            pred_plots[[plotPredCount]] + scale_y_continuous(trans = "log10")
+          )
           })
         }
       else {output$plotPred <- renderPlotly({
-        ggplotly(pred_plots[[plotPredCount]])
+        asMaelstromPlotly(pred_plots[[plotPredCount]])
         })
       }
     }
@@ -3615,7 +5650,7 @@ server <- function(input, output, session) {
         } else if (plotPredCount == 1) {
           plotPredCount <<- as.numeric(length(pred_results))
           output$plotPred <- renderPlotly({
-            ggplotly(pred_plots[[plotPredCount]])
+            asMaelstromPlotly(pred_plots[[plotPredCount]])
           })
           output$plotRecruitmentForecast <- renderPlot({
             pred_recr_plots[[plotPredCount]]
@@ -3626,7 +5661,7 @@ server <- function(input, output, session) {
         } else {
           plotPredCount <<- plotPredCount - 1
           output$plotPred <- renderPlotly({
-            ggplotly(pred_plots[[plotPredCount]])
+            asMaelstromPlotly(pred_plots[[plotPredCount]])
           })
           output$plotRecruitmentForecast <- renderPlot({
             pred_recr_plots[[plotPredCount]]
@@ -3650,7 +5685,7 @@ server <- function(input, output, session) {
         } else if (plotPredCount == as.numeric(length(pred_results))) {
           plotPredCount <<- 1
           output$plotPred <- renderPlotly({
-            ggplotly(pred_plots[[plotPredCount]])
+            asMaelstromPlotly(pred_plots[[plotPredCount]])
           })
           output$plotRecruitmentForecast <- renderPlot({
             pred_recr_plots[[plotPredCount]]
@@ -3661,7 +5696,7 @@ server <- function(input, output, session) {
         } else {
           plotPredCount <<- plotPredCount + 1
           output$plotPred <- renderPlotly({
-            ggplotly(pred_plots[[plotPredCount]])
+            asMaelstromPlotly(pred_plots[[plotPredCount]])
           })
           output$plotRecruitmentForecast <- renderPlot({
             pred_recr_plots[[plotPredCount]]
@@ -3770,8 +5805,6 @@ server <- function(input, output, session) {
   
   ##### EXPORT AND LOAD WORKSPACE #####
   
-  vol = getVolumes()()
-  
   shinyDirChoose(input, "dir",
                  roots = vol,
                  filetypes = c("", "txt"))
@@ -3789,6 +5822,7 @@ server <- function(input, output, session) {
       return(NULL)
       } else {
         save_list <<- list(
+          schema_version = app_version,
           species = species,
           gsa = gsa,
           gsa_tot = gsa_tot,
@@ -3804,16 +5838,28 @@ server <- function(input, output, session) {
           fmorts = fmorts,
           fmort_l = fmort_l,
           fmort_w = fmort_w,
+          fmort_spawns = fmort_spawns,
+          fmort_spawn_l = fmort_spawn_l,
+          fmort_spawn_w = fmort_spawn_w,
           morts = morts,
           mort_l = mort_l,
           mort_w = mort_w,
+          mort_spawns = mort_spawns,
+          mort_spawn_l = mort_spawn_l,
+          mort_spawn_w = mort_spawn_w,
+          matures = matures,
+          mature_l = mature_l,
+          mature_w = mature_w,
           neuralNetInputs = neuralNetInputs,
+          range_inputs = range_inputs,
+          range_outputs = range_outputs,
           f_w = f_w,
           fmort_baseline = fmort_baseline,
           f_new = f_new,
           f_adj = f_adj,
           f_tot = f_tot,
           f_adj_display = f_adj_display,
+          f_applied = f_applied,
           depth_test = depth_test,
           testfit_results = testfit_results,
           traintest_output_raw = traintest_output_raw,
@@ -3834,41 +5880,54 @@ server <- function(input, output, session) {
           sens_results = sens_results,
           sens_plots = sens_plots
           )
-        saveRDS(save_list, paste0(dirname(), "/", Sys.Date(), "_", "session.RData"))
+        saveRDS(save_list, file.path(dirname(), paste0(Sys.Date(), "_session.rds")))
         }
     })
   
   shinyFileChoose(input, "file",
                   roots = vol,
-                  filetypes = c("rdata", "RData"))
+                  filetypes = c("rds", "rdata", "RData"))
   
   filename <- reactive({
     parseFilePaths(vol, input$file)
     })
   
   observe({
-    output$file <- renderText(as.character(filename()[4]))
+    selected <- filename()
+    output$file <- renderText(if (nrow(selected)) selected$name[[1L]] else "")
   })
   
   loadDFS <- reactive({
-    l <- readRDS(as.character(filename()[4]))
+    selected <- filename()
+    req(nrow(selected) == 1L)
+    req(file.exists(selected$datapath[[1L]]))
+    l <- readRDS(selected$datapath[[1L]])
+    if (!is.list(l) || is.null(l$species) || is.null(l$neuralNetInputs)) {
+      stop("The selected file is not a valid MAELSTROM session.", call. = FALSE)
+    }
     loadInput(l)
     })
   
   observeEvent(input$loadWS, {
-    if (length(filename()) == 5) {
-      return(NULL)
-    } else {
-      loadDFS()
-    }
+    loadDFS()
   })
   
   output$report <- downloadHandler(
     filename = "report.pdf",
     content = function(file) {
-      output <- rmarkdown::render(input = "maelstrom.Rmd",
-                                  output_format = "pdf_document")
-      file.rename(output, file)
+      report_dir <- file.path(tempdir(), paste0("maelstrom-report-", session$token))
+      dir.create(report_dir, recursive = TRUE, showWarnings = FALSE)
+      report_output <- rmarkdown::render(
+        input = "maelstrom.Rmd",
+        output_format = "pdf_document",
+        output_file = "report.pdf",
+        output_dir = report_dir,
+        envir = environment(),
+        quiet = TRUE
+      )
+      if (!file.copy(report_output, file, overwrite = TRUE)) {
+        stop("Unable to copy the generated report.", call. = FALSE)
+      }
     })
   
 }

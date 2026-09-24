@@ -1,5 +1,5 @@
 ---
-title: "Maelstrom Report"
+title: "MAELSTROM 1.2.0 Report"
 output: pdf_document
 date: "`r Sys.Date()`"
 ---
@@ -14,32 +14,52 @@ cat("## Neural Network", "\n\n")
 cat("Neural network formed by", input$nLayers, "layers:", "\n\n")
 if (input$layerType1 != "")
 {if (input$layerType1 == "Dropout") {cat("Layer n° 1 is a", input$layerType1, "layer, with a", input$dropout1, "dropout value.", "\n\n")} else
-  {cat("Layer n° 1 is a", input$layerType1, "layer, with", input$neurons1, "neurons and a", input$activation, "activation funcion.", "\n\n")}}
+  {cat("Layer n° 1 is a", input$layerType1, "layer, with", input$neurons1, "neurons and a", input$activation, "activation function.", "\n\n")}}
 if (input$layerType2 != "")
 {if (input$layerType2 == "Dropout") {cat("Layer n° 2 is a", input$layerType2, "layer, with a", input$dropout2, "dropout value.", "\n\n")} else
-  {cat("Layer n° 2 is a", input$layerType2, "layer, with", input$neurons2, "neurons and a", input$activation, "activation funcion.", "\n\n")}}
+  {cat("Layer n° 2 is a", input$layerType2, "layer, with", input$neurons2, "neurons and a", input$activation, "activation function.", "\n\n")}}
 if (input$layerType3 != "")
 {if (input$layerType3 == "Dropout") {cat("Layer n° 3 is a", input$layerType3, "layer, with a", input$dropout3, "dropout value.", "\n\n")} else
-  {cat("Layer n° 3 is a", input$layerType3, "layer, with", input$neurons3, "neurons and a", input$activation, "activation funcion.", "\n\n")}}
+  {cat("Layer n° 3 is a", input$layerType3, "layer, with", input$neurons3, "neurons and a", input$activation, "activation function.", "\n\n")}}
 if (input$layerType4 != "")
 {if (input$layerType4 == "Dropout") {cat("Layer n° 4 is a", input$layerType4, "layer, with a", input$dropout4, "dropout value.", "\n\n")} else
-  {cat("Layer n° 4 is a", input$layerType4, "layer, with", input$neurons4, "neurons and a", input$activation, "activation funcion.", "\n\n")}}
+  {cat("Layer n° 4 is a", input$layerType4, "layer, with", input$neurons4, "neurons and a", input$activation, "activation function.", "\n\n")}}
 if (input$layerType5 != "")
 {if (input$layerType5 == "Dropout") {cat("Layer n° 5 is a", input$layerType5, "layer, with a", input$dropout5, "dropout value.", "\n\n")} else
-  {cat("Layer n° 5 is a", input$layerType5, "layer, with", input$neurons5, "neurons and a", input$activation, "activation funcion.", "\n\n")}}
+  {cat("Layer n° 5 is a", input$layerType5, "layer, with", input$neurons5, "neurons and a", input$activation, "activation function.", "\n\n")}}
 
 cat("The network learning parameter has been set at a value of", input$learnParam, "meanwhile the maximum number of epochs for each run has been set at a value of", input$nEpochs, "epochs.", "\n\n")
 
 if (length(testfit_results) > 0 | length(traintest_results) > 0) {cat("## Test Phase", "\n\n")}
 if (length(testfit_results) > 0) {
   cat("# Model Fit on whole dataset", "\n\n")
-  cat("Test run on whole dataset to assess the model fit by evaluating mean squared error (MSE) and mean absolute error (MAE).", "\n\n")
+  cat("The final chronological block is used for validation and early stopping; the selected epoch count is then used to refit the model on the whole available dataset.", "\n\n")
 }
 
 if (length(traintest_results) > 0) {
   cat("# Test on observed years", "\n\n")
-  cat("Test run on train and test datasets (last", input$depthTest, "years of the whole).", "\n\n")
-  for (i in 1:length(traintest_plots)) {
+  report_split <- temporalSplitDefinition(
+    nrow(neuralNetInputs) - as.integer(input$depthTest)
+  )
+  cat(
+    "Recursive holdout test on the last", input$depthTest,
+    "years, based on 30 reproducible initializations. The adaptive temporal split uses",
+    report_split$lookback, "lookback year(s),", report_split$n_training,
+    "training target(s) and", report_split$n_validation,
+    paste(
+      "validation target(s). The neural network predicts the complete",
+      "abundance-at-age vector under a pre-holdout reference F. Each held-out",
+      "vector is corrected from reference F to historical source-year F; the",
+      "terminal plus-group uses a weighted two-source correction. Held-out",
+      "catches are reconstructed with the Baranov equation rather than read",
+      "from observations."
+    ),
+    "\n\n"
+  )
+  if (isTRUE(report_split$short_series)) {
+    cat("**Short-series warning:** this run is exploratory because fewer than eight supervised training targets are available.", "\n\n")
+  }
+  for (i in seq_along(traintest_plots)) {
     sp <- species[[i]]
     cat("Results for", sp)
     print(traintest_plots[[i]])
@@ -54,32 +74,64 @@ cat("\\newpage")
 if (length(f_tot) > 0) {
   cat("## Forecast Phase", "\n\n")
   
-  cat("Fishing Mortality table (estimated Fmort on the last", fmort_baseline, "years):", "\n\n")
-  print(knitr::kable(f_tot, digits = 3))
+  cat("Fishing Mortality baseline and first applied scenario year (estimated over the last", fmort_baseline, "years):", "\n\n")
+  mortality_summary <- f_tot
+  if (length(pred_results) > 0 && nrow(f_applied) > 0L) {
+    first_applied <- f_applied[1L, -1L, drop = FALSE]
+    mortality_summary <- t(rbind(
+      f_new, first_applied, round(first_applied / f_new, 2)
+    ))
+    colnames(mortality_summary) <- c("Calculated", "Adjusted", "Multiplier")
+    rownames(mortality_summary) <- gsub("_F", "_GSA", rownames(mortality_summary))
+  }
+  print(knitr::kable(mortality_summary, digits = 3))
   cat("\n\n")
   
   if (length(pred_results) > 0) {
-    cat("Prediction on", depth_pred, "years after 3 iterations:", "\n\n")
+    cat("Fishing mortality used for the plotted forecast:", "\n\n")
+    print(knitr::kable(f_applied, digits = 3))
+    cat("\n\n")
+    n_iterations <- if (is.data.frame(pred_iter_partial) && "iter" %in% names(pred_iter_partial)) {
+      length(unique(pred_iter_partial$iter))
+    } else {
+      NA_integer_
+    }
+    cat(
+      "Counterfactual prediction on", depth_pred, "years after", n_iterations,
+      paste(
+        "independent initialization(s). The neural network supplies the full",
+        "abundance-at-age vector under reference F. Relative-survival factors",
+        "map every non-recruit abundance to scenario F; Baranov catches and",
+        "spawning-time SSB use the same selected scenario:"
+      ),
+      "\n\n"
+    )
     
-    for (i in 1:length(pred_results)) {
+    for (i in seq_along(pred_results)) {
 
-      subpred = pred_results[[i]]
+      subpred <- pred_results[[i]]
       
-      pred = mean(as.integer(subpred[nrow(subpred), 4:6]))
-      obs = mean(as.integer(subpred[which(subpred$type == "Observed" & subpred$year == max(neuralNetInputs$year)), 4:6]))
+      pred <- as.numeric(subpred$ssb_mean[nrow(subpred)])
+      observed_row <- which(
+        subpred$type == "Observed" &
+          subpred$year == max(neuralNetInputs$year)
+      )
+      obs <- as.numeric(subpred$ssb_mean[utils::tail(observed_row, 1L)])
     
-      if (pred > obs) {
-        cat("The population of", subpred$species[i], "in year", max(subpred$year), "increases by",
+      if (!is.finite(obs) || obs <= 0) {
+        cat("The percentage change in SSB cannot be calculated because the last observed SSB is not positive.")
+      } else if (pred > obs) {
+        cat("The SSB of", subpred$species[1], "in year", max(subpred$year), "increases by",
             (round(pred/obs, 2) * 100 - 100), "percent")
         } else {
-          cat("The population of", subpred$species[i], "in year", max(subpred$year), "decreases by",
+          cat("The SSB of", subpred$species[1], "in year", max(subpred$year), "decreases by",
               (round(pred/obs, 2) * 100 - 100) * (-1), "percent")
         }
     
       cat("\n\n")
       print(plotPred(subpred, neuralNetInputs, i))
     
-      cat("Stock/Recruitment Ratio for", subpred$species[i], "\n\n")
+      cat("Stock/Recruitment Ratio for", subpred$species[1], "\n\n")
       print(plotRecruitment(subpred, i, as.integer(depth_pred)))
       cat("\n\n\\newpage\n")
       }
@@ -88,6 +140,7 @@ if (length(f_tot) > 0) {
 
 if(length(sens_results) > 0) {
   cat("## Sensitivity analysis", "\n\n")
+  cat("Finite-difference sensitivity is reported across the complete neural-network abundance-at-age output vector; scenario-F corrections are applied after the neural prediction.", "\n\n")
   plotSensAnalysis(sens_results)
   }
 ```

@@ -1,41 +1,81 @@
 # Maelstrom
 
-Multi-species predictive stock assessment model based on a customizable neural network and built as a ShinyApp.
+Multi-species predictive stock assessment model based on a customizable neural
+network and built as an R Shiny application.
+
+Associated publication:
+[MAELSTROM, a machine learning-based approach for stock assessment](https://doi.org/10.3389/fmars.2026.1873011).
 
 ### Prerequisites
 
-To run the ShinyApp you have to download all the files in this repository, open **server.R** and run all the libraries in the first lines of the script, nested within the **LIBRARIES** section, then click on the "Run App" button on the top right of the main RStudio panel..
+1. Select **Code → Download ZIP** from the
+   [GitHub repository](https://github.com/rlabtorvergata/Maelstrom).
+2. Extract the complete archive into a new folder.
+3. Install a recent version of R (R >= 4.3 is recommended) and RStudio.
+4. Open the extracted application folder in RStudio.
+5. In a fresh R session, run:
 
-> [!IMPORTANT]
-> Some packages, listed below, require a slightly more complex installation.
-
-To install the *FLCore* package and its dependencies, you can run the following line of code:
-
-```         
-remotes::install_github("flr/FLCore")
+```r
+Sys.setenv(MAELSTROM_INSTALL_KERAS = "true")
+source("bootstrap.R")
 ```
 
-as specified in the [FLCore Github page](https://github.com/flr/FLCore).
+The script installs the required R packages and, on the first installation,
+the Keras/TensorFlow backend. Restart R after the installation.
 
-To install *Keras* and *Tensorflow* packages, you have to install first Python on your PC. You can download it on its [website](https://www.python.org/downloads/); it is advised to download the latest stable version, which usually is **two** versions before the current.
+To start the application, run:
 
-After installing Python, you can install the libraries **keras3** and **tensorflow** via the RStudio installer, then you have to run the following functions in a fresh R session:
-
-```         
-install_tensorflow()
-install_keras()
+```r
+shiny::runApp()
 ```
 
-After that, both FLR and Keras/Tensorflow should be totally functioning.
+Alternatively, open `server.R` or `ui.R` and click **Run App** in RStudio.
 
-Further instructions on how to use the ShinyApp can be found inside the application by clicking the **Instruction** button on the first screen.
+> **Important**
+>
+> If FLCore or the Keras backend cannot be installed automatically, run:
 
-> [!NOTE]
-> To print the final report, you must have installed the latest version of [MikTeX](https://miktex.org/download) on your PC. During the installation, check the "all users" button, even if the compiler states that it's a bad idea. After the installation, open the MikTeX console and install all the updates, then open Rstudio.
+```r
+install.packages(
+  "FLCore",
+  repos = c("https://flr.r-universe.dev", "https://cloud.r-project.org")
+)
 
-### Data Formatting
+install.packages("keras3")
+keras3::install_keras(backend = "tensorflow")
+```
 
-You can find three sample input datasets in the repository folder **Sample Data**. These datasets are stock objects used during STECF EWG 23-09, and can be found in the relative [Annex](https://stecf.jrc.ec.europa.eu/documents/d/stecf/stecf-23-09-annex_i).
+Further instructions are available inside the application through the
+**Instruction** button.
 
-> [!WARNING]
-> Due to code necessities, input stock objects must be formatted as following: 3ACODE_GSA1-GSA2-GSA3.rds or .rdata (e.g. for *Parapenaeus longirostris* in GSAs 9, 10 and 11, the file must be named DPS_9-10-11.rds).
+> **Note**
+>
+> Exporting the final PDF report requires a LaTeX distribution such as MiKTeX
+> or TinyTeX. TinyTeX can be installed from R with:
+
+```r
+tinytex::install_tinytex()
+```
+
+### Data formatting
+
+Input files must contain a valid FLStock object and may use `.rds`, `.RData`
+or `.rda` format.
+
+Stock filenames must follow the original convention:
+
+```text
+3ACODE_GSA1-GSA2-GSA3.rds
+```
+
+For example:
+
+```text
+DPS_9-10-11.rds
+```
+
+Sample stock objects are available in the `Sample Data` directory.
+
+Optional fishing-mortality schedules must contain forecast years in rows and
+stock/cohort F features in columns. If the schedule is shorter than the
+forecast, its final row is carried forward; unused additional rows are ignored.
