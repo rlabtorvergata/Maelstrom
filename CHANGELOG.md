@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.1] Hotfix
+
+### Fixed
+
+- Allowed separate files for the same species in distinct GSAs while rejecting overlapping species/GSA assignments.
+- Matched SSB inputs and recruitment by species, GSA, year and cohort.
+- Labeled test, forecast, sensitivity and report outputs with each stock's GSA.
+- Cleared older cached results on session import so affected SSB and metrics are recalculated with the corrected stock identity.
+
 ## [1.2.0] — Changes from the previously published GitHub version
 
 ### Model changes
