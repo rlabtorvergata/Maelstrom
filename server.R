@@ -32,8 +32,8 @@ options(max.print = 99999)
 server <- function(input, output, session) {
 
   ##### VARIABLES #####
-  
-  app_version <- "1.2.0"
+
+  app_version <- "1.2.1"
   base_seed <- 123L
   ensemble_iterations <- 30L
   maximum_lookback <- 5L
@@ -1025,6 +1025,70 @@ server <- function(input, output, session) {
     bounds <- stats::quantile(values, probs = c(0.05, 0.95),
                               names = FALSE, type = 8)
     c(lower = bounds[1L], mean = mean(values), upper = bounds[2L])
+  }
+
+  stockKey <- function(species_code, gsa_code) {
+    paste(as.character(species_code), as.character(gsa_code), sep = "\r")
+  }
+
+  stockYearKey <- function(data) {
+    paste(stockKey(data$species, data$gsa), as.character(data$year),
+          sep = "\r")
+  }
+
+  stockYearAgeKey <- function(data) {
+    paste(stockYearKey(data), as.character(data$age), sep = "\r")
+  }
+
+  stockYearTypeIterationKey <- function(data) {
+    paste(stockYearKey(data), as.character(data$type),
+          as.character(data$iter), sep = "\r")
+  }
+
+  matchedStockValues <- function(target, source, value_column) {
+    source_key <- stockYearAgeKey(source)
+    if (anyDuplicated(source_key)) {
+      stop(sprintf("Duplicate species/GSA/year/age in %s.", value_column),
+           call. = FALSE)
+    }
+    positions <- match(stockYearAgeKey(target), source_key)
+    if (anyNA(positions)) {
+      stop(sprintf("Missing species/GSA/year/age in %s.", value_column),
+           call. = FALSE)
+    }
+    values <- as.numeric(source[[value_column]][positions])
+    if (any(!is.finite(values))) {
+      stop(sprintf("Non-finite values in %s.", value_column),
+           call. = FALSE)
+    }
+    values
+  }
+
+  spawningBiomassByCohort <- function(abundance, fishing, fishing_spawn,
+                                      natural, natural_spawn, weight, maturity) {
+    f <- matchedStockValues(abundance, fishing, "fmort")
+    fs <- matchedStockValues(abundance, fishing_spawn, "fmort_spawn")
+    m <- matchedStockValues(abundance, natural, "mort")
+    ms <- matchedStockValues(abundance, natural_spawn, "mort_spawn")
+    w <- matchedStockValues(abundance, weight, "weight_at_age")
+    mat <- matchedStockValues(abundance, maturity, "mature")
+    abundance$N <- abundance$N * exp(-(f * fs + m * ms)) * w * mat
+    abundance
+  }
+
+  attachRecruitment <- function(ssb, recruitment) {
+    source_key <- stockYearTypeIterationKey(recruitment)
+    if (anyDuplicated(source_key)) {
+      stop("Recruitment contains duplicate stock/year/type/iteration rows.",
+           call. = FALSE)
+    }
+    positions <- match(stockYearTypeIterationKey(ssb), source_key)
+    if (anyNA(positions)) {
+      stop("Recruitment could not be matched by stock and year.",
+           call. = FALSE)
+    }
+    ssb$recruitment <- recruitment$N[positions]
+    ssb
   }
 
   extendLastBiologicalYear <- function(data, depth) {
@@ -2477,9 +2541,11 @@ server <- function(input, output, session) {
     species <- population_metadata$species
     age <- as.character(population_metadata$age_numeric)
     gsa <- population_metadata$gsa
-    species_levels <- unique(species)
-    min_age_vec <- vapply(species_levels, function(species_code) {
-      min(population_metadata$age_numeric[population_metadata$species == species_code])
+    stock_levels <- unique(stockKey(species, gsa))
+    min_age_vec <- vapply(stock_levels, function(key) {
+      min(population_metadata$age_numeric[
+        stockKey(population_metadata$species, population_metadata$gsa) == key
+      ])
     }, numeric(1))
 
     niter <- ensemble_iterations
@@ -2579,43 +2645,24 @@ server <- function(input, output, session) {
       
       # Create recruitment dataframe
       
-      minimum_age_by_species <- stats::setNames(min_age_vec, species_levels)
-      recruitment_rows <- def_df$age == unname(
-        minimum_age_by_species[as.character(def_df$species)]
-      )
+      minimum_age_by_stock <- stats::setNames(min_age_vec, stock_levels)
+      recruitment_rows <- def_df$age == unname(minimum_age_by_stock[
+        stockKey(def_df$species, def_df$gsa)
+      ])
       recr_iter <- def_df[recruitment_rows, , drop = FALSE]
-      recr_iter <- recr_iter[order(recr_iter$species), ]
   
-      # Create total biomass dataframe
-      
-      ssb_df_convert <- data.frame()
-      ssb_iter <- def_df
-      ssb_species <- unique(ssb_iter$species)
-      
-      for (sp in seq_along(ssb_species)) {
-        ssb_iter_sub <- ssb_iter[which(ssb_iter$species == ssb_species[sp]),]
-        ssb_year <- sort(unique(ssb_iter_sub$year))
-        ssb_age <- sort(unique(ssb_iter_sub$age))
-        
-        for (y in seq_along(ssb_year)) {
-          for (a in seq_along(ssb_age)) {
-            ssb_iter_sub[which(ssb_iter_sub$year == ssb_year[y] & ssb_iter_sub$age == ssb_age[a]), "N"] <- ssb_iter_sub[which(ssb_iter_sub$year == ssb_year[y] & ssb_iter_sub$age == ssb_age[a]), "N"] * exp(-(fmort_l[which(fmort_l$year == ssb_year[y] & fmort_l$age == ssb_age[a] & fmort_l$species == unique(ssb_iter_sub$species)), "fmort"] * fmort_spawn_l[which(fmort_spawn_l$year == ssb_year[y] & fmort_spawn_l$age == ssb_age[a] & fmort_spawn_l$species == unique(ssb_iter_sub$species)), "fmort_spawn"] + mort_l[which(mort_l$year == ssb_year[y] & mort_l$age == ssb_age[a] & mort_l$species == unique(ssb_iter_sub$species)), "mort"] * mort_spawn_l[which(mort_spawn_l$year == ssb_year[y] & mort_spawn_l$age == ssb_age[a] & mort_spawn_l$species == unique(ssb_iter_sub$species)), "mort_spawn"])) * waa_l[which(waa_l$year == ssb_year[y] & waa_l$age == ssb_age[a] & waa_l$species == unique(ssb_iter_sub$species)), "weight_at_age"] * mature_l[which(mature_l$year == ssb_year[y] & mature_l$age == ssb_age[a] & mature_l$species == unique(ssb_iter_sub$species)), "mature"]
-          }
-        }
-        if (sp == 1) {
-          ssb_df_convert <- ssb_iter_sub
-        } else {
-          ssb_df_convert <- rbind(ssb_df_convert, ssb_iter_sub)
-        }
-      }
-      colnames(ssb_df_convert)[2] <- "ssb"
-      
-      ssb_df = aggregate(data = ssb_df_convert, ssb ~ year + species + gsa + type + iter, FUN = "sum")
-      ssb_df = ssb_df[order(ssb_df$species),]
+      # Match biological inputs by species, GSA, year and cohort.
+      ssb_df_convert <- spawningBiomassByCohort(
+        def_df, fmort_l, fmort_spawn_l, mort_l, mort_spawn_l,
+        waa_l, mature_l
+      )
+      names(ssb_df_convert)[names(ssb_df_convert) == "N"] <- "ssb"
+      ssb_df <- aggregate(
+        ssb ~ year + species + gsa + type + iter,
+        data = ssb_df_convert, FUN = "sum"
+      )
+      ssb_df <- attachRecruitment(ssb_df, recr_iter)
 
-      ssb_df$recruitment <- NA
-      ssb_df$recruitment <- recr_iter$N
-      
       if (iter == 1) {
         ssb_df_tot <- ssb_df
       } else {
@@ -2626,87 +2673,52 @@ server <- function(input, output, session) {
     })
     
     traintest_output_raw <<- traintest_df_raw
-    traintest_iter_results <<- vector(mode = "list", length = length(unique(species)))
-    for (sp in seq_along(unique(species))) {
-      traintest_iter_results[[sp]] <<- ssb_df_tot[which(ssb_df_tot$species == unique(species)[sp]),]
-    }
-    
-    proj_biomass_spec <- list()
-    
-    if (length(unique(species)) == 1) {
-      
-      sp_biomass_sub <- ssb_df_tot
-      rows_per_series <- as.integer(nrow(sp_biomass_sub) / (niter * 2L))
-      series_rows <- seq_len(rows_per_series)
-      sp_biomass_wide <- data.frame(year = sp_biomass_sub$year[series_rows],
-                                    species = sp_biomass_sub$species[series_rows],
-                                    gsa = sp_biomass_sub$gsa[series_rows],
-                                    ssb_obs = sp_biomass_sub$ssb[which(sp_biomass_sub$type == "Observed" & sp_biomass_sub$iter == 1)],
-                                    recr_obs = sp_biomass_sub$recruitment[which(sp_biomass_sub$type == "Observed" & sp_biomass_sub$iter == 1)],
-                                    ssb_min = NA, ssb_mean = NA, ssb_max = NA,
-                                    recr_min = NA, recr_mean = NA, recr_max = NA,
-                                    rmse_min = NA, rmse_mean = NA, rmse_max = NA,
-                                    mae_min = NA, mae_mean = NA, mae_max = NA)
-
-      for (i in seq_len(nrow(sp_biomass_wide))) {
-        predicted_rows <- which(sp_biomass_sub$year == sp_biomass_wide$year[i] &
-                                  sp_biomass_sub$type == "Predicted")
-        ssb_summary <- ensembleSummary(sp_biomass_sub[predicted_rows, "ssb"])
-        recruitment_summary <- ensembleSummary(sp_biomass_sub[predicted_rows, "recruitment"])
-        sp_biomass_wide[i, c("ssb_min", "ssb_mean", "ssb_max")] <- ssb_summary
-        sp_biomass_wide[i, c("recr_min", "recr_mean", "recr_max")] <- recruitment_summary
+    traintest_iter_results <<- lapply(stock_levels, function(key) {
+      ssb_df_tot[stockKey(ssb_df_tot$species, ssb_df_tot$gsa) == key,
+                 , drop = FALSE]
+    })
+    proj_biomass_spec <- lapply(traintest_iter_results, function(stock_data) {
+      observed <- stock_data[
+        stock_data$type == "Observed" & stock_data$iter == 1L,
+        , drop = FALSE
+      ]
+      observed <- observed[order(observed$year), , drop = FALSE]
+      if (!nrow(observed) || anyDuplicated(observed$year)) {
+        stop("Backtest SSB must have one observed value per stock/year.",
+             call. = FALSE)
       }
-      
-      results_incasting <- sp_biomass_wide[(nrow(sp_biomass_wide) - (depthTest - 1)):nrow(sp_biomass_wide), c("ssb_obs", "ssb_min", "ssb_mean", "ssb_max")]
-      sp_biomass_wide$rmse_min <- round(rmse(results_incasting$ssb_obs, results_incasting$ssb_min), 2)
-      sp_biomass_wide$rmse_mean <- round(rmse(results_incasting$ssb_obs, results_incasting$ssb_mean), 2)
-      sp_biomass_wide$rmse_max <- round(rmse(results_incasting$ssb_obs, results_incasting$ssb_max), 2)
-      sp_biomass_wide$mae_min <- round(mae(results_incasting$ssb_obs, results_incasting$ssb_min), 2)
-      sp_biomass_wide$mae_mean <- round(mae(results_incasting$ssb_obs, results_incasting$ssb_mean), 2)
-      sp_biomass_wide$mae_max <- round(mae(results_incasting$ssb_obs, results_incasting$ssb_max), 2)
-      
-      proj_biomass_spec[[1]] <- sp_biomass_wide
-      
-    } else {
-      
-      for (sp in seq_along(unique(species))) {
-        
-        sp_biomass_sub <- ssb_df_tot[which(ssb_df_tot$species == unique(species)[sp]),]
-        rows_per_series <- as.integer(nrow(sp_biomass_sub) / (niter * 2L))
-        series_rows <- seq_len(rows_per_series)
-        sp_biomass_wide <- data.frame(year = sp_biomass_sub$year[series_rows],
-                                      species = sp_biomass_sub$species[series_rows],
-                                      gsa = sp_biomass_sub$gsa[series_rows],
-                                      ssb_obs = sp_biomass_sub$ssb[which(sp_biomass_sub$type == "Observed" & sp_biomass_sub$iter == 1)],
-                                      recr_obs = sp_biomass_sub$recruitment[which(sp_biomass_sub$type == "Observed" & sp_biomass_sub$iter == 1)],
-                                      ssb_min = NA, ssb_mean = NA, ssb_max = NA,
-                                      recr_min = NA, recr_mean = NA, recr_max = NA,
-                                      rmse_min = NA, rmse_mean = NA, rmse_max = NA,
-                                      mae_min = NA, mae_mean = NA, mae_max = NA)
-        
-        for (i in seq_len(nrow(sp_biomass_wide))) {
-          predicted_rows <- which(sp_biomass_sub$year == sp_biomass_wide$year[i] &
-                                    sp_biomass_sub$type == "Predicted")
-          ssb_summary <- ensembleSummary(sp_biomass_sub[predicted_rows, "ssb"])
-          recruitment_summary <- ensembleSummary(sp_biomass_sub[predicted_rows, "recruitment"])
-          sp_biomass_wide[i, c("ssb_min", "ssb_mean", "ssb_max")] <- ssb_summary
-          sp_biomass_wide[i, c("recr_min", "recr_mean", "recr_max")] <- recruitment_summary
+      wide <- data.frame(
+        year = observed$year, species = observed$species, gsa = observed$gsa,
+        ssb_obs = observed$ssb, recr_obs = observed$recruitment,
+        ssb_min = NA_real_, ssb_mean = NA_real_, ssb_max = NA_real_,
+        recr_min = NA_real_, recr_mean = NA_real_, recr_max = NA_real_,
+        rmse_min = NA_real_, rmse_mean = NA_real_, rmse_max = NA_real_,
+        mae_min = NA_real_, mae_mean = NA_real_, mae_max = NA_real_
+      )
+      for (row in seq_len(nrow(wide))) {
+        prediction <- stock_data[
+          stock_data$year == wide$year[row] &
+            stock_data$type == "Predicted", , drop = FALSE
+        ]
+        if (nrow(prediction) != niter) {
+          stop("Backtest ensemble does not have one value per stock/year/iteration.",
+               call. = FALSE)
         }
-        
-        results_incasting <- sp_biomass_wide[(nrow(sp_biomass_wide) - (depthTest - 1)):nrow(sp_biomass_wide), c("ssb_obs", "ssb_min", "ssb_mean", "ssb_max")]
-        sp_biomass_wide$rmse_min <- round(rmse(results_incasting$ssb_obs, results_incasting$ssb_min), 2)
-        sp_biomass_wide$rmse_mean <- round(rmse(results_incasting$ssb_obs, results_incasting$ssb_mean), 2)
-        sp_biomass_wide$rmse_max <- round(rmse(results_incasting$ssb_obs, results_incasting$ssb_max), 2)
-        sp_biomass_wide$mae_min <- round(mae(results_incasting$ssb_obs, results_incasting$ssb_min), 2)
-        sp_biomass_wide$mae_mean <- round(mae(results_incasting$ssb_obs, results_incasting$ssb_mean), 2)
-        sp_biomass_wide$mae_max <- round(mae(results_incasting$ssb_obs, results_incasting$ssb_max), 2)
-        
-        proj_biomass_spec[[sp]] <- sp_biomass_wide
-        
+        wide[row, c("ssb_min", "ssb_mean", "ssb_max")] <-
+          ensembleSummary(prediction$ssb)
+        wide[row, c("recr_min", "recr_mean", "recr_max")] <-
+          ensembleSummary(prediction$recruitment)
       }
-      
-    }
-    
+      holdout <- utils::tail(wide, depthTest)
+      wide$rmse_min <- round(rmse(holdout$ssb_obs, holdout$ssb_min), 2)
+      wide$rmse_mean <- round(rmse(holdout$ssb_obs, holdout$ssb_mean), 2)
+      wide$rmse_max <- round(rmse(holdout$ssb_obs, holdout$ssb_max), 2)
+      wide$mae_min <- round(mae(holdout$ssb_obs, holdout$ssb_min), 2)
+      wide$mae_mean <- round(mae(holdout$ssb_obs, holdout$ssb_mean), 2)
+      wide$mae_max <- round(mae(holdout$ssb_obs, holdout$ssb_max), 2)
+      wide
+    })
+
     return(proj_biomass_spec)
     
   }
@@ -3121,9 +3133,11 @@ server <- function(input, output, session) {
     species <- population_metadata$species
     age <- as.character(population_metadata$age_numeric)
     gsa <- population_metadata$gsa
-    species_levels <- unique(species)
-    min_age_vec <- vapply(species_levels, function(species_code) {
-      min(population_metadata$age_numeric[population_metadata$species == species_code])
+    stock_levels <- unique(stockKey(species, gsa))
+    min_age_vec <- vapply(stock_levels, function(key) {
+      min(population_metadata$age_numeric[
+        stockKey(population_metadata$species, population_metadata$gsa) == key
+      ])
     }, numeric(1))
 
     model_pred <<- vector("list", forecast_iterations)
@@ -3208,75 +3222,51 @@ server <- function(input, output, session) {
         proj_df[which(proj_df$type == "Observed"), "N"] = as.numeric(data.matrix(netInputs[, grep("_N", names(netInputs))]))
 
         # Create recruitment dataframe
-        minimum_age_by_species <- stats::setNames(min_age_vec, species_levels)
-        recruitment_rows <- proj_df$age == unname(
-          minimum_age_by_species[as.character(proj_df$species)]
-        )
+        minimum_age_by_stock <- stats::setNames(min_age_vec, stock_levels)
+        recruitment_rows <- proj_df$age == unname(minimum_age_by_stock[
+          stockKey(proj_df$species, proj_df$gsa)
+        ])
         recr_iter <- proj_df[recruitment_rows, , drop = FALSE]
-        recr_iter <- recr_iter[order(recr_iter$species), ]
         
-        # Create total biomass dataframe
-        proj_df_convert <- data.frame()
-        ssb_iter <- proj_df
-        
-        ssb_species <- unique(ssb_iter$species)
-        
-        for (sp in seq_along(ssb_species)) {
-          ssb_iter_sub <- ssb_iter[which(ssb_iter$species == ssb_species[sp]),]
-          ssb_year <- sort(unique(ssb_iter_sub$year))
-          ssb_age <- sort(unique(ssb_iter_sub$age))
-
-          stock_code <- ssb_species[sp]
+        # Compute each stock independently, including repeated species codes.
+        ssb_blocks <- lapply(stock_levels, function(key) {
+          ssb_iter_sub <- proj_df[
+            stockKey(proj_df$species, proj_df$gsa) == key, , drop = FALSE
+          ]
+          stock_code <- unique(as.character(ssb_iter_sub$species))
           stock_gsa <- unique(as.character(ssb_iter_sub$gsa))
-          if (length(stock_gsa) != 1L) {
-            stop("Forecast SSB requires one GSA per stock.", call. = FALSE)
+          if (length(stock_code) != 1L || length(stock_gsa) != 1L) {
+            stop("Forecast SSB requires one species/GSA per stock.",
+                 call. = FALSE)
           }
-          fmort_ssb <- extendScenarioFishingMortality(
-            historical_data = fmort_l[
-              fmort_l$species == stock_code, , drop = FALSE
-            ],
+          stock_rows <- function(data) {
+            data[stockKey(data$species, data$gsa) == key, , drop = FALSE]
+          }
+          fishing <- extendScenarioFishingMortality(
+            historical_data = stock_rows(fmort_l),
             scenario_schedule = fishing_schedule,
             last_observed_year = last_observed_year,
             depth = depth,
             species_code = stock_code,
             gsa_code = stock_gsa
           )
-          fmort_spawn_ssb <- extendLastBiologicalYear(
-            fmort_spawn_l[fmort_spawn_l$species == stock_code, , drop = FALSE], depth
+          spawningBiomassByCohort(
+            ssb_iter_sub, fishing,
+            extendLastBiologicalYear(stock_rows(fmort_spawn_l), depth),
+            extendLastBiologicalYear(stock_rows(mort_l), depth),
+            extendLastBiologicalYear(stock_rows(mort_spawn_l), depth),
+            extendLastBiologicalYear(stock_rows(waa_l), depth),
+            extendLastBiologicalYear(stock_rows(mature_l), depth)
           )
-          mort_ssb <- extendLastBiologicalYear(
-            mort_l[mort_l$species == stock_code, , drop = FALSE], depth
-          )
-          mort_spawn_ssb <- extendLastBiologicalYear(
-            mort_spawn_l[mort_spawn_l$species == stock_code, , drop = FALSE], depth
-          )
-          waa_ssb <- extendLastBiologicalYear(
-            waa_l[waa_l$species == stock_code, , drop = FALSE], depth
-          )
-          mature_ssb <- extendLastBiologicalYear(
-            mature_l[mature_l$species == stock_code, , drop = FALSE], depth
-          )
-          
-          for (y in seq_along(ssb_year)) {
-            for (a in seq_along(ssb_age)) {
-              ssb_iter_sub[which(ssb_iter_sub$year == ssb_year[y] & ssb_iter_sub$age == ssb_age[a]), "N"] <- ssb_iter_sub[which(ssb_iter_sub$year == ssb_year[y] & ssb_iter_sub$age == ssb_age[a]), "N"] * exp(-(fmort_ssb[which(fmort_ssb$year == ssb_year[y] & fmort_ssb$age == ssb_age[a]), "fmort"] * fmort_spawn_ssb[which(fmort_spawn_ssb$year == ssb_year[y] & fmort_spawn_ssb$age == ssb_age[a]), "fmort_spawn"] + mort_ssb[which(mort_ssb$year == ssb_year[y] & mort_ssb$age == ssb_age[a]), "mort"] * mort_spawn_ssb[which(mort_spawn_ssb$year == ssb_year[y] & mort_spawn_ssb$age == ssb_age[a]), "mort_spawn"])) * waa_ssb[which(waa_ssb$year == ssb_year[y] & waa_ssb$age == ssb_age[a]), "weight_at_age"] * mature_ssb[which(mature_ssb$year == ssb_year[y] & mature_ssb$age == ssb_age[a]), "mature"]
-            }
-          }
-          if (sp == 1) {
-            ssb_df_convert <- ssb_iter_sub
-          } else {
-            ssb_df_convert <- rbind(ssb_df_convert, ssb_iter_sub)
-          }
-          }
-        
-          colnames(ssb_df_convert)[2] <- "ssb"
-          
-          ssb_df = aggregate(data = ssb_df_convert, ssb ~ year + species + gsa + type + iter, FUN = "sum")
-          ssb_df = ssb_df[order(ssb_df$species),]
-          
-          ssb_df$recruitment <- NA
-          ssb_df$recruitment <- recr_iter$N
-          
+        })
+        ssb_df_convert <- do.call(rbind, ssb_blocks)
+        names(ssb_df_convert)[names(ssb_df_convert) == "N"] <- "ssb"
+        ssb_df <- aggregate(
+          ssb ~ year + species + gsa + type + iter,
+          data = ssb_df_convert, FUN = "sum"
+        )
+        ssb_df <- attachRecruitment(ssb_df, recr_iter)
+
           if (iter == 1) {
             ssb_df_tot <- ssb_df
           } else {
@@ -3287,57 +3277,42 @@ server <- function(input, output, session) {
       })
     
     pred_iter_partial <<- ssb_df_tot
-    
-    proj_biomass_spec <- list()
-    
-    if (length(unique(species)) == 1) {
-      
-      sp_biomass_sub <- ssb_df_tot
-      rows_per_iteration <- nrow(sp_biomass_sub) / forecast_iterations
-      sp_biomass_wide <- data.frame(year = sp_biomass_sub$year[seq_len(rows_per_iteration)],
-                                    species = sp_biomass_sub$species[seq_len(rows_per_iteration)],
-                                    gsa = sp_biomass_sub$gsa[seq_len(rows_per_iteration)],
-                                    type = sp_biomass_sub$type[seq_len(rows_per_iteration)],
-                                    ssb_min = NA, ssb_mean = NA, ssb_max = NA,
-                                    recr_min = NA, recr_mean = NA, recr_max = NA)
-      
-      for (i in seq_len(nrow(sp_biomass_wide))) {
-        year_rows <- which(sp_biomass_sub$year == sp_biomass_wide$year[i])
-        ssb_summary <- ensembleSummary(sp_biomass_sub[year_rows, "ssb"])
-        recruitment_summary <- ensembleSummary(sp_biomass_sub[year_rows, "recruitment"])
-        sp_biomass_wide[i, c("ssb_min", "ssb_mean", "ssb_max")] <- ssb_summary
-        sp_biomass_wide[i, c("recr_min", "recr_mean", "recr_max")] <- recruitment_summary
+    proj_biomass_spec <- lapply(stock_levels, function(key) {
+      stock_data <- ssb_df_tot[
+        stockKey(ssb_df_tot$species, ssb_df_tot$gsa) == key,
+        , drop = FALSE
+      ]
+      first_iteration <- stock_data[stock_data$iter == 1L,
+                                    , drop = FALSE]
+      first_iteration <- first_iteration[order(first_iteration$year),
+                                          , drop = FALSE]
+      if (!nrow(first_iteration) || anyDuplicated(first_iteration$year)) {
+        stop("Forecast SSB must have one value per stock/year/iteration.",
+             call. = FALSE)
       }
-      
-      proj_biomass_spec[[1]] <- sp_biomass_wide
-      
-    } else {
-      
-      for (j in seq_along(unique(species))) {
-        
-        sp_biomass_sub <- ssb_df_tot[which(ssb_df_tot$species == unique(species)[j]), ]
-        rows_per_iteration <- nrow(sp_biomass_sub) / forecast_iterations
-        sp_biomass_wide <- data.frame(year = sp_biomass_sub$year[seq_len(rows_per_iteration)],
-                                      species = sp_biomass_sub$species[seq_len(rows_per_iteration)],
-                                      gsa = sp_biomass_sub$gsa[seq_len(rows_per_iteration)],
-                                      type = sp_biomass_sub$type[seq_len(rows_per_iteration)],
-                                      ssb_min = NA, ssb_mean = NA, ssb_max = NA,
-                                      recr_min = NA, recr_mean = NA, recr_max = NA)
-        
-        for (i in seq_len(nrow(sp_biomass_wide))) {
-          year_rows <- which(sp_biomass_sub$year == sp_biomass_wide$year[i])
-          ssb_summary <- ensembleSummary(sp_biomass_sub[year_rows, "ssb"])
-          recruitment_summary <- ensembleSummary(sp_biomass_sub[year_rows, "recruitment"])
-          sp_biomass_wide[i, c("ssb_min", "ssb_mean", "ssb_max")] <- ssb_summary
-          sp_biomass_wide[i, c("recr_min", "recr_mean", "recr_max")] <- recruitment_summary
+      wide <- data.frame(
+        year = first_iteration$year,
+        species = first_iteration$species,
+        gsa = first_iteration$gsa,
+        type = first_iteration$type,
+        ssb_min = NA_real_, ssb_mean = NA_real_, ssb_max = NA_real_,
+        recr_min = NA_real_, recr_mean = NA_real_, recr_max = NA_real_
+      )
+      for (row in seq_len(nrow(wide))) {
+        sample <- stock_data[stock_data$year == wide$year[row],
+                             , drop = FALSE]
+        if (nrow(sample) != forecast_iterations) {
+          stop("Forecast ensemble does not have one value per stock/year/iteration.",
+               call. = FALSE)
         }
-        
-        proj_biomass_spec[[j]] <- sp_biomass_wide
-        
+        wide[row, c("ssb_min", "ssb_mean", "ssb_max")] <-
+          ensembleSummary(sample$ssb)
+        wide[row, c("recr_min", "recr_mean", "recr_max")] <-
+          ensembleSummary(sample$recruitment)
       }
-      
-    }
-    
+      wide
+    })
+
     f_applied <<- fishing_schedule
     return(proj_biomass_spec)
   }
@@ -3466,7 +3441,11 @@ server <- function(input, output, session) {
     }
     featureSpecies <- function(feature_name) {
       if (startsWith(feature_name, "PrP_")) return("Environment")
-      sub("_.*$", "", feature_name)
+      parts <- strsplit(feature_name, "_", fixed = TRUE)[[1L]]
+      if (length(parts) >= 4L) {
+        return(paste0(parts[[1L]], " — GSA ", parts[[length(parts)]]))
+      }
+      parts[[1L]]
     }
 
     withProgress(message = "Calculating...", value = 0, detail = "0%", {
@@ -3652,9 +3631,7 @@ server <- function(input, output, session) {
     output$plotSens <- renderPlot({
       sens_plots
       })
-    compatible_cache_schemas <- c(
-      "2.3.1-original-structure", "2.3.2-original-structure"
-    )
+    compatible_cache_schemas <- c("2.3.3-original-structure")
     if (!loaded_schema %in% compatible_cache_schemas) {
       depth_test <<- NULL
       plotTestCount <<- 0
@@ -3689,7 +3666,7 @@ server <- function(input, output, session) {
       showNotification(
         paste(
           "An earlier workspace version was loaded, but cached test and",
-          "forecast results were cleared because F scenario handling changed.",
+          "forecast results were cleared because stock/GSA handling changed.",
           "Run Train/Test and Forecast again."
         ),
         type = "warning",
@@ -4774,14 +4751,13 @@ server <- function(input, output, session) {
       )
       return(invisible(NULL))
     }
-    if (anyDuplicated(species_codes)) {
+    area_keys <- unlist(Map(function(code, areas) {
+      stockKey(code, areas)
+    }, species_codes, gsa), use.names = FALSE)
+    if (anyDuplicated(area_keys)) {
       showNotification(
-        paste(
-          "Each uploaded FLStock must have a unique species code.",
-          "Combine multiple GSAs for one species in a single FLStock/file."
-        ),
-        type = "error",
-        duration = 10
+        "The same species and GSA appear in more than one uploaded FLStock.",
+        type = "error", duration = 10
       )
       return(invisible(NULL))
     }
@@ -5094,7 +5070,7 @@ server <- function(input, output, session) {
         output$pickFmort <- renderUI({
           pickerInput(inputId = "pickFmort",
                       label = NULL,
-                      choices = c(species, colnames(data.frame(as.list(f_new)))),
+                      choices = colnames(f_new),
                       options = list(style = "btn-primary"))
           })
         }
@@ -5106,9 +5082,9 @@ server <- function(input, output, session) {
                   !length(input$pickFmort)) {
         integer(0)
       } else {
-        grep(input$pickFmort, colnames(f_adj), fixed = TRUE)
+        match(input$pickFmort, colnames(f_adj))
       }
-      if (!length(pick)) return(invisible(NULL))
+      if (!length(pick) || is.na(pick)) return(invisible(NULL))
       if (nrow(f_adj) > 1L) {
         f_adj <<- f_new
         f_adj_display <<- f_adj
@@ -5414,7 +5390,7 @@ server <- function(input, output, session) {
       }
       traintest_metrics_plot <<- plotFitNet(traintest_metrics)
       output$showSpeciesTest <- renderText({
-        species[[plotTestCount]]
+        stockAreaLabel(traintest_results[[plotTestCount]])
       })
       output$plotTrainTest <- renderPlotly({
         asMaelstromPlotly(traintest_plots[[plotTestCount]])
@@ -5473,7 +5449,7 @@ server <- function(input, output, session) {
           taylor_diagram[[plotTestCount]]
         })
         output$showSpeciesTest <- renderText({
-          species[[plotTestCount]]
+          stockAreaLabel(traintest_results[[plotTestCount]])
         })
       } else {
         plotTestCount <<- plotTestCount - 1
@@ -5487,7 +5463,7 @@ server <- function(input, output, session) {
           taylor_diagram[[plotTestCount]]
         })
         output$showSpeciesTest <- renderText({
-          species[[plotTestCount]]
+          stockAreaLabel(traintest_results[[plotTestCount]])
         })
       }
     } else {
@@ -5514,7 +5490,7 @@ server <- function(input, output, session) {
           taylor_diagram[[plotTestCount]]
         })
         output$showSpeciesTest <- renderText({
-          species[[plotTestCount]]
+          stockAreaLabel(traintest_results[[plotTestCount]])
         })
       } else {
         plotTestCount <<- plotTestCount + 1
@@ -5528,7 +5504,7 @@ server <- function(input, output, session) {
           taylor_diagram[[plotTestCount]]
         })
         output$showSpeciesTest <- renderText({
-          species[[plotTestCount]]
+          stockAreaLabel(traintest_results[[plotTestCount]])
         })
       }
     } else {
@@ -5616,7 +5592,7 @@ server <- function(input, output, session) {
       })
       
       output$showSpeciesPred <- renderText({
-        species[[plotPredCount]]
+        stockAreaLabel(pred_results[[plotPredCount]])
       })
     
     } else {
@@ -5656,7 +5632,7 @@ server <- function(input, output, session) {
             pred_recr_plots[[plotPredCount]]
           })
           output$showSpeciesPred <- renderText({
-            species[[plotPredCount]]
+            stockAreaLabel(pred_results[[plotPredCount]])
           })
         } else {
           plotPredCount <<- plotPredCount - 1
@@ -5667,7 +5643,7 @@ server <- function(input, output, session) {
             pred_recr_plots[[plotPredCount]]
           })
           output$showSpeciesPred <- renderText({
-            species[[plotPredCount]]
+            stockAreaLabel(pred_results[[plotPredCount]])
           })
         }
     } else {
@@ -5691,7 +5667,7 @@ server <- function(input, output, session) {
             pred_recr_plots[[plotPredCount]]
           })
           output$showSpeciesPred <- renderText({
-            species[[plotPredCount]]
+            stockAreaLabel(pred_results[[plotPredCount]])
           })
         } else {
           plotPredCount <<- plotPredCount + 1
@@ -5702,7 +5678,7 @@ server <- function(input, output, session) {
             pred_recr_plots[[plotPredCount]]
           })
           output$showSpeciesPred <- renderText({
-            species[[plotPredCount]]
+            stockAreaLabel(pred_results[[plotPredCount]])
             })
         }
       
